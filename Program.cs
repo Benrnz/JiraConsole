@@ -1,25 +1,24 @@
-﻿// See https://aka.ms/new-console-template for more information
-
+﻿using System.Globalization;
 using System.Net.Http.Headers;
-using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using BensJiraConsole;
 using CsvHelper;
 
 public static class Program
 {
-    private const string BASE_URL = "https://javlnsupport.atlassian.net/rest/api/3/";
-    private const string DEFAULT_FOLDER = "C:\\Downloads\\JiraExports";
-    private static HttpClient Client = new();
-    
-    
+    private const string BaseUrl = "https://javlnsupport.atlassian.net/rest/api/3/";
+    private const string DefaultFolder = "C:\\Downloads\\JiraExports";
+    private static readonly HttpClient Client = new();
+
+
     public static async Task Main(string[] args)
     {
         try
         {
             var issues = await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET");
 
-            var fileName = $"{DEFAULT_FOLDER}\\BensJiraConsole-{DateTime.Now:yyyyMMddHHmmss}.csv";
+            var fileName = $"{DefaultFolder}\\BensJiraConsole-{DateTime.Now:yyyyMMddHHmmss}.csv";
             WriteCsv(fileName, issues);
             Console.WriteLine("Export completed!");
             Console.WriteLine(Path.GetFullPath(fileName));
@@ -38,7 +37,7 @@ public static class Program
                 return new List<JiraIssue>();
             case "1":
             case "JQL":
-                return await ExportJQLQuery();
+                return await ExportJqlQuery();
             case "2":
             case "PMPLAN":
                 return await ExportPmPlanMapping();
@@ -51,8 +50,8 @@ public static class Program
 
     private static async Task<List<JiraIssue>> ExportPmPlanMapping()
     {
-        Console.Write("Exporting a mapping of PMPlans to Stories.");
-        var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key"; 
+        Console.WriteLine("Exporting a mapping of PMPlans to Stories.");
+        var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
         var pmPlans = (await GetIssuesFromJiraAsync(jqlPmPlans)).Select(i => i.Key);
 
         var allIssues = new List<JiraIssue>();
@@ -68,32 +67,55 @@ public static class Program
         return allIssues;
     }
 
-    private static async Task<List<JiraIssue>> ExportJQLQuery()
+    private static async Task<List<JiraIssue>> ExportJqlQuery()
     {
         Console.Write("Enter your JQL query: ");
-        string jql = Console.ReadLine();
+        var jql = Console.ReadLine();
 
         var issues = await GetIssuesFromJiraAsync(jql);
         return issues;
     }
 
     // parent in (linkedIssues("PMPLAN-13")) AND issuetype=Story ORDER BY key
-    static async Task<List<JiraIssue>> GetIssuesFromJiraAsync(string jql)
+    private static async Task<List<JiraIssue>> GetIssuesFromJiraAsync(string jql)
     {
-        var url = $"{BASE_URL}search?jql={Uri.EscapeDataString(jql)}";
+        var url = $"{BaseUrl}search?jql={Uri.EscapeDataString(jql)}";
 
-        string email = Secrets.USERNAME;
-        string token = Secrets.JIRA_TOKEN;
-        string credentials = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{email}:{token}"));
+        var email = Secrets.USERNAME;
+        var token = Secrets.JIRA_TOKEN;
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{email}:{token}"));
 
         Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
 
-        var response = await Client.GetAsync(url);
+        var requestBody = new
+        {
+            expand = "names",
+            fields = new[]
+            {
+                "id",
+                "summary",
+                "status",
+                "issuetype",
+                "customfield_11934",
+                "parent",
+                "customfield_10004",
+                "Original Estimate",
+                "created"
+            },
+            fieldsByKeys = true,
+            jql = jql,
+            maxResults = 500,
+            nextPageToken = "",
+            reconcileIssues = new[] { 2154 }
+        };
+        var json = JsonSerializer.Serialize(requestBody);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await Client.PostAsync($"{BaseUrl}search", content);
         response.EnsureSuccessStatusCode();
 
-        var json = await response.Content.ReadAsStringAsync();
-        var jiraResponse = JsonSerializer.Deserialize<JiraResponse>(json);
-
+        var responseJson = await response.Content.ReadAsStringAsync();
+        var jiraResponse = JsonSerializer.Deserialize<JiraResponse>(responseJson);
 
         var output = new List<JiraIssue>();
         foreach (var issue in jiraResponse.Issues)
@@ -106,15 +128,21 @@ public static class Program
             ));
         }
 
+        if (jiraResponse.Issues.Count == 500)
+        {
+            Console.WriteLine("WARNING! More than 500 issues found. Only the first 500 are exported.");
+        }
+
         return output;
     }
 
-    static void WriteCsv(string path, List<JiraIssue> issues)
+    private static void WriteCsv(string path, List<JiraIssue> issues)
     {
         if (!Path.Exists(path))
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path));
         }
+
         using var writer = new StreamWriter(path);
         using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
         csv.WriteRecords(issues);
