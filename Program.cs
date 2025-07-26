@@ -16,8 +16,8 @@ public static class Program
     {
         try
         {
-            var email = Secrets.USERNAME;
-            var token = Secrets.JIRA_TOKEN;
+            var email = Secrets.Username;
+            var token = Secrets.JiraToken;
             var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{email}:{token}"));
 
             Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
@@ -58,13 +58,13 @@ public static class Program
     {
         Console.WriteLine("Exporting a mapping of PMPlans to Stories.");
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
-        var pmPlans = (await GetSearchJiraAsync(jqlPmPlans)).Select(i => i.Key);
+        var pmPlans = await PostSearchJiraIdeaAsync(jqlPmPlans, ["key", "summary", "customfield_11986"]);
 
         var allIssues = new List<JiraIssue>();
         foreach (var pmPlan in pmPlans)
         {
-            var jql = $"parent in (linkedIssues(\"{pmPlan}\")) AND issuetype=Story ORDER BY key";
-            var children = await PostSearchJiraAsync(jql);
+            var jql = $"parent in (linkedIssues(\"{pmPlan.Key}\")) AND issuetype=Story ORDER BY key";
+            var children = await PostSearchJiraIssueAsync(jql);
             Console.WriteLine($"Exported {children.Count} stories for {pmPlan}");
             children.ForEach(c => c.PmPlan = pmPlan);
             allIssues.AddRange(children);
@@ -81,7 +81,7 @@ public static class Program
         {
             return new List<JiraIssue>();
         }
-        var issues = await PostSearchJiraAsync(jql);
+        var issues = await PostSearchJiraIssueAsync(jql);
         return issues;
     }
 
@@ -94,7 +94,7 @@ public static class Program
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();
-        var jiraResponse = JsonSerializer.Deserialize<JiraResponse>(json);
+        var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(json);
 
         var output = new List<JiraIssue>();
         foreach (var issue in jiraResponse.Issues)
@@ -109,32 +109,21 @@ public static class Program
 
         return output;
     }
-    private static async Task<List<JiraIssue>> PostSearchJiraAsync(string jql)
+    private static async Task<List<JiraIssue>> PostSearchJiraIssueAsync(string jql, string[]? fields = null)
     {
-        var requestBody = new
-        {
-            fields = PreferredFields,
-            jql = jql,
-            maxResults = 500
-        };
-        var json = JsonSerializer.Serialize(requestBody);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        var response = await Client.PostAsync($"{BaseUrl}search", content);
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync();
-        var jiraResponse = JsonSerializer.Deserialize<JiraResponse>(responseJson);
+        var responseJson = await PostSearchJqlAsync(jql, fields);
+        var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(responseJson);
 
         var output = new List<JiraIssue>();
         foreach (var issue in jiraResponse.Issues)
         {
-            output.Add(new JiraIssue(
+            var jiraIssue = new JiraIssue(
                 issue.Key,
                 issue.Fields.Summary,
                 issue.Fields.Status?.Name ?? "Unknown",
                 issue.Fields.Assignee?.DisplayName ?? "Unassigned"
-            ));
+            );
+            output.Add(jiraIssue);
         }
 
         if (jiraResponse.Issues.Count == 500)
@@ -143,6 +132,58 @@ public static class Program
         }
 
         return output;
+    }
+
+    private static async Task<List<JiraPmPlan>> PostSearchJiraIdeaAsync(string jql, string[]? fields = null)
+    {
+        var responseJson = await PostSearchJqlAsync(jql, fields);
+        var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(responseJson);
+
+        var output = new List<JiraPmPlan>();
+        foreach (var issue in jiraResponse.Issues)
+        {
+            var required = issue.Fields?.IsRequiredForGoLive ?? 0;
+            var jiraIdea = new JiraPmPlan(
+                issue.Key,
+                issue.Fields?.Summary ?? string.Empty,
+                Math.Abs(required - 1) < 0.1
+            );
+
+            output.Add(jiraIdea);
+        }
+
+        if (jiraResponse.Issues.Count == 500)
+        {
+            Console.WriteLine("WARNING! More than 500 issues found. Only the first 500 are exported.");
+        }
+
+        return output;
+    }
+
+    private static async Task<string> PostSearchJqlAsync(string jql, string[]? fields)
+    {
+        var requestBody = new
+        {
+            fields = fields ?? PreferredFields,
+            jql = jql,
+            maxResults = 500
+        };
+        var json = JsonSerializer.Serialize(requestBody);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await Client.PostAsync($"{BaseUrl}search", content);
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine("ERROR!");
+            Console.WriteLine(response.StatusCode);
+            Console.WriteLine(response.ReasonPhrase);
+            Console.WriteLine(json);
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var responseJson = await response.Content.ReadAsStringAsync();
+        return responseJson;
     }
 
     private static string[] PreferredFields { get; } =

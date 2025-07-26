@@ -1,38 +1,44 @@
 ﻿using System.Text.Json.Serialization;
 
-public class JiraResponse
+public class JiraResponseDto
 {
     [JsonPropertyName("issues")]
-    public List<Issue> Issues { get; set; }
+    public List<IssueDto> Issues { get; set; }
 
-    public class Issue
+    [JsonPropertyName("isLast")]
+    public bool IsLastPage { get; set; }
+
+    public class IssueDto
     {
         [JsonPropertyName("key")]
         public string Key { get; set; }
 
         [JsonPropertyName("fields")]
-        public Fields Fields { get; set; }
+        public FieldsDto Fields { get; set; }
     }
 
-    public class Fields
+    public class FieldsDto
     {
         [JsonPropertyName("summary")]
         public string Summary { get; set; }
 
         [JsonPropertyName("status")]
-        public Status Status { get; set; }
+        public StatusDto Status { get; set; }
 
         [JsonPropertyName("assignee")]
-        public Assignee Assignee { get; set; }
+        public AssigneeDto Assignee { get; set; }
+
+        [JsonPropertyName("customfield_11986")]
+        public float? IsRequiredForGoLive { get; set; }
     }
 
-    public class Status
+    public class StatusDto
     {
         [JsonPropertyName("name")]
         public string Name { get; set; }
     }
 
-    public class Assignee
+    public class AssigneeDto
     {
         [JsonPropertyName("displayName")]
         public string DisplayName { get; set; }
