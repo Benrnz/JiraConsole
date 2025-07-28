@@ -69,7 +69,7 @@ public static class Program
     {
         Console.WriteLine("Exporting a mapping of PMPlans to Stories.");
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
-        var pmPlans = await PostSearchJiraIdeaAsync(jqlPmPlans, ["key", "summary", "customfield_11986"]);
+        var pmPlans = await PostSearchJiraIdeaAsync(jqlPmPlans, ["key", "summary", "customfield_11986", "customfield_12038", "customfield_12137"]);
 
         var allIssues = new List<JiraIssue>();
         foreach (var pmPlan in pmPlans)
@@ -97,44 +97,52 @@ public static class Program
         return issues;
     }
 
-    // parent in (linkedIssues("PMPLAN-13")) AND issuetype=Story ORDER BY key
-    private static async Task<List<JiraIssue>> GetSearchJiraAsync(string jql)
-    {
-        var url = $"{BaseUrl}search?jql={Uri.EscapeDataString(jql)}";
-
-        var response = await Client.GetAsync(url);
-        response.EnsureSuccessStatusCode();
-
-        var json = await response.Content.ReadAsStringAsync();
-        var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(json);
-
-        var output = new List<JiraIssue>();
-        foreach (var issue in jiraResponse.Issues)
-        {
-            output.Add(new JiraIssue(
-                issue.Key,
-                issue.Fields.Summary,
-                issue.Fields.Status?.Name ?? "Unknown",
-                issue.Fields.Assignee?.DisplayName ?? "Unassigned"
-            ));
-        }
-
-        return output;
-    }
+    // private static async Task<List<JiraIssue>> GetSearchJiraAsync(string jql)
+    // {
+    //     var url = $"{BaseUrl}search?jql={Uri.EscapeDataString(jql)}";
+    //
+    //     var response = await Client.GetAsync(url);
+    //     response.EnsureSuccessStatusCode();
+    //
+    //     var json = await response.Content.ReadAsStringAsync();
+    //     var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(json);
+    //
+    //     var output = new List<JiraIssue>();
+    //     foreach (var issue in jiraResponse.Issues)
+    //     {
+    //         output.Add(new JiraIssue(
+    //             issue.Key,
+    //             issue.Fields.Summary,
+    //             issue.Fields.Status?.Name ?? "Unknown",
+    //             issue.Fields.Assignee?.DisplayName ?? "Unassigned"
+    //         ));
+    //     }
+    //
+    //     return output;
+    // }
 
     private static async Task<List<JiraIssue>> PostSearchJiraIssueAsync(string jql, string[]? fields = null)
     {
         var responseJson = await PostSearchJqlAsync(jql, fields);
-        var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(responseJson);
+
+        var options = new JsonSerializerOptions();
+        options.Converters.Add(new CustomDateTimeOffsetConverter());
+
+        var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(responseJson, options);
 
         var output = new List<JiraIssue>();
+        if (jiraResponse == null || jiraResponse.Issues.Count == 0)
+        {
+            return output;
+        }
         foreach (var issue in jiraResponse.Issues)
         {
             var jiraIssue = new JiraIssue(
                 issue.Key,
                 issue.Fields.Summary,
-                issue.Fields.Status?.Name ?? "Unknown",
-                issue.Fields.Assignee?.DisplayName ?? "Unassigned"
+                issue.Fields.Status.Name,
+                issue.Fields.Assignee?.DisplayName ?? "Unassigned",
+                issue.Fields.Created
             );
             output.Add(jiraIssue);
         }
@@ -144,22 +152,33 @@ public static class Program
             Console.WriteLine("WARNING! More than 500 issues found. Only the first 500 are exported.");
         }
 
-        return output;
+         return output;
     }
 
     private static async Task<List<JiraPmPlan>> PostSearchJiraIdeaAsync(string jql, string[]? fields = null)
     {
         var responseJson = await PostSearchJqlAsync(jql, fields);
-        var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(responseJson);
+
+        var options = new JsonSerializerOptions();
+        options.Converters.Add(new CustomDateTimeOffsetConverter());
+
+        var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(responseJson, options);
 
         var output = new List<JiraPmPlan>();
+        if (jiraResponse == null || jiraResponse.Issues.Count == 0)
+        {
+            return output;
+        }
+
         foreach (var issue in jiraResponse.Issues)
         {
-            var required = issue.Fields?.IsRequiredForGoLive ?? 0;
+            var required = issue.Fields.IsRequiredForGoLive ?? 0;
             var jiraIdea = new JiraPmPlan(
                 issue.Key,
-                issue.Fields?.Summary ?? string.Empty,
-                Math.Abs(required - 1) < 0.1
+                issue.Fields.Summary,
+                Math.Abs(required - 1) < 0.1,
+                issue.Fields.EstimationStatus ?? string.Empty,
+                issue.Fields.PmPlanHighLevelEstimate ?? 0
             );
 
             output.Add(jiraIdea);

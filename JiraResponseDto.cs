@@ -26,7 +26,10 @@ public class JiraResponseDto
         public StatusDto Status { get; set; }
 
         [JsonPropertyName("assignee")]
-        public AssigneeDto Assignee { get; set; }
+        public AssigneeDto? Assignee { get; set; }
+
+        [JsonPropertyName("created")]
+        public DateTimeOffset Created { get; set; }
 
         [JsonPropertyName("customfield_11986")]
         public float? IsRequiredForGoLive { get; set; }
@@ -36,17 +39,23 @@ public class JiraResponseDto
 
         [JsonPropertyName("customfield_11934")]
         public string? DevTimeSpent { get; set; }
+
+        [JsonPropertyName("customfield_12038")]
+        public float? PmPlanHighLevelEstimate { get; set; }
+
+        [JsonPropertyName("customfield_12137")]
+        public string? EstimationStatus { get; set; }
     }
 
     public class StatusDto
     {
         [JsonPropertyName("name")]
-        public string Name { get; set; }
+        public string Name { get; set; } = "Unknown";
     }
 
     public class AssigneeDto
     {
         [JsonPropertyName("displayName")]
-        public string DisplayName { get; set; }
+        public string DisplayName { get; set; } = "Unassigned";
     }
 }
