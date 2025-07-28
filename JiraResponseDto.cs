@@ -30,6 +30,12 @@ public class JiraResponseDto
 
         [JsonPropertyName("customfield_11986")]
         public float? IsRequiredForGoLive { get; set; }
+
+        [JsonPropertyName("customfield_10004")]
+        public float? StoryPoints { get; set; }
+
+        [JsonPropertyName("customfield_11934")]
+        public string? DevTimeSpent { get; set; }
     }
 
     public class StatusDto

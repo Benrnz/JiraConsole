@@ -11,6 +11,17 @@ public static class Program
     private const string DefaultFolder = "C:\\Downloads\\JiraExports";
     private static readonly HttpClient Client = new();
 
+    private static string[] PreferredFields { get; } =
+    [
+        "summary",
+        "status",
+        "issuetype",
+        "customfield_11934", // Dev Time Spent
+        "parent",
+        "customfield_10004", // Story Points
+        "created"
+    ];
+
 
     public static async Task Main(string[] args)
     {
@@ -81,6 +92,7 @@ public static class Program
         {
             return new List<JiraIssue>();
         }
+
         var issues = await PostSearchJiraIssueAsync(jql);
         return issues;
     }
@@ -109,6 +121,7 @@ public static class Program
 
         return output;
     }
+
     private static async Task<List<JiraIssue>> PostSearchJiraIssueAsync(string jql, string[]? fields = null)
     {
         var responseJson = await PostSearchJqlAsync(jql, fields);
@@ -165,7 +178,7 @@ public static class Program
         var requestBody = new
         {
             fields = fields ?? PreferredFields,
-            jql = jql,
+            jql,
             maxResults = 500
         };
         var json = JsonSerializer.Serialize(requestBody);
@@ -185,17 +198,6 @@ public static class Program
         var responseJson = await response.Content.ReadAsStringAsync();
         return responseJson;
     }
-
-    private static string[] PreferredFields { get; } =
-    [
-        "summary",
-        "status",
-        "issuetype",
-        "customfield_11934",
-        "parent",
-        "customfield_10004",
-        "created"
-    ];
 
     private static void WriteCsv(string path, List<JiraIssue> issues)
     {
