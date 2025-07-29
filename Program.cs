@@ -88,77 +88,17 @@ public static class Program
     private static async Task<List<JiraIssue>> PostSearchJiraIssueAsync(string jql, string[]? fields = null)
     {
         var client = new JiraApiClient();
-
         var responseJson = await client.PostSearchJqlAsync(jql, fields?? PreferredFields);
-
-        var options = new JsonSerializerOptions();
-        options.Converters.Add(new CustomDateTimeOffsetConverter());
-
-        var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(responseJson, options);
-
-        var output = new List<JiraIssue>();
-        if (jiraResponse == null || jiraResponse.Issues.Count == 0)
-        {
-            return output;
-        }
-
-        foreach (var issue in jiraResponse.Issues)
-        {
-            var jiraIssue = new JiraIssue(
-                issue.Key,
-                issue.Fields.Summary,
-                issue.Fields.Status.Name,
-                issue.Fields.Assignee?.DisplayName ?? "Unassigned",
-                issue.Fields.Created
-            );
-            output.Add(jiraIssue);
-        }
-
-        if (jiraResponse.Issues.Count == 500)
-        {
-            Console.WriteLine("WARNING! More than 500 issues found. Only the first 500 are exported.");
-        }
-
-        return output;
+        var mapper = new JiraIssueMapper();
+        return  mapper.MapToJiraIssue(responseJson);
     }
 
     private static async Task<List<JiraPmPlan>> PostSearchJiraIdeaAsync(string jql, string[]? fields = null)
     {
         var client = new JiraApiClient();
-
         var responseJson = await client.PostSearchJqlAsync(jql, fields?? PreferredFields);
-
-        var options = new JsonSerializerOptions();
-        options.Converters.Add(new CustomDateTimeOffsetConverter());
-
-        var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(responseJson, options);
-
-        var output = new List<JiraPmPlan>();
-        if (jiraResponse == null || jiraResponse.Issues.Count == 0)
-        {
-            return output;
-        }
-
-        foreach (var issue in jiraResponse.Issues)
-        {
-            var required = issue.Fields.IsRequiredForGoLive ?? 0;
-            var jiraIdea = new JiraPmPlan(
-                issue.Key,
-                issue.Fields.Summary,
-                Math.Abs(required - 1) < 0.1,
-                issue.Fields.EstimationStatus?.Description ?? "Unknown",
-                issue.Fields.PmPlanHighLevelEstimate ?? 0
-            );
-
-            output.Add(jiraIdea);
-        }
-
-        if (jiraResponse.Issues.Count == 500)
-        {
-            Console.WriteLine("WARNING! More than 500 issues found. Only the first 500 are exported.");
-        }
-
-        return output;
+        var mapper = new JiraIssueMapper();
+        return  mapper.MapToPmPlan(responseJson);
     }
 
     private static void WriteCsv(string path, List<JiraIssue> issues)
