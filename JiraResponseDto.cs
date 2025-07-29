@@ -8,6 +8,9 @@ public class JiraResponseDto
     [JsonPropertyName("isLast")]
     public bool IsLastPage { get; set; }
 
+    [JsonPropertyName("nextPageToken")]
+    public string? NextPageToken { get; set; }
+
     public class IssueDto
     {
         [JsonPropertyName("key")]

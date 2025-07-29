@@ -21,18 +21,20 @@ public class JiraApiClient
         }
     }
 
-    public async Task<string> PostSearchJqlAsync(string jql, string[] fields)
+    public async Task<string> PostSearchJqlAsync(string jql, string[] fields, string? nextPageToken = null)
     {
         var requestBody = new
         {
-            fields = fields,
+            expand = "names",
+            fields,
             jql,
-            maxResults = 500
+            maxResults = 500,
+            nextPageToken
         };
         var json = JsonSerializer.Serialize(requestBody);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await Client.PostAsync($"{BaseUrl}search", content);
+        var response = await Client.PostAsync($"{BaseUrl}search/jql", content);
         if (!response.IsSuccessStatusCode)
         {
             Console.WriteLine("ERROR!");

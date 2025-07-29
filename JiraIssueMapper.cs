@@ -11,12 +11,18 @@ public class JiraIssueMapper
         this.options.Converters.Add(new CustomDateTimeOffsetConverter());
     }
 
-    public List<JiraPmPlan> MapToPmPlan(string json)
+    public bool WasLastPage { get; private set; }
+
+    public string? NextPageToken { get; private set; }
+
+    public List<JiraPmPlan> MapToPmPlan(string responseJson)
     {
-        var dto = JsonSerializer.Deserialize<JiraResponseDto>(json, this.options);
+        var dto = JsonSerializer.Deserialize<JiraResponseDto>(responseJson, this.options);
         var output = new List<JiraPmPlan>();
+        var wasLastIndicatorSent = responseJson.Contains("isLast");
         if (dto == null || dto.Issues.Count == 0)
         {
+            WasLastPage = true;
             return output;
         }
 
@@ -34,9 +40,19 @@ public class JiraIssueMapper
             output.Add(jiraIdea);
         }
 
-        if (!dto.IsLastPage)
+        NextPageToken = dto.NextPageToken;
+        if (!wasLastIndicatorSent)
         {
-            Console.WriteLine($"WARNING! Too many issues found. Only the first {dto.Issues.Count} are exported.");
+            Console.WriteLine("    WARNING! The response did not contain an 'isLast' indicator. Assuming this is the last page.");
+            WasLastPage = true;
+        }
+        else
+        {
+            WasLastPage = dto.IsLastPage;
+        }
+        if (!WasLastPage)
+        {
+            Console.WriteLine($"    WARNING! Too many issues found. Only the first {dto.Issues.Count} are exported.");
         }
         return output;
     }
@@ -44,10 +60,12 @@ public class JiraIssueMapper
     public List<JiraIssue> MapToJiraIssue(string responseJson)
     {
         var dto = JsonSerializer.Deserialize<JiraResponseDto>(responseJson, this.options);
+        var wasLastIndicatorSent = responseJson.Contains("isLast");
 
         var output = new List<JiraIssue>();
         if (dto == null || dto.Issues.Count == 0)
         {
+            WasLastPage = true;
             return output;
         }
 
@@ -63,9 +81,20 @@ public class JiraIssueMapper
             output.Add(jiraIssue);
         }
 
-        if (!dto.IsLastPage)
+        NextPageToken = dto.NextPageToken;
+        if (!wasLastIndicatorSent)
         {
-            Console.WriteLine($"WARNING! Too many issues found. Only the first {dto.Issues.Count} are exported.");
+            Console.WriteLine("    WARNING! The response did not contain an 'isLast' indicator. Assuming this is the last page.");
+            WasLastPage = true;
+        }
+        else
+        {
+            WasLastPage = dto.IsLastPage;
+        }
+
+        if (!WasLastPage)
+        {
+            Console.WriteLine($"    WARNING! Too many issues found. Only the first {dto.Issues.Count} are exported.");
         }
 
         return output;
