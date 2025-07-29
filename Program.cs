@@ -1,14 +1,7 @@
-﻿using System.Globalization;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
-using BensJiraConsole;
-using CsvHelper;
+﻿using BensJiraConsole;
 
 public static class Program
 {
-    private const string DefaultFolder = "C:\\Downloads\\JiraExports";
-
     private static string[] PreferredFields { get; } =
     [
         "summary",
@@ -24,9 +17,8 @@ public static class Program
     public static async Task Main(string[] args)
     {
         var issues = await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET");
-
-        var fileName = $"{DefaultFolder}\\BensJiraConsole-{DateTime.Now:yyyyMMddHHmmss}.csv";
-        WriteCsv(fileName, issues);
+        var exporter = new CsvExporter();
+        var fileName = exporter.Export(issues);
         Console.WriteLine("Export completed!");
         Console.WriteLine(Path.GetFullPath(fileName));
     }
@@ -53,7 +45,6 @@ public static class Program
     private static async Task<List<JiraIssue>> ExportPmPlanMapping()
     {
         Console.WriteLine("Exporting a mapping of PMPlans to Stories.");
-        var client = new JiraApiClient();
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
         var pmPlans = await PostSearchJiraIdeaAsync(jqlPmPlans, ["key", "summary", "customfield_11986", "customfield_12038", "customfield_12137"]);
 
@@ -84,32 +75,19 @@ public static class Program
     }
 
 
-
     private static async Task<List<JiraIssue>> PostSearchJiraIssueAsync(string jql, string[]? fields = null)
     {
         var client = new JiraApiClient();
-        var responseJson = await client.PostSearchJqlAsync(jql, fields?? PreferredFields);
+        var responseJson = await client.PostSearchJqlAsync(jql, fields ?? PreferredFields);
         var mapper = new JiraIssueMapper();
-        return  mapper.MapToJiraIssue(responseJson);
+        return mapper.MapToJiraIssue(responseJson);
     }
 
     private static async Task<List<JiraPmPlan>> PostSearchJiraIdeaAsync(string jql, string[]? fields = null)
     {
         var client = new JiraApiClient();
-        var responseJson = await client.PostSearchJqlAsync(jql, fields?? PreferredFields);
+        var responseJson = await client.PostSearchJqlAsync(jql, fields ?? PreferredFields);
         var mapper = new JiraIssueMapper();
-        return  mapper.MapToPmPlan(responseJson);
-    }
-
-    private static void WriteCsv(string path, List<JiraIssue> issues)
-    {
-        if (!Path.Exists(path))
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        }
-
-        using var writer = new StreamWriter(path);
-        using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
-        csv.WriteRecords(issues);
+        return mapper.MapToPmPlan(responseJson);
     }
 }
