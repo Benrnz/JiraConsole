@@ -44,7 +44,13 @@ public class JiraResponseDto
         public float? PmPlanHighLevelEstimate { get; set; }
 
         [JsonPropertyName("customfield_12137")]
-        public string? EstimationStatus { get; set; }
+        public EstimationStatusDto? EstimationStatus { get; set; }
+    }
+
+    public class EstimationStatusDto
+    {
+        [JsonPropertyName("value")]
+        public string Description { get; set; }
     }
 
     public class StatusDto

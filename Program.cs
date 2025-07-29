@@ -7,9 +7,7 @@ using CsvHelper;
 
 public static class Program
 {
-    private const string BaseUrl = "https://javlnsupport.atlassian.net/rest/api/3/";
     private const string DefaultFolder = "C:\\Downloads\\JiraExports";
-    private static readonly HttpClient Client = new();
 
     private static string[] PreferredFields { get; } =
     [
@@ -25,25 +23,12 @@ public static class Program
 
     public static async Task Main(string[] args)
     {
-        try
-        {
-            var email = Secrets.Username;
-            var token = Secrets.JiraToken;
-            var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{email}:{token}"));
+        var issues = await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET");
 
-            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
-
-            var issues = await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET");
-
-            var fileName = $"{DefaultFolder}\\BensJiraConsole-{DateTime.Now:yyyyMMddHHmmss}.csv";
-            WriteCsv(fileName, issues);
-            Console.WriteLine("Export completed!");
-            Console.WriteLine(Path.GetFullPath(fileName));
-        }
-        finally
-        {
-            Client.Dispose();
-        }
+        var fileName = $"{DefaultFolder}\\BensJiraConsole-{DateTime.Now:yyyyMMddHHmmss}.csv";
+        WriteCsv(fileName, issues);
+        Console.WriteLine("Export completed!");
+        Console.WriteLine(Path.GetFullPath(fileName));
     }
 
     private static async Task<List<JiraIssue>> ExecuteMode(string? mode)
@@ -68,6 +53,7 @@ public static class Program
     private static async Task<List<JiraIssue>> ExportPmPlanMapping()
     {
         Console.WriteLine("Exporting a mapping of PMPlans to Stories.");
+        var client = new JiraApiClient();
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
         var pmPlans = await PostSearchJiraIdeaAsync(jqlPmPlans, ["key", "summary", "customfield_11986", "customfield_12038", "customfield_12137"]);
 
@@ -97,33 +83,13 @@ public static class Program
         return issues;
     }
 
-    // private static async Task<List<JiraIssue>> GetSearchJiraAsync(string jql)
-    // {
-    //     var url = $"{BaseUrl}search?jql={Uri.EscapeDataString(jql)}";
-    //
-    //     var response = await Client.GetAsync(url);
-    //     response.EnsureSuccessStatusCode();
-    //
-    //     var json = await response.Content.ReadAsStringAsync();
-    //     var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(json);
-    //
-    //     var output = new List<JiraIssue>();
-    //     foreach (var issue in jiraResponse.Issues)
-    //     {
-    //         output.Add(new JiraIssue(
-    //             issue.Key,
-    //             issue.Fields.Summary,
-    //             issue.Fields.Status?.Name ?? "Unknown",
-    //             issue.Fields.Assignee?.DisplayName ?? "Unassigned"
-    //         ));
-    //     }
-    //
-    //     return output;
-    // }
+
 
     private static async Task<List<JiraIssue>> PostSearchJiraIssueAsync(string jql, string[]? fields = null)
     {
-        var responseJson = await PostSearchJqlAsync(jql, fields);
+        var client = new JiraApiClient();
+
+        var responseJson = await client.PostSearchJqlAsync(jql, fields?? PreferredFields);
 
         var options = new JsonSerializerOptions();
         options.Converters.Add(new CustomDateTimeOffsetConverter());
@@ -135,6 +101,7 @@ public static class Program
         {
             return output;
         }
+
         foreach (var issue in jiraResponse.Issues)
         {
             var jiraIssue = new JiraIssue(
@@ -152,12 +119,14 @@ public static class Program
             Console.WriteLine("WARNING! More than 500 issues found. Only the first 500 are exported.");
         }
 
-         return output;
+        return output;
     }
 
     private static async Task<List<JiraPmPlan>> PostSearchJiraIdeaAsync(string jql, string[]? fields = null)
     {
-        var responseJson = await PostSearchJqlAsync(jql, fields);
+        var client = new JiraApiClient();
+
+        var responseJson = await client.PostSearchJqlAsync(jql, fields?? PreferredFields);
 
         var options = new JsonSerializerOptions();
         options.Converters.Add(new CustomDateTimeOffsetConverter());
@@ -177,7 +146,7 @@ public static class Program
                 issue.Key,
                 issue.Fields.Summary,
                 Math.Abs(required - 1) < 0.1,
-                issue.Fields.EstimationStatus ?? string.Empty,
+                issue.Fields.EstimationStatus?.Description ?? "Unknown",
                 issue.Fields.PmPlanHighLevelEstimate ?? 0
             );
 
@@ -190,32 +159,6 @@ public static class Program
         }
 
         return output;
-    }
-
-    private static async Task<string> PostSearchJqlAsync(string jql, string[]? fields)
-    {
-        var requestBody = new
-        {
-            fields = fields ?? PreferredFields,
-            jql,
-            maxResults = 500
-        };
-        var json = JsonSerializer.Serialize(requestBody);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        var response = await Client.PostAsync($"{BaseUrl}search", content);
-        if (!response.IsSuccessStatusCode)
-        {
-            Console.WriteLine("ERROR!");
-            Console.WriteLine(response.StatusCode);
-            Console.WriteLine(response.ReasonPhrase);
-            Console.WriteLine(json);
-        }
-
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync();
-        return responseJson;
     }
 
     private static void WriteCsv(string path, List<JiraIssue> issues)
