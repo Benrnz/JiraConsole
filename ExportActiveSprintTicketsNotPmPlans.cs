@@ -15,7 +15,7 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
         var allIssues = new List<JiraIssue>();
         foreach (var pmPlan in pmPlans)
         {
-            jql = $"parent in (linkedIssues(\"{pmPlan.Key}\")) AND issuetype=Story ORDER BY key";
+            jql = $"parent in (linkedIssues(\"{pmPlan.Key}\")) ORDER BY key";
             var children = await PostSearchJiraIssueAsync(jql, fields);
             Console.WriteLine($"Exported {children.Count} stories for {pmPlan}");
             children.ForEach(c => c.PmPlan = pmPlan);
