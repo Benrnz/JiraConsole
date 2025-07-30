@@ -1,39 +1,30 @@
-﻿namespace BensJiraConsole;
+﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
+public class ExportPmPlanMapping : IJiraExportTask
 {
-    public string Key => "SPRINT";
-    public string Description => "Export Any Sprint ticket that does not map up to a PMPLAN (Superclass and Ruby Ducks only)";
+    public string Key => "PMPLAN_STORIES";
+    public string Description => "Export PM Plan mapping";
 
-    public async Task<List<JiraIssue>> ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] fields)
     {
-        Console.WriteLine("Fetching a mapping of PMPlans to Stories.");
-        var jql = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
-        var pmPlans = await PostSearchJiraIdeaAsync(jql, ["key", "summary", "customfield_11986", "customfield_12038", "customfield_12137"]);
+        Console.WriteLine(Description);
+        var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
+        var pmPlans = await PostSearchJiraIdeaAsync(jqlPmPlans, ["key", "summary", "customfield_11986", "customfield_12038", "customfield_12137"]);
 
         var allIssues = new List<JiraIssue>();
         foreach (var pmPlan in pmPlans)
         {
-            jql = $"parent in (linkedIssues(\"{pmPlan.Key}\")) ORDER BY key";
+            var jql = $"parent in (linkedIssues(\"{pmPlan.Key}\")) ORDER BY key";
             var children = await PostSearchJiraIssueAsync(jql, fields);
             Console.WriteLine($"Fetched {children.Count} stories for {pmPlan}");
             children.ForEach(c => c.PmPlan = pmPlan);
             allIssues.AddRange(children);
         }
 
-        jql = "project = \"JAVPM\" AND sprint IN openSprints() AND \"Team[Team]\" IN (1a05d236-1562-4e58-ae88-1ffc6c5edb32, 60412efa-7e2e-4285-bb4e-f329c3b6d417) ORDER BY key";
-        var sprintWork = await PostSearchJiraIssueAsync(jql, fields);
-        var nonEnvestWork = new List<JiraIssue>();
-        foreach (var sprintTicket in sprintWork)
-        {
-            if (allIssues.All(c => c.Key != sprintTicket.Key))
-            {
-                nonEnvestWork.Add(sprintTicket);
-            }
-        }
-
-        return nonEnvestWork;
+        var exporter = new CsvExporter();
+        var fileName = exporter.Export(allIssues);
+        Console.WriteLine(Path.GetFullPath(fileName));
     }
 
     private async Task<List<JiraPmPlan>> PostSearchJiraIdeaAsync(string jql, string[] fields)

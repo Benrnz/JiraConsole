@@ -19,16 +19,13 @@ public static class Program
     public static async Task Main(string[] args)
     {
         var tasks = FindExportTaskImplementations();
-        var issues = await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET", tasks);
+        await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET", tasks);
 
-        var exporter = new CsvExporter();
-        var fileName = exporter.Export(issues);
         Console.WriteLine("Export completed!");
-        Console.WriteLine(Path.GetFullPath(fileName));
     }
 
 
-    private static async Task<List<JiraIssue>> ExecuteMode(string? mode, IJiraExportTask[] tasks)
+    private static async Task ExecuteMode(string? mode, IJiraExportTask[] tasks)
     {
         IJiraExportTask? selectedTask = null;
         StringBuilder help = new();
@@ -45,15 +42,16 @@ public static class Program
         {
             Console.WriteLine(help);
             mode = Console.ReadLine();
-            return await ExecuteMode(mode, tasks);
+            await ExecuteMode(mode, tasks);
+            return;
         }
 
         if (selectedTask is null)
         {
-            return new List<JiraIssue>();
+            return;
         }
 
-        return await selectedTask.ExecuteAsync(PreferredFields);
+        await selectedTask.ExecuteAsync(PreferredFields);
     }
 
     private static IJiraExportTask[] FindExportTaskImplementations()

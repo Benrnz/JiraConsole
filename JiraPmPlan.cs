@@ -1,3 +1,3 @@
 ﻿namespace BensJiraConsole;
 
-public record JiraPmPlan(string Key, string Summary, bool RequiredForGoLive, string EstimationStatus, float PmPlanHighLevelEstimate);
+public record JiraPmPlan(string Key, string Summary, string Status, bool RequiredForGoLive, string EstimationStatus, float PmPlanHighLevelEstimate);

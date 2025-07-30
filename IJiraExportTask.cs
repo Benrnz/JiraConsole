@@ -4,5 +4,5 @@ public interface IJiraExportTask
 {
     string Key { get; }
     string Description { get; }
-    Task<List<JiraIssue>> ExecuteAsync(string[] fields);
+    Task ExecuteAsync(string[] fields);
 }

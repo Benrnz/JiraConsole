@@ -7,14 +7,14 @@ public class CsvExporter
 {
     private const string DefaultFolder = "C:\\Downloads\\JiraExports";
 
-    public string Export(IEnumerable<JiraIssue> issues)
+    public string Export(IEnumerable<object> issues)
     {
         var fileName = $"{DefaultFolder}\\BensJiraConsole-{DateTime.Now:yyyyMMddHHmmss}.csv";
         WriteCsv(fileName, issues);
         return fileName;
     }
 
-    private void WriteCsv(string path, IEnumerable<JiraIssue> issues)
+    private void WriteCsv(string path, IEnumerable<object> issues)
     {
         if (!Path.Exists(path))
         {

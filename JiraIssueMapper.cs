@@ -32,6 +32,7 @@ public class JiraIssueMapper
             var jiraIdea = new JiraPmPlan(
                 issue.Key,
                 issue.Fields.Summary,
+                issue.Fields.Status.Name,
                 Math.Abs(required - 1) < 0.1,
                 issue.Fields.EstimationStatus?.Description ?? "Unknown",
                 issue.Fields.PmPlanHighLevelEstimate ?? 0

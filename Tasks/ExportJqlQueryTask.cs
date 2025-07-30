@@ -1,4 +1,4 @@
-﻿namespace BensJiraConsole;
+﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
 public class ExportJqlQueryTask : IJiraExportTask
@@ -7,17 +7,19 @@ public class ExportJqlQueryTask : IJiraExportTask
 
     public string Description => "Export issues matching a JQL query";
 
-    public async Task<List<JiraIssue>> ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] fields)
     {
         Console.Write("Enter your JQL query: ");
         var jql = Console.ReadLine();
         if (string.IsNullOrWhiteSpace(jql))
         {
-            return new List<JiraIssue>();
+            return;
         }
 
         var issues = await PostSearchJiraIssueAsync(jql, fields);
-        return issues;
+        var exporter = new CsvExporter();
+        var fileName = exporter.Export(issues);
+        Console.WriteLine(Path.GetFullPath(fileName));
     }
 
     private async Task<List<JiraIssue>> PostSearchJiraIssueAsync(string jql, string[] fields)
