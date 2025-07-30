@@ -8,7 +8,7 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
 
     public async Task<List<JiraIssue>> ExecuteAsync(string[] fields)
     {
-        Console.WriteLine("Exporting a mapping of PMPlans to Stories.");
+        Console.WriteLine("Fetching a mapping of PMPlans to Stories.");
         var jql = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
         var pmPlans = await PostSearchJiraIdeaAsync(jql, ["key", "summary", "customfield_11986", "customfield_12038", "customfield_12137"]);
 
@@ -17,7 +17,7 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
         {
             jql = $"parent in (linkedIssues(\"{pmPlan.Key}\")) ORDER BY key";
             var children = await PostSearchJiraIssueAsync(jql, fields);
-            Console.WriteLine($"Exported {children.Count} stories for {pmPlan}");
+            Console.WriteLine($"Fetched {children.Count} stories for {pmPlan}");
             children.ForEach(c => c.PmPlan = pmPlan);
             allIssues.AddRange(children);
         }

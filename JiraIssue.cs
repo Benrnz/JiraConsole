@@ -1,6 +1,6 @@
 ﻿using BensJiraConsole;
 
-public record JiraIssue(string Key, string Summary, string Status, string Assignee, DateTimeOffset Created)
+public record JiraIssue(string Key, string Summary, string Status, string Assignee, DateTimeOffset Created, string IssueType)
 {
     public JiraPmPlan PmPlan { get; set; }
 

@@ -22,6 +22,9 @@ public class JiraResponseDto
 
     public class FieldsDto
     {
+        [JsonPropertyName("issuetype")]
+        public IssueTypeDto IssueType { get; set; }
+
         [JsonPropertyName("summary")]
         public string Summary { get; set; }
 
@@ -48,6 +51,12 @@ public class JiraResponseDto
 
         [JsonPropertyName("customfield_12137")]
         public EstimationStatusDto? EstimationStatus { get; set; }
+    }
+
+    public class IssueTypeDto
+    {
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
     }
 
     public class EstimationStatusDto

@@ -76,7 +76,8 @@ public class JiraIssueMapper
                 issue.Fields.Summary,
                 issue.Fields.Status.Name,
                 issue.Fields.Assignee?.DisplayName ?? "Unassigned",
-                issue.Fields.Created
+                issue.Fields.Created,
+                issue.Fields.IssueType.Name
             );
             output.Add(jiraIssue);
         }

@@ -8,16 +8,16 @@ public class ExportPmPlanMapping : IJiraExportTask
 
     public async Task<List<JiraIssue>> ExecuteAsync(string[] fields)
     {
-        Console.WriteLine("Exporting a mapping of PMPlans to Stories.");
+        Console.WriteLine("Fetching a mapping of PMPlans to Stories.");
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
         var pmPlans = await PostSearchJiraIdeaAsync(jqlPmPlans, ["key", "summary", "customfield_11986", "customfield_12038", "customfield_12137"]);
 
         var allIssues = new List<JiraIssue>();
         foreach (var pmPlan in pmPlans)
         {
-            var jql = $"parent in (linkedIssues(\"{pmPlan.Key}\")) AND issuetype=Story ORDER BY key";
+            var jql = $"parent in (linkedIssues(\"{pmPlan.Key}\")) ORDER BY key";
             var children = await PostSearchJiraIssueAsync(jql, fields);
-            Console.WriteLine($"Exported {children.Count} stories for {pmPlan}");
+            Console.WriteLine($"Fetched {children.Count} stories for {pmPlan}");
             children.ForEach(c => c.PmPlan = pmPlan);
             allIssues.AddRange(children);
         }
