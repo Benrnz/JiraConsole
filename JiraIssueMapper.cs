@@ -32,7 +32,7 @@ public class JiraIssueMapper
             var jiraIdea = new JiraPmPlan(
                 issue.Key,
                 issue.Fields.Summary,
-                issue.Fields.Status.Name,
+                issue.Fields.Status?.Name ?? "Unknown",
                 Math.Abs(required - 1) < 0.1,
                 issue.Fields.EstimationStatus?.Description ?? "Unknown",
                 issue.Fields.PmPlanHighLevelEstimate ?? 0
@@ -79,7 +79,11 @@ public class JiraIssueMapper
                 issue.Fields.Assignee?.DisplayName ?? "Unassigned",
                 issue.Fields.Created,
                 issue.Fields.IssueType.Name
-            );
+            )
+            {
+                StoryPoints = issue.Fields.StoryPoints,
+                DevTimeSpent = issue.Fields.DevTimeSpent
+            };
             output.Add(jiraIssue);
         }
 
