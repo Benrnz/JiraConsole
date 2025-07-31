@@ -9,21 +9,23 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
     public async Task ExecuteAsync(string[] fields)
     {
         Console.WriteLine(Description);
-        var jql = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
-        var pmPlans = await PostSearchJiraIdeaAsync(jql, ["key", "summary", "customfield_11986", "customfield_12038", "customfield_12137"]);
+        var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
+        Console.WriteLine(jqlPmPlans);
+        var childrenJql = "project=JAVPM AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
+        Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
+
+        var pmPlans = await PostSearchJiraIdeaAsync(jqlPmPlans, ["key", "summary", "customfield_11986", "customfield_12038", "customfield_12137"]);
 
         var allIssues = new List<JiraIssue>();
         foreach (var pmPlan in pmPlans)
         {
-            jql = $"parent in (linkedIssues(\"{pmPlan.Key}\")) ORDER BY key";
-            var children = await PostSearchJiraIssueAsync(jql, fields);
+            var children = await PostSearchJiraIssueAsync(string.Format(childrenJql, pmPlan.Key), fields);
             Console.WriteLine($"Fetched {children.Count} stories for {pmPlan}");
-            children.ForEach(c => c.PmPlan = pmPlan);
             allIssues.AddRange(children);
         }
 
-        jql = "project = \"JAVPM\" AND sprint IN openSprints() AND \"Team[Team]\" IN (1a05d236-1562-4e58-ae88-1ffc6c5edb32, 60412efa-7e2e-4285-bb4e-f329c3b6d417) ORDER BY key";
-        var sprintWork = await PostSearchJiraIssueAsync(jql, fields);
+        jqlPmPlans = "project = \"JAVPM\" AND sprint IN openSprints() AND \"Team[Team]\" IN (1a05d236-1562-4e58-ae88-1ffc6c5edb32, 60412efa-7e2e-4285-bb4e-f329c3b6d417) ORDER BY key";
+        var sprintWork = await PostSearchJiraIssueAsync(jqlPmPlans, fields);
         var nonEnvestWork = new List<JiraIssue>();
         foreach (var sprintTicket in sprintWork)
         {

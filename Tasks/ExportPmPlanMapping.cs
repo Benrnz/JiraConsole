@@ -15,7 +15,7 @@ public class ExportPmPlanMapping : IJiraExportTask
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
         var pmPlans = await PostSearchJiraIdeaAsync(jqlPmPlans, ["key", "summary", "status", "customfield_11986", "customfield_12038", "customfield_12137"]);
 
-        var allIssues = new Dictionary<string, JiraIssue>(); // Ensure the final list of JAVPMs is unique NO DUPLICATES
+        var allIssues = new Dictionary<string, JiraIssueWithPmPlan>(); // Ensure the final list of JAVPMs is unique NO DUPLICATES
         foreach (var pmPlan in pmPlans)
         {
             var children = await PostSearchJiraIssueAsync(string.Format(childrenJql, pmPlan.Key), fields);
@@ -50,12 +50,12 @@ public class ExportPmPlanMapping : IJiraExportTask
         return results;
     }
 
-    private async Task<List<JiraIssue>> PostSearchJiraIssueAsync(string jql, string[] fields)
+    private async Task<List<JiraIssueWithPmPlan>> PostSearchJiraIssueAsync(string jql, string[] fields)
     {
         var client = new JiraApiClient();
         var responseJson = await client.PostSearchJqlAsync(jql, fields);
         var mapper = new JiraIssueMapper();
-        var results = mapper.MapToJiraIssue(responseJson);
+        var results = mapper.MapToJiraIssue(responseJson, (a, b, c, d, e, f) => new JiraIssueWithPmPlan(a, b, c, d, e, f));
         while (!mapper.WasLastPage)
         {
             Console.WriteLine("    Fetching next page of results...");
@@ -64,6 +64,6 @@ public class ExportPmPlanMapping : IJiraExportTask
             results.AddRange(moreResults);
         }
 
-        return results;
+        return results.Cast<JiraIssueWithPmPlan>().ToList();
     }
 }

@@ -51,14 +51,16 @@ public class JiraIssueMapper
         {
             WasLastPage = dto.IsLastPage;
         }
+
         if (!WasLastPage)
         {
             Console.WriteLine($"    WARNING! Too many issues found. Only the first {dto.Issues.Count} are exported.");
         }
+
         return output;
     }
 
-    public List<JiraIssue> MapToJiraIssue(string responseJson)
+    public List<JiraIssue> MapToJiraIssue(string responseJson, Func<string, string, string, string, DateTimeOffset, string, JiraIssue>? constructor = null)
     {
         var dto = JsonSerializer.Deserialize<JiraResponseDto>(responseJson, this.options);
         var wasLastIndicatorSent = responseJson.Contains("isLast");
@@ -70,20 +72,16 @@ public class JiraIssueMapper
             return output;
         }
 
+        if (constructor == null)
+        {
+            constructor = (a, b, c, d, e, f) => new JiraIssue(a, b, c, d, e, f);
+        }
+
         foreach (var issue in dto.Issues)
         {
-            var jiraIssue = new JiraIssue(
-                issue.Key,
-                issue.Fields.Summary,
-                issue.Fields.Status.Name,
-                issue.Fields.Assignee?.DisplayName ?? "Unassigned",
-                issue.Fields.Created,
-                issue.Fields.IssueType.Name
-            )
-            {
-                StoryPoints = issue.Fields.StoryPoints,
-                DevTimeSpent = issue.Fields.DevTimeSpent
-            };
+            var jiraIssue = constructor(issue.Key, issue.Fields.Summary, issue.Fields.Status.Name, issue.Fields.Assignee?.DisplayName ?? "Unassigned", issue.Fields.Created, issue.Fields.IssueType.Name);
+            jiraIssue.StoryPoints = issue.Fields.StoryPoints;
+            jiraIssue.DevTimeSpent = issue.Fields.DevTimeSpent;
             output.Add(jiraIssue);
         }
 
