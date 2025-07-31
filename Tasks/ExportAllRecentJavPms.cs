@@ -10,27 +10,11 @@ public class ExportAllRecentJavPms : IJiraExportTask
         Console.WriteLine(Description);
         var jql = "project=JAVPM AND created > -540d ORDER BY created";
         Console.WriteLine(jql);
-        var issues = await PostSearchJiraIssueAsync(jql, fields);
+        var runner = new JiraQueryRunner();
+        var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, fields);
         Console.WriteLine($"{issues.Count} issues fetched.");
         var exporter = new CsvExporter();
         var fileName = exporter.Export(issues);
         Console.WriteLine(Path.GetFullPath(fileName));
-    }
-
-    private async Task<List<JiraIssue>> PostSearchJiraIssueAsync(string jql, string[] fields)
-    {
-        var client = new JiraApiClient();
-        var responseJson = await client.PostSearchJqlAsync(jql, fields);
-        var mapper = new JiraIssueMapper();
-        var results = mapper.MapToJiraIssue(responseJson);
-        while (!mapper.WasLastPage)
-        {
-            Console.WriteLine("    Fetching next page of results...");
-            responseJson = await client.PostSearchJqlAsync(jql, fields, mapper.NextPageToken);
-            var moreResults = mapper.MapToJiraIssue(responseJson);
-            results.AddRange(moreResults);
-        }
-
-        return results;
     }
 }
