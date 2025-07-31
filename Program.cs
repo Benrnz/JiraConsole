@@ -12,7 +12,8 @@ public static class Program
         "customfield_11934", // Dev Time Spent
         "parent",
         "customfield_10004", // Story Points
-        "created"
+        "created",
+        "assignee"
     ];
 
 
