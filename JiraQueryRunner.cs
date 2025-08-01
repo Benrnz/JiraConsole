@@ -18,7 +18,10 @@ public class JiraQueryRunner
             results.AddRange(moreResults);
         }
 
-        Console.WriteLine($"    {totalResults} total results fetched.");
+        if (totalResults > 100)
+        {
+            Console.WriteLine($"    {totalResults} total results fetched.");
+        }
         return results;
     }
 
@@ -27,18 +30,25 @@ public class JiraQueryRunner
         var client = new JiraApiClient();
         var responseJson = await client.PostSearchJqlAsync(jql, fields);
         var mapper = new JiraIssueMapper();
-        var results = mapper.MapToJiraIssue(responseJson, (a, b, c, d, e, f) => new JiraIssueWithPmPlan(a, b, c, d, e, f));
+        var results = mapper.MapToJiraIssue(
+            responseJson,
+            (a, b, c, d, e, f) => new JiraIssueWithPmPlan(a, b, c, d, e, f));
         var totalResults = results.Count;
         while (!mapper.WasLastPage)
         {
             Console.WriteLine($"    {totalResults} results fetched. Fetching next page of results...");
             responseJson = await client.PostSearchJqlAsync(jql, fields, mapper.NextPageToken);
-            var moreResults = mapper.MapToJiraIssue(responseJson);
+            var moreResults = mapper.MapToJiraIssue(
+                responseJson,
+                (a, b, c, d, e, f) => new JiraIssueWithPmPlan(a, b, c, d, e, f));
             totalResults += moreResults.Count;
             results.AddRange(moreResults);
         }
 
-        Console.WriteLine($"    {totalResults} total results fetched.");
+        if (totalResults > 100)
+        {
+            Console.WriteLine($"    {totalResults} total results fetched.");
+        }
         return results.Cast<JiraIssueWithPmPlan>().ToList();
     }
 
@@ -58,7 +68,10 @@ public class JiraQueryRunner
             results.AddRange(moreResults);
         }
 
-        Console.WriteLine($"    {totalResults} total results fetched.");
+        if (totalResults > 100)
+        {
+            Console.WriteLine($"    {totalResults} total results fetched.");
+        }
         return results;
     }
 }

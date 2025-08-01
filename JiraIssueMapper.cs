@@ -79,7 +79,13 @@ public class JiraIssueMapper
 
         foreach (var issue in dto.Issues)
         {
-            var jiraIssue = constructor(issue.Key, issue.Fields.Summary, issue.Fields.Status.Name, issue.Fields.Assignee?.DisplayName ?? "Unassigned", issue.Fields.Created, issue.Fields.IssueType.Name);
+            var jiraIssue = constructor(
+                issue.Key,
+                issue.Fields.Summary,
+                issue.Fields.Status?.Name ?? "Unknown",
+                issue.Fields.Assignee?.DisplayName ?? "Unassigned",
+                issue.Fields.Created,
+                issue.Fields.IssueType?.Name ?? string.Empty);
             jiraIssue.StoryPoints = issue.Fields.StoryPoints;
             jiraIssue.DevTimeSpent = issue.Fields.DevTimeSpent;
             output.Add(jiraIssue);
