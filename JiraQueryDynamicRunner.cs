@@ -9,6 +9,7 @@ public class JiraQueryDynamicRunner
     public string[] IgnoreFields => ["avatarId", "hierarchyLevel", "iconUrl", "id", "expand", "self", "subtask"];
 
     private SortedList<string, FieldMapping> fieldAliases = new();
+
     public async Task<List<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, FieldMapping[] fields)
     {
         var client = new JiraApiClient();
@@ -49,55 +50,39 @@ public class JiraQueryDynamicRunner
         return false;
     }
 
+    private bool PropertyShouldBeFlattened2(JsonProperty field, IDictionary<string, object> expando)
+    {
+        if (field.Value.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (PropertyShouldBeFlattened(field.Name, out var childFieldName))
+        {
+            // Extract the childField property from the issueType object
+            if (field.Value.TryGetProperty(childFieldName, out var childFieldValue) && childFieldValue.ValueKind == JsonValueKind.String)
+            {
+                expando[FieldName(field.Name)] = childFieldValue.GetString();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private dynamic DeserializeToDynamic(JsonElement element, string propertyName)
     {
         switch (element.ValueKind)
         {
             case JsonValueKind.Object:
-                var expando = new ExpandoObject() as IDictionary<string, object>;
-                foreach (var prop in element.EnumerateObject())
-                {
-                    if (IgnoreFields.Contains(prop.Name))
-                    {
-                        continue; // Skip fields that are in the ignore list
-                    }
+                return DeserialiseDynamicObject(element);
 
-                    if (prop.Value.ValueKind == JsonValueKind.Object)
-                    {
-                        if (PropertyShouldBeFlattened(prop.Name, out var childField))
-                        {
-                            // Extract the childField property from the issueType object
-                            if (prop.Value.TryGetProperty(childField, out var childFieldValue) && childFieldValue.ValueKind == JsonValueKind.String)
-                            {
-                                expando[FieldName(prop.Name)] = childFieldValue.GetString();
-                                continue;
-                            }
-                        }
-                    }
-
-                    expando[FieldName(prop.Name)] = DeserializeToDynamic(prop.Value, prop.Name);
-                }
-
-                return expando;
             case JsonValueKind.Array:
-                var list = new List<object>();
-                foreach (var item in element.EnumerateArray())
-                {
-                    list.Add(DeserializeToDynamic(item, propertyName));
-                }
+                return DeserialiseDynamicArray(element, propertyName);
 
-                if (PropertyShouldBeFlattened(propertyName, out var childField1))
-                {
-                    var flattened = list
-                        .OfType<IDictionary<string, object>>()
-                        .Select(obj => obj.TryGetValue("value", out var value) ? value : null)
-                        .Where(x => x != null);
-                    return string.Join(",", flattened);
-                }
-
-                return list;
             case JsonValueKind.String:
                 return element.GetString();
+
             case JsonValueKind.Number:
                 if (element.TryGetInt64(out var l))
                 {
@@ -110,15 +95,79 @@ public class JiraQueryDynamicRunner
                 }
 
                 return element.GetDecimal();
+
             case JsonValueKind.True:
             case JsonValueKind.False:
                 return element.GetBoolean();
+
             case JsonValueKind.Null:
             case JsonValueKind.Undefined:
                 return null;
+
             default:
                 return element.GetRawText();
         }
+    }
+
+    private dynamic DeserialiseDynamicArray(JsonElement element, string propertyName)
+    {
+        var list = new List<object>();
+        foreach (var item in element.EnumerateArray())
+        {
+            list.Add(DeserializeToDynamic(item, propertyName));
+        }
+
+        if (PropertyShouldBeFlattened(propertyName, out var childField))
+        {
+            var flattened = list
+                .OfType<IDictionary<string, object>>()
+                .Select(obj => obj.TryGetValue(childField, out var value) ? value : null)
+                .Where(x => x != null);
+            return string.Join(",", flattened);
+        }
+
+        return list;
+    }
+
+    private IDictionary<string, object> DeserialiseDynamicObject(JsonElement element)
+    {
+        var expando = new ExpandoObject() as IDictionary<string, object>;
+        foreach (var prop in element.EnumerateObject())
+        {
+            // Special handling for 'fields' property - it's useful to flatten it
+            if (prop is { Name: "fields", Value.ValueKind: JsonValueKind.Object })
+            {
+                // Flatten 'fields' properties into the parent object
+                foreach (var fieldProp in prop.Value.EnumerateObject())
+                {
+                    if (fieldProp.Value.ValueKind == JsonValueKind.Object)
+                    {
+                        if (PropertyShouldBeFlattened(fieldProp.Name, out var childField))
+                        {
+                            // Extract the childField property from the issueType object
+                            if (fieldProp.Value.TryGetProperty(childField, out var childFieldValue) && childFieldValue.ValueKind == JsonValueKind.String)
+                            {
+                                expando[FieldName(fieldProp.Name)] = childFieldValue.GetString();
+                                continue;
+                            }
+                        }
+                    }
+
+                    expando[FieldName(fieldProp.Name)] = DeserializeToDynamic(fieldProp.Value, fieldProp.Name);
+                }
+
+                continue;
+            }
+
+            if (IgnoreFields.Contains(prop.Name))
+            {
+                continue; // Skip fields that are in the ignore list
+            }
+
+            expando[FieldName(prop.Name)] = DeserializeToDynamic(prop.Value, prop.Name);
+        }
+
+        return expando;
     }
 }
 //     public async Task<List<JiraIssue>> SearchJiraIssuesWithJqlAsync(string jql, string[] fields)

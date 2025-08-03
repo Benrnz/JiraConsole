@@ -17,9 +17,9 @@ public class ExportAllRecentJavPms : IJiraExportTask
         new("customfield_10004", "StoryPoints"),
         new("created"),
         new("assignee"),
-        new("customfield_11903", "BugType"),
+        new("customfield_11903", "BugType", "value"),
         new("customfield_11812", "CustomersMultiSelect", "value"),
-        new("customfield_11906", "Category")
+        new("customfield_11906", "Category", "value")
     ];
 
     public async Task ExecuteAsync(string[] fields)
