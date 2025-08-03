@@ -1,24 +1,25 @@
 ﻿namespace BensJiraConsole.Tasks;
 
+public record FieldMapping(string Field, string Alias = "", string FlattenField = "");
+
 public class ExportAllRecentJavPms : IJiraExportTask
 {
     public string Key => "JAVPMs";
     public string Description => "Export all JAVPM tickets from the last 18 months.";
 
-    public string[] Fields =>
+    public FieldMapping[] Fields =>
     [
-        "summary",
-        "status",
-        "issuetype",
-        "customfield_11934", // Dev Time Spent
-        "parent",
-        "customfield_10004", // Story Points
-        "created",
-        "assignee",
-        "customfield_11903", // Bug Type
-        "customfield_11812", // Customer/s Multi-select
-        "customfield_11906", // Category
-
+        new("summary"),
+        new("status", "Status", "name"),
+        new("issuetype", "IssueType", "name"),
+        new("customfield_11934", "DevTimeSpent"),
+        new("parent", "Parent", "key"),
+        new("customfield_10004", "StoryPoints"),
+        new("created"),
+        new("assignee"),
+        new("customfield_11903", "BugType"),
+        new("customfield_11812", "CustomersMultiSelect", "value"),
+        new("customfield_11906", "Category")
     ];
 
     public async Task ExecuteAsync(string[] fields)
@@ -26,9 +27,11 @@ public class ExportAllRecentJavPms : IJiraExportTask
         Console.WriteLine(Description);
         var jql = "project=JAVPM AND created > -540d ORDER BY created";
         Console.WriteLine(jql);
-        var runner = new JiraQueryRunner();
+        var runner = new JiraQueryDynamicRunner();
         var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
         Console.WriteLine($"{issues.Count} issues fetched.");
+
+
         var exporter = new CsvExporter();
         var fileName = exporter.Export(issues);
         Console.WriteLine(Path.GetFullPath(fileName));
