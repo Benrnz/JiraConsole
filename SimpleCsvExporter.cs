@@ -52,6 +52,10 @@ public class SimpleCsvExporter
                         sb.Append(stringValue);
                         sb.Append("\"");
                     }
+                    else if (value is DateTimeOffset dateTimeOffset)
+                    {
+                        sb.Append(dateTimeOffset.ToLocalTime().ToString("yyyy-MM-ddTHH:mm:ss"));
+                    }
                     else
                     {
                         sb.Append(value?.ToString() ?? string.Empty);

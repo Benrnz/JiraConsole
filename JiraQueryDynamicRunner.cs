@@ -50,26 +50,6 @@ public class JiraQueryDynamicRunner
         return false;
     }
 
-    private bool PropertyShouldBeFlattened2(JsonProperty field, IDictionary<string, object> expando)
-    {
-        if (field.Value.ValueKind != JsonValueKind.Object)
-        {
-            return false;
-        }
-
-        if (PropertyShouldBeFlattened(field.Name, out var childFieldName))
-        {
-            // Extract the childField property from the issueType object
-            if (field.Value.TryGetProperty(childFieldName, out var childFieldValue) && childFieldValue.ValueKind == JsonValueKind.String)
-            {
-                expando[FieldName(field.Name)] = childFieldValue.GetString();
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private dynamic DeserializeToDynamic(JsonElement element, string propertyName)
     {
         switch (element.ValueKind)
@@ -81,7 +61,13 @@ public class JiraQueryDynamicRunner
                 return DeserialiseDynamicArray(element, propertyName);
 
             case JsonValueKind.String:
-                return element.GetString();
+                var elementString = element.GetString();
+                if (DateTimeOffset.TryParse(elementString, out var dto))
+                {
+                    return dto;
+                }
+
+                return elementString!;
 
             case JsonValueKind.Number:
                 if (element.TryGetInt64(out var l))
