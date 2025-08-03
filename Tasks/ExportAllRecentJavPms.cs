@@ -12,16 +12,24 @@ public class ExportAllRecentJavPms : IJiraExportTask
     [
         //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
         new("summary"),
-        new("status",            "Status",               "name"),
-        new("issuetype",         "IssueType",            "name"),
+        new("status", "Status", "name"),
+        new("issuetype", "IssueType", "name"),
         new("customfield_11934", "DevTimeSpent"),
-        new("parent",            "Parent",               "key"),
+        new("parent", "Parent", "key"),
         new("customfield_10004", "StoryPoints"),
         new("created"),
-        new("assignee",          "Assignee",             "displayName"),
-        new("customfield_11903", "BugType",              "value"),
+        new("assignee", "Assignee", "displayName"),
+        new("customfield_11903", "BugType", "value"),
         new("customfield_11812", "CustomersMultiSelect", "value"),
-        new("customfield_11906", "Category",             "value")
+        new("customfield_11906", "Category", "value"),
+        new("resolution", "Resolution", "name"),
+        new("timeoriginalestimate", "Original Estimate"),
+        new("customfield_12236", "Flag Count"),
+        new("customfield_11899", "Severity", "value"),
+        new("customfield_10007", "Sprint", "name"),
+        new("priority", "Priority", "name"),
+        new("resolutiondate", "Resolved"),
+        new("customfield_11400", "Team", "name"),
     ];
 
     public async Task ExecuteAsync(string[] fields)
