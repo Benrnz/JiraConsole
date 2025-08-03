@@ -16,7 +16,7 @@ public class ExportAllRecentJavPms : IJiraExportTask
         new("parent", "Parent", "key"),
         new("customfield_10004", "StoryPoints"),
         new("created"),
-        new("assignee"),
+        new("assignee", "Assignee", "displayName"),
         new("customfield_11903", "BugType", "value"),
         new("customfield_11812", "CustomersMultiSelect", "value"),
         new("customfield_11906", "Category", "value")
@@ -25,7 +25,7 @@ public class ExportAllRecentJavPms : IJiraExportTask
     public async Task ExecuteAsync(string[] fields)
     {
         Console.WriteLine(Description);
-        var jql = "project=JAVPM AND created > -540d ORDER BY created";
+        var jql = "project=JAVPM AND assignee IS NOT EMPTY"; //var jql = "project=JAVPM AND created > -540d ORDER BY created";
         Console.WriteLine(jql);
         var runner = new JiraQueryDynamicRunner();
         var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
