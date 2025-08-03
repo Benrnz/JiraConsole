@@ -51,6 +51,16 @@ public class JiraResponseDto
 
         [JsonPropertyName("customfield_12137")]
         public EstimationStatusDto? EstimationStatus { get; set; }
+
+        [JsonPropertyName("customfield_11903")]
+        public string? BugType { get; set; }
+
+        [JsonPropertyName("customfield_11812")]
+        [JsonConverter(typeof(ArrayToConcatenatedStringConverter))]
+        public string? Customers { get; set; }
+
+        [JsonPropertyName("customfield_11906")]
+        public string? Category { get; set; }
     }
 
     public class IssueTypeDto

@@ -9,6 +9,7 @@ public class JiraIssueMapper
     public JiraIssueMapper()
     {
         this.options.Converters.Add(new CustomDateTimeOffsetConverter());
+        this.options.Converters.Add(new ArrayToConcatenatedStringConverter());
     }
 
     public bool WasLastPage { get; private set; }
@@ -88,6 +89,9 @@ public class JiraIssueMapper
                 issue.Fields.IssueType?.Name ?? string.Empty);
             jiraIssue.StoryPoints = issue.Fields.StoryPoints;
             jiraIssue.DevTimeSpent = issue.Fields.DevTimeSpent;
+            jiraIssue.Customers = issue.Fields.Customers;
+            jiraIssue.BugType = issue.Fields.BugType;
+            jiraIssue.Category = issue.Fields.Category;
             output.Add(jiraIssue);
         }
 

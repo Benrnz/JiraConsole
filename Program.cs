@@ -22,7 +22,7 @@ public static class Program
         var tasks = FindExportTaskImplementations();
         await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET", tasks);
 
-        Console.WriteLine("Export completed!");
+        Console.WriteLine("Exiting.");
     }
 
 
