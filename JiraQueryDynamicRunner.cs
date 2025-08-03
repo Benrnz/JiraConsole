@@ -12,18 +12,27 @@ public class JiraQueryDynamicRunner
 
     public async Task<List<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, FieldMapping[] fields)
     {
+        string? nextPageToken = null;
+        var isLastPage = false;
         var client = new JiraApiClient();
-        var responseJson = await client.PostSearchJqlAsync(jql, fields.Select(x => x.Field).ToArray());
-
-        this.fieldAliases = new SortedList<string, FieldMapping>(fields.ToDictionary(x => x.Field, x => x));
-
         var results = new List<dynamic>();
-        using var doc = JsonDocument.Parse(responseJson);
-        var issues = doc.RootElement.GetProperty("issues");
-        foreach (var issue in issues.EnumerateArray())
+        do
         {
-            results.Add(DeserializeToDynamic(issue, string.Empty));
-        }
+            var responseJson = await client.PostSearchJqlAsync(jql, fields.Select(x => x.Field).ToArray(), nextPageToken);
+
+            this.fieldAliases = new SortedList<string, FieldMapping>(fields.ToDictionary(x => x.Field, x => x));
+
+            using var doc = JsonDocument.Parse(responseJson);
+            var issues = doc.RootElement.GetProperty("issues");
+            isLastPage = doc.RootElement.TryGetProperty("isLast", out var isLastPageToken) && isLastPageToken.GetBoolean();
+            nextPageToken = doc.RootElement.TryGetProperty("nextPageToken", out var token) ? token.GetString() : null;
+
+            foreach (var issue in issues.EnumerateArray())
+            {
+                results.Add(DeserializeToDynamic(issue, string.Empty));
+            }
+            Console.WriteLine($"    Fetched {results.Count} issues.");
+        } while (!isLastPage || nextPageToken != null);
 
         return results;
     }
