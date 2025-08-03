@@ -31,8 +31,7 @@ public class ExportAllRecentJavPms : IJiraExportTask
         var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
         Console.WriteLine($"{issues.Count} issues fetched.");
 
-
-        var exporter = new CsvExporter();
+        var exporter = new SimpleCsvExporter();
         var fileName = exporter.Export(issues);
         Console.WriteLine(Path.GetFullPath(fileName));
     }
