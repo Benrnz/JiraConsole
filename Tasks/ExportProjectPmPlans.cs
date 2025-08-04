@@ -9,7 +9,7 @@ public class ExportProjectPmPlans : IJiraExportTask
     public FieldMapping[] Fields =>
     [
         //  JIRA Field Name, Friendly Alias, Flatten object with field name
-        new("summary"),
+        new("summary", "Summary"),
         new("status", "Status", "name"),
         new("issuetype", "IssueType", "name"),
         new("customfield_12038", "PmPlan High Level Estimate"),
@@ -24,17 +24,8 @@ public class ExportProjectPmPlans : IJiraExportTask
         Console.WriteLine(jqlPmPlans);
         var runner = new JiraQueryDynamicRunner();
         var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);
-        //var pmPlans = await runner.SearchJiraIssueLinkedWithPmPlanAsync(jqlPmPlans, ["key", "summary", "status", "customfield_12038", "customfield_11986", "customfield_12137"]);
-        //                                                                                                                                  PmPlanHighLevelEstimate, RequiredForGoLive, EstimationStatus
-
         var exporter = new SimpleCsvExporter();
         var fileName = exporter.Export(pmPlans);
         Console.WriteLine(Path.GetFullPath(fileName));
     }
-
-    /*
-        var runner = new JiraQueryDynamicRunner();
-        var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
-        Console.WriteLine($"{issues.Count} issues fetched.");
-    */
 }
