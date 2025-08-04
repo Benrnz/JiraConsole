@@ -16,10 +16,21 @@ public static class Program
         "assignee"
     ];
 
+    private static string ProvidedFileName = string.Empty;
 
     public static async Task Main(string[] args)
     {
         var tasks = FindExportTaskImplementations();
+        if (args.Length >= 2)
+        {
+            ProvidedFileName = args[1];
+            var invalidChars = Path.GetInvalidFileNameChars();
+            if (!ProvidedFileName.Any(c => invalidChars.Contains(c)))
+            {
+                Console.WriteLine($"ERROR: Invalid filename '{ProvidedFileName}' provided.");
+            }
+        }
+
         await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET", tasks);
 
         Console.WriteLine("Exiting.");

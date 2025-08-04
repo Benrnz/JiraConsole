@@ -1,16 +1,15 @@
 ﻿namespace BensJiraConsole.Tasks;
 
-public record FieldMapping(string Field, string Alias = "", string FlattenField = "");
-
-public class ExportAllRecentJavPms : IJiraExportTask
+// ReSharper disable once UnusedType.Global
+public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
 {
-    public string Key => "JAVPMs";
-    public string Description => "Export all JAVPM tickets from the last 18 months.";
+    public string Key => "NOESTIMATE";
 
-    /// <summary> Fields to include in the export: </summary>
+    public string Description => "Export Active Sprint tickets with no estimate (Superclass, Ruby Ducks, Spearhead only)";
+
     public FieldMapping[] Fields =>
     [
-        //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
+        //  JIRA Field Name, Friendly Alias, Flatten object with field name
         new("summary"),
         new("status", "Status", "name"),
         new("issuetype", "IssueType", "name"),
@@ -32,14 +31,20 @@ public class ExportAllRecentJavPms : IJiraExportTask
         new("customfield_11400", "Team", "name"),
     ];
 
+
     public async Task ExecuteAsync(string[] fields)
     {
         Console.WriteLine(Description);
-        var jql = "project=JAVPM AND created > -540d ORDER BY created"; //540 days = 18 months
-        Console.WriteLine(jql);
         var runner = new JiraQueryDynamicRunner();
+        var jql = "project=JAVPM AND sprint IN openSprints() AND \"Story Points[Number]\" IN (EMPTY, 0) AND \"Team[Team]\" IN (f08f7fdc-cfab-4de7-8fdd-8da57b10adb6, 60412efa-7e2e-4285-bb4e-f329c3b6d417, 1a05d236-1562-4e58-ae88-1ffc6c5edb32)";
+        Console.WriteLine(jql);
         var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
         Console.WriteLine($"{issues.Count} issues fetched.");
+
+        if (issues.Count < 20)
+        {
+            issues.ForEach(i => Console.WriteLine($"{i.key}"));
+        }
 
         var exporter = new SimpleCsvExporter();
         var fileName = exporter.Export(issues);
