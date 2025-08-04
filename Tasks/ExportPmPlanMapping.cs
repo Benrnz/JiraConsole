@@ -4,7 +4,7 @@
 public class ExportPmPlanMapping : IJiraExportTask
 {
     public string Key => "PMPLAN_STORIES";
-    public string Description => "Export PM Plan mapping";
+    public string Description => "Export PM Plan children mapping";
 
     public FieldMapping[] Fields =>
     [
@@ -16,6 +16,16 @@ public class ExportPmPlanMapping : IJiraExportTask
         new("timeoriginalestimate", "Original Estimate"),
         new("created"),
     ];
+    public FieldMapping[] PmPlanFields =>
+    [
+        //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
+        new("summary", "Summary"),
+        new("status", "Status", "name"),
+        new("issuetype", "IssueType", "name"),
+        new("customfield_12038", "PmPlanHighLevelEstimate"),
+        new("customfield_12137", "EstimationStatus", "value"), 
+        new("customfield_11986", "IsReqdForGoLive")
+    ];
 
     public async Task ExecuteAsync(string[] fields)
     {
@@ -24,22 +34,21 @@ public class ExportPmPlanMapping : IJiraExportTask
         Console.WriteLine(jqlPmPlans);
         var childrenJql = "project=JAVPM AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
-        var runner = new JiraQueryRunner();
-        var pmPlans = await runner.SearchJiraIdeaWithJqlAsync(jqlPmPlans, ["key", "summary", "status", "customfield_11986", "customfield_12038", "customfield_12137"]);
+        var dynamicRunner = new JiraQueryDynamicRunner();
+        var pmPlans = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
 
         var allIssues = new Dictionary<string, dynamic>(); // Ensure the final list of JAVPMs is unique NO DUPLICATES
-        var dynamicRunner = new JiraQueryDynamicRunner();
         foreach (var pmPlan in pmPlans)
         {
-            var children = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields);
-            Console.WriteLine($"Fetched {children.Count} children for {pmPlan}");
-            children.ForEach(c =>
+            var children = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
+            Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
+            foreach (var child in children)
             {
-                c.PmPlan = pmPlan.Key;
-                c.IsReqdForGoLive = pmPlan.RequiredForGoLive;
-                c.PmPlanEstimationStatus = pmPlan.EstimationStatus;
-                allIssues.TryAdd(c.key, c);
-            });
+                child.PmPlan = pmPlan.key;
+                child.IsReqdForGoLive = pmPlan.IsReqdForGoLive;
+                child.PmPlanEstimationStatus = pmPlan.EstimationStatus;
+                allIssues.TryAdd(child.key, child);
+            }
         }
 
         Console.WriteLine($"Found {allIssues.Count} unique stories");

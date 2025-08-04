@@ -17,6 +17,17 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
         new("created"),
     ];
 
+    public FieldMapping[] PmPlanFields =>
+    [
+        //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
+        new("summary", "Summary"),
+        new("status", "Status", "name"),
+        new("issuetype", "IssueType", "name"),
+        new("customfield_12038", "PmPlan High Level Estimate"),
+        new("customfield_12137", "Estimation Status", "value"), 
+        new("customfield_11986", "Is Reqd For GoLive")
+    ];
+
     public async Task ExecuteAsync(string[] fields)
     {
         Console.WriteLine(Description);
@@ -25,15 +36,14 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
         var childrenJql = "project=JAVPM AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
 
-        var runner = new JiraQueryRunner();
-        var pmPlans = await runner.SearchJiraIdeaWithJqlAsync(jqlPmPlans, ["key", "summary", "customfield_11986", "customfield_12038", "customfield_12137"]);
+        var dynamicRunner = new JiraQueryDynamicRunner();
+        var pmPlans = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
 
         var allIssues = new List<dynamic>();
-        var dynamicRunner = new JiraQueryDynamicRunner();
         foreach (var pmPlan in pmPlans)
         {
-            var children = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields);
-            Console.WriteLine($"Fetched {children.Count} stories for {pmPlan}");
+            var children = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
+            Console.WriteLine($"Fetched {children.Count} stories for {pmPlan.key}");
             allIssues.AddRange(children);
         }
 
