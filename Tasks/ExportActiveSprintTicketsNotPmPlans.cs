@@ -6,6 +6,17 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
     public string Key => "SPRINT";
     public string Description => "Export Any Sprint ticket that does not map up to a PMPLAN (Superclass and Ruby Ducks only)";
 
+    public FieldMapping[] Fields =>
+    [
+        //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
+        new("summary", "Summary"),
+        new("status", "Status", "name"),
+        new("parent", "Parent", "key"),
+        new("customfield_10004", "StoryPoints"),
+        new("timeoriginalestimate", "Original Estimate"),
+        new("created"),
+    ];
+
     public async Task ExecuteAsync(string[] fields)
     {
         Console.WriteLine(Description);
@@ -17,26 +28,30 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
         var runner = new JiraQueryRunner();
         var pmPlans = await runner.SearchJiraIdeaWithJqlAsync(jqlPmPlans, ["key", "summary", "customfield_11986", "customfield_12038", "customfield_12137"]);
 
-        var allIssues = new List<JiraIssue>();
+        var allIssues = new List<dynamic>();
+        var dynamicRunner = new JiraQueryDynamicRunner();
         foreach (var pmPlan in pmPlans)
         {
-            var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), fields);
+            var children = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields);
             Console.WriteLine($"Fetched {children.Count} stories for {pmPlan}");
             allIssues.AddRange(children);
         }
 
         jqlPmPlans = "project = \"JAVPM\" AND sprint IN openSprints() AND \"Team[Team]\" IN (1a05d236-1562-4e58-ae88-1ffc6c5edb32, 60412efa-7e2e-4285-bb4e-f329c3b6d417) ORDER BY key";
-        var sprintWork = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, fields);
-        var nonEnvestWork = new List<JiraIssue>();
+        var sprintWork = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);
+        var nonEnvestWork = new List<dynamic>();
         foreach (var sprintTicket in sprintWork)
         {
-            if (allIssues.All(c => c.Key != sprintTicket.Key))
+            if (allIssues.All(c => c.key != sprintTicket.key))
             {
                 nonEnvestWork.Add(sprintTicket);
+                Console.WriteLine(sprintTicket.key);
             }
         }
 
-        var exporter = new CsvExporter();
+        Console.WriteLine($"{nonEnvestWork.Count} tickets found in open sprints that are not Envest work.");
+
+        var exporter = new SimpleCsvExporter();
         var fileName = exporter.Export(nonEnvestWork);
         Console.WriteLine(Path.GetFullPath(fileName));
     }
