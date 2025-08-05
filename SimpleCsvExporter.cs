@@ -1,4 +1,7 @@
-﻿using System.Dynamic;
+﻿using System.Collections;
+using System.Diagnostics;
+using System.Dynamic;
+using System.Reflection;
 using System.Text;
 
 namespace BensJiraConsole;
@@ -7,11 +10,40 @@ public class SimpleCsvExporter
 {
     private const string DefaultFolder = "C:\\Downloads\\JiraExports";
 
-    public string Export(IEnumerable<object> issues)
+    public enum FileNameMode
     {
-        var fileName = $"{DefaultFolder}\\BensJiraConsole-{DateTime.Now:yyyyMMddHHmmss}.csv";
-        WriteCsv(fileName, issues);
-        return fileName;
+        Auto,
+        ExactName,
+        Hint,
+    }
+
+    public FileNameMode Mode { get; set; } = FileNameMode.Auto;
+
+    public string Export(IEnumerable<object> issues, string? fileNameHint = null)
+    {
+        if (!issues.Any())
+        {
+            Console.WriteLine("No data to export.");
+            return string.Empty;
+        }
+
+        string fileName;
+        switch (Mode)
+        {
+            case FileNameMode.ExactName:
+                fileName = fileNameHint ?? throw new ArgumentNullException(nameof(fileNameHint));
+                break;
+            case FileNameMode.Hint:
+                fileName = $"{fileNameHint ?? "BensJiraConsole"}-{DateTime.Now:yyyyMMddHHmmss}";
+                break;
+            default:
+                fileName = $"BensJiraConsole-{DateTime.Now:yyyyMMddHHmmss}";
+                break;
+        }
+
+        var pathAndFileName = $"{DefaultFolder}\\{fileName}.csv";
+        WriteCsv(pathAndFileName, issues);
+        return pathAndFileName;
     }
 
     private void WriteCsv(string path, IEnumerable<object> issues)
@@ -23,17 +55,52 @@ public class SimpleCsvExporter
 
         using var writer = new StreamWriter(path);
 
-        var propertyNames = GetAllPropertyNames(issues);
+        var propertyNames = GetAllPropertyNames(issues, out var isDynamic);
         writer.WriteLine(string.Join(',', propertyNames));
 
         for (var i = 0; i < issues.Count(); i++)
         {
-            var record = ReadAllValues(issues.ElementAt(i), propertyNames);
+            var record = isDynamic ? ReadAllValuesDynamic(issues.ElementAt(i), propertyNames) : ReadAllValues(issues.ElementAt(i), propertyNames);
             writer.WriteLine(record);
         }
     }
 
-    private string ReadAllValues(dynamic issue, HashSet<string> propertyNames)
+    private string ReadAllValues(object issue, HashSet<string> propertyNames)
+    {
+        var sb = new StringBuilder();
+        var type = issue.GetType();
+        foreach (var propertyName in propertyNames)
+        {
+            var value = type.GetProperty(propertyName)?.GetValue(issue);
+            if (value is string stringValue)
+            {
+                sb.Append("\"");
+                sb.Append(stringValue);
+                sb.Append("\"");
+            }
+            else if (value is double doubleValue)
+            {
+                sb.Append(Math.Round(doubleValue,3));
+            }
+            else if (value is DateTimeOffset dateTimeOffset)
+            {
+                sb.Append(dateTimeOffset.ToLocalTime().ToString("yyyy-MM-ddTHH:mm:ss"));
+            }
+            else if (value is DateTime dateTime)
+            {
+                sb.Append(dateTime.ToLocalTime().ToString("yyyy-MM-ddTHH:mm:ss"));
+            }
+            else if (value is not null)
+            {
+                sb.Append(value.ToString());
+            }
+            sb.Append(",");
+        }
+
+        return sb.ToString().TrimEnd(',');
+    }
+
+    private string ReadAllValuesDynamic(dynamic issue, HashSet<string> propertyNames)
     {
         var sb = new StringBuilder();
         foreach (var propertyName in propertyNames)
@@ -56,6 +123,10 @@ public class SimpleCsvExporter
                     {
                         sb.Append(dateTimeOffset.ToLocalTime().ToString("yyyy-MM-ddTHH:mm:ss"));
                     }
+                    else if (value is DateTime dateTime)
+                    {
+                        sb.Append(dateTime.ToLocalTime().ToString("yyyy-MM-ddTHH:mm:ss"));
+                    }
                     else
                     {
                         sb.Append(value?.ToString() ?? string.Empty);
@@ -69,7 +140,28 @@ public class SimpleCsvExporter
         return sb.ToString().TrimEnd(',');
     }
 
-    private HashSet<string> GetAllPropertyNames(IEnumerable<dynamic> issues)
+    private HashSet<string> GetAllPropertyNames(IEnumerable<object> issues, out bool isDynamic)
+    {
+        var first = issues.First();
+        if (first is ExpandoObject)
+        {
+            isDynamic = true;
+            return GetAllPropertyNamesDynamic(issues);
+        }
+
+        isDynamic = false;
+        var propertyNames = new HashSet<string>();
+        first
+            .GetType()
+            .GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)
+            .Select(p => p.Name)
+            .ToList()
+            .ForEach(p => propertyNames.Add(p));
+
+        return propertyNames;
+    }
+
+    private HashSet<string> GetAllPropertyNamesDynamic(IEnumerable<dynamic> issues)
     {
         var propertyNames = new HashSet<string>();
         foreach (var issue in issues)
