@@ -23,7 +23,7 @@ public class ExportPmPlanMapping : IJiraExportTask
         new("status", "Status", "name"),
         new("issuetype", "IssueType", "name"),
         new("customfield_12038", "PmPlanHighLevelEstimate"),
-        new("customfield_12137", "EstimationStatus", "value"), 
+        new("customfield_12137", "EstimationStatus", "value"),
         new("customfield_11986", "IsReqdForGoLive")
     ];
 
@@ -53,7 +53,6 @@ public class ExportPmPlanMapping : IJiraExportTask
 
         Console.WriteLine($"Found {allIssues.Count} unique stories");
         var exporter = new SimpleCsvExporter();
-        var fileName = exporter.Export(allIssues.Values);
-        Console.WriteLine(Path.GetFullPath(fileName));
+        exporter.Export(allIssues.Values);
     }
 }

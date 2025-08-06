@@ -13,7 +13,7 @@ public class ExportProjectPmPlans : IJiraExportTask
         new("status", "Status", "name"),
         new("issuetype", "IssueType", "name"),
         new("customfield_12038", "PmPlan High Level Estimate"),
-        new("customfield_12137", "Estimation Status", "value"), 
+        new("customfield_12137", "Estimation Status", "value"),
         new("customfield_11986", "Is Reqd For GoLive")
     ];
 
@@ -25,7 +25,6 @@ public class ExportProjectPmPlans : IJiraExportTask
         var runner = new JiraQueryDynamicRunner();
         var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);
         var exporter = new SimpleCsvExporter();
-        var fileName = exporter.Export(pmPlans);
-        Console.WriteLine(Path.GetFullPath(fileName));
+        exporter.Export(pmPlans);
     }
 }

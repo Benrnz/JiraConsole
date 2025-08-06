@@ -24,7 +24,7 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
         new("status", "Status", "name"),
         new("issuetype", "IssueType", "name"),
         new("customfield_12038", "PmPlan High Level Estimate"),
-        new("customfield_12137", "Estimation Status", "value"), 
+        new("customfield_12137", "Estimation Status", "value"),
         new("customfield_11986", "Is Reqd For GoLive")
     ];
 
@@ -62,7 +62,6 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
         Console.WriteLine($"{nonEnvestWork.Count} tickets found in open sprints that are not Envest work.");
 
         var exporter = new SimpleCsvExporter();
-        var fileName = exporter.Export(nonEnvestWork);
-        Console.WriteLine(Path.GetFullPath(fileName));
+        exporter.Export(nonEnvestWork);
     }
 }

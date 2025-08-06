@@ -1,4 +1,6 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿using Microsoft.VisualBasic.CompilerServices;
+
+namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
 public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
@@ -47,7 +49,6 @@ public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
         }
 
         var exporter = new SimpleCsvExporter();
-        var fileName = exporter.Export(issues);
-        Console.WriteLine(Path.GetFullPath(fileName));
+        exporter.Export(issues);
     }
 }

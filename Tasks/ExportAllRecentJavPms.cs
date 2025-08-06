@@ -42,7 +42,6 @@ public class ExportAllRecentJavPms : IJiraExportTask
         Console.WriteLine($"{issues.Count} issues fetched.");
 
         var exporter = new SimpleCsvExporter();
-        var fileName = exporter.Export(issues);
-        Console.WriteLine(Path.GetFullPath(fileName));
+        exporter.Export(issues);
     }
 }
