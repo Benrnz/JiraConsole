@@ -3,7 +3,7 @@
 // ReSharper disable once UnusedType.Global
 public class ExportPmPlanBurnUpData : IJiraExportTask
 {
-    private const int LinerTrendWeeks = 6;
+    private const int LinerTrendWeeks = 4;
     private static readonly DateTime ForecastCeilingDate = new(2026, 3, 31);
 
     public FieldMapping[] IssueFields =>
