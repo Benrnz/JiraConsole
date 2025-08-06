@@ -1,14 +1,12 @@
-﻿using System.Net;
-
-namespace BensJiraConsole.Tasks;
+﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
 public class ExportPmPlanBurnUpData : IJiraExportTask
 {
-    public string Key => "PMPLAN_STORIES";
-    public string Description => "Export PM Plan data for drawing a release burn-up chart";
+    private const int LinerTrendWeeks = 6;
+    private static readonly DateTime ForecastCeilingDate = new(2026, 3, 31);
 
-    public FieldMapping[] Fields =>
+    public FieldMapping[] IssueFields =>
     [
         //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
         new("summary", "Summary"),
@@ -17,8 +15,9 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         new("customfield_10004", "StoryPoints"),
         new("timeoriginalestimate", "Original Estimate"),
         new("created"),
-        new("resolutiondate", "Resolved"),
+        new("resolutiondate", "Resolved")
     ];
+
     public FieldMapping[] PmPlanFields =>
     [
         //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
@@ -29,6 +28,9 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         new("customfield_12137", "EstimationStatus", "value"),
         new("customfield_11986", "IsReqdForGoLive")
     ];
+
+    public string Key => "PMPLAN_STORIES";
+    public string Description => "Export PM Plan data for drawing a release burn-up chart";
 
     public async Task ExecuteAsync(string[] fields)
     {
@@ -43,7 +45,7 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         var allIssues = new List<JiraIssue>();
         foreach (var pmPlan in pmPlans)
         {
-            List<dynamic> children = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
+            List<dynamic> children = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), IssueFields);
             Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
             var range = children.Select(c => new JiraIssue(
                 (string)c.key,
@@ -62,7 +64,60 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
             .ThenBy(i => i.ResolvedDateTime)
             .ThenBy(i => i.CreatedDateTime));
 
+        foreach (var pmPlan in charts.Keys)
+        {
+            var newChartData = AddTrendLines(charts[pmPlan].ToArray());
+            charts[pmPlan] = newChartData;
+        }
+
         ExportToCsv(charts);
+    }
+
+    private IEnumerable<BurnUpChartData> AddTrendLines(BurnUpChartData[] chartData)
+    {
+        var count = chartData.Length;
+        if (count <= 2)
+        {
+            return chartData; // Not enough data points to calculate trend lines
+        }
+
+        var startIdx = count > LinerTrendWeeks ? count - LinerTrendWeeks + 1 : 0;
+        var windowSize = count - startIdx + 1;
+        var lastSixPoints = chartData.Skip(startIdx - 1).Take(windowSize).ToList();
+        if (lastSixPoints.Count < 2 || windowSize < 2)
+        {
+            return chartData; // Not enough points to calculate a trend
+        }
+
+        var newChartData = chartData.ToList();
+
+        var effortTrendIncrement = (lastSixPoints.Last().TotalDaysEffort - lastSixPoints.First().TotalDaysEffort) / (windowSize - 1);
+        var workCompletedTrendIncrement = (lastSixPoints.Last().WorkCompleted - lastSixPoints.First().WorkCompleted) / (windowSize - 1);
+
+        var runningTotalEffortTrendValue = lastSixPoints.First().TotalDaysEffort;
+        var runningTotalWorkTrendValue = lastSixPoints.First().WorkCompleted;
+        for (var i = 0; i < windowSize; i++)
+        {
+            lastSixPoints[i].TotalDaysEffortTrend = runningTotalEffortTrendValue;
+            lastSixPoints[i].WorkCompletedTrend = runningTotalWorkTrendValue;
+            runningTotalEffortTrendValue += effortTrendIncrement;
+            runningTotalWorkTrendValue += workCompletedTrendIncrement;
+        }
+
+        var date = newChartData.Last().Date;
+        var weeksDelta = (ForecastCeilingDate - date).Days / 7;
+        if (weeksDelta > 1)
+        {
+            var newDataPoint = new BurnUpChartData
+            {
+                Date = ForecastCeilingDate,
+                TotalDaysEffortTrend = newChartData.Last().TotalDaysEffortTrend + (effortTrendIncrement * weeksDelta),
+                WorkCompletedTrend = newChartData.Last().WorkCompletedTrend + (workCompletedTrendIncrement * weeksDelta)
+            };
+            newChartData.Add(newDataPoint);
+        }
+
+        return newChartData;
     }
 
     private void ExportToCsv(IDictionary<string, IEnumerable<BurnUpChartData>> charts)
@@ -108,6 +163,7 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
                 {
                     chartData.Add(dataPoint);
                 }
+
                 date = date.AddDays(7);
             }
 
@@ -118,13 +174,17 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
     }
 
     private record JiraIssue(string Key, DateTime CreatedDateTime, DateTime? ResolvedDateTime, string Status, double? StoryPoints, string PmPlan);
-}
 
-public class BurnUpChartData
-{
-    public DateTime Date { get; set; }
+    public class BurnUpChartData
+    {
+        public DateTime Date { get; set; }
 
-    public double? TotalDaysEffort { get; set; }
+        public double? TotalDaysEffort { get; set; }
 
-    public double? WorkCompleted { get; set; }
+        public double? WorkCompleted { get; set; }
+
+        public double? TotalDaysEffortTrend { get; set; }
+
+        public double? WorkCompletedTrend { get; set; }
+    }
 }
