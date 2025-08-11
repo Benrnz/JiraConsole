@@ -46,7 +46,7 @@ public class ExportJqlQueryTask : IJiraExportTask
         var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
         Console.WriteLine($"{issues.Count} issues fetched.");
 
-        var exporter = new SimpleCsvExporter();
+        var exporter = new SimpleCsvExporter(Key);
         exporter.Export(issues);
     }
 }

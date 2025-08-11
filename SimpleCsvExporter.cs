@@ -6,7 +6,7 @@ using System.Text;
 
 namespace BensJiraConsole;
 
-public class SimpleCsvExporter
+public class SimpleCsvExporter(string taskKey)
 {
     private const string DefaultFolder = "C:\\Downloads\\JiraExports";
 
@@ -16,6 +16,8 @@ public class SimpleCsvExporter
         ExactName,
         Hint,
     }
+
+    private readonly string taskKey = taskKey ?? throw new ArgumentNullException(nameof(taskKey));
 
     public FileNameMode Mode { get; set; } = FileNameMode.Auto;
 
@@ -37,7 +39,7 @@ public class SimpleCsvExporter
                 fileName = $"{fileNameHint ?? "BensJiraConsole"}-{DateTime.Now:yyyyMMddHHmmss}";
                 break;
             default:
-                fileName = $"BensJiraConsole-{DateTime.Now:yyyyMMddHHmmss}";
+                fileName = $"{this.taskKey}-{DateTime.Now:yyyyMMddHHmmss}";
                 break;
         }
 

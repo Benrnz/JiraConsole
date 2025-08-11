@@ -20,6 +20,7 @@ public static class Program
 
     public static async Task Main(string[] args)
     {
+        Console.WriteLine("Jira Console Exporter tool.  Select a task to execute, or 'exit' to quit.");
         var tasks = FindExportTaskImplementations();
         if (args.Length >= 2)
         {

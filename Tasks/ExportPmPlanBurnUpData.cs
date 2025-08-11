@@ -124,7 +124,7 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
     {
         foreach (var pmPlan in charts.Keys)
         {
-            var exporter = new SimpleCsvExporter { Mode = SimpleCsvExporter.FileNameMode.ExactName };
+            var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName };
             exporter.Export(charts[pmPlan], pmPlan);
         }
     }

@@ -20,7 +20,7 @@ public class ExportNewlyAddedStoriesForPmPlans : IJiraExportTask
             issues.Values.ToList().ForEach(i => Console.WriteLine($"{i.key}"));
         }
 
-        var exporter = new SimpleCsvExporter();
+        var exporter = new SimpleCsvExporter(Key);
         exporter.Export(issues.Values);
     }
 

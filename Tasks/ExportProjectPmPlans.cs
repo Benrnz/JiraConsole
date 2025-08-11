@@ -24,7 +24,7 @@ public class ExportProjectPmPlans : IJiraExportTask
         Console.WriteLine(jqlPmPlans);
         var runner = new JiraQueryDynamicRunner();
         var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);
-        var exporter = new SimpleCsvExporter();
+        var exporter = new SimpleCsvExporter(Key);
         exporter.Export(pmPlans);
     }
 }

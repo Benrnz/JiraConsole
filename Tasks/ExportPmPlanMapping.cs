@@ -32,7 +32,7 @@ public class ExportPmPlanMapping : IJiraExportTask
         Console.WriteLine(Description);
         var allIssues = await RetrieveAllStoriesMappingToPmPlan();
         Console.WriteLine($"Found {allIssues.Values.Count} unique stories");
-        var exporter = new SimpleCsvExporter();
+        var exporter = new SimpleCsvExporter(Key);
         exporter.Export(allIssues.Values);
     }
 

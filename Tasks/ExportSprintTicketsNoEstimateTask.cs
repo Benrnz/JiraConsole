@@ -48,7 +48,7 @@ public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
             issues.ForEach(i => Console.WriteLine($"{i.key}"));
         }
 
-        var exporter = new SimpleCsvExporter();
+        var exporter = new SimpleCsvExporter(Key);
         exporter.Export(issues);
     }
 }
