@@ -29,7 +29,7 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         new("customfield_11986", "IsReqdForGoLive")
     ];
 
-    public string Key => "PMPLAN_STORIES";
+    public string Key => "PMPLAN_BURNUP";
     public string Description => "Export PM Plan data for drawing a release burn-up chart";
 
     public async Task ExecuteAsync(string[] fields)

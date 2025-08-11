@@ -43,7 +43,7 @@ public class SimpleCsvExporter
 
         var pathAndFileName = $"{DefaultFolder}\\{fileName}.csv";
         WriteCsv(pathAndFileName, issues);
-        Console.WriteLine(Path.GetFullPath(fileName));
+        Console.WriteLine(Path.GetFullPath(pathAndFileName));
         return pathAndFileName;
     }
 

@@ -43,7 +43,7 @@ public static class Program
         StringBuilder help = new();
         for (var index = 0; index < tasks.Count(); index++)
         {
-            help.AppendLine($"{index + 1}: {tasks[index].Description}");
+            help.AppendLine($"{index + 1}: {tasks[index].Description} ({tasks[index].Key})");
             if (mode == tasks[index].Key || mode == (index + 1).ToString())
             {
                 selectedTask = tasks[index];
