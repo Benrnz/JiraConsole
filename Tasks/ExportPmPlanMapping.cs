@@ -30,9 +30,18 @@ public class ExportPmPlanMapping : IJiraExportTask
     public async Task ExecuteAsync(string[] fields)
     {
         Console.WriteLine(Description);
+        var allIssues = await RetrieveAllStoriesMappingToPmPlan();
+        Console.WriteLine($"Found {allIssues.Values.Count} unique stories");
+        var exporter = new SimpleCsvExporter();
+        exporter.Export(allIssues.Values);
+    }
+
+    public async Task<IDictionary<string, dynamic>> RetrieveAllStoriesMappingToPmPlan(string? additionalCriteria = null)
+    {
+        additionalCriteria = additionalCriteria ?? string.Empty;
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
         Console.WriteLine(jqlPmPlans);
-        var childrenJql = "project=JAVPM AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
+        var childrenJql = $"project=JAVPM AND (issue in (linkedIssues(\"{{0}}\")) OR parent in (linkedIssues(\"{{0}}\"))) {additionalCriteria} ORDER BY key";
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
         var dynamicRunner = new JiraQueryDynamicRunner();
         var pmPlans = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
@@ -51,8 +60,6 @@ public class ExportPmPlanMapping : IJiraExportTask
             }
         }
 
-        Console.WriteLine($"Found {allIssues.Count} unique stories");
-        var exporter = new SimpleCsvExporter();
-        exporter.Export(allIssues.Values);
+        return allIssues;
     }
 }
