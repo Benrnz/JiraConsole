@@ -173,17 +173,4 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
     }
 
     private record JiraIssue(string Key, DateTime CreatedDateTime, DateTime? ResolvedDateTime, string Status, double? StoryPoints, string PmPlan);
-
-    public class BurnUpChartData
-    {
-        public DateTime Date { get; set; }
-
-        public double? TotalDaysEffort { get; set; }
-
-        public double? WorkCompleted { get; set; }
-
-        public double? TotalDaysEffortTrend { get; set; }
-
-        public double? WorkCompletedTrend { get; set; }
-    }
 }
