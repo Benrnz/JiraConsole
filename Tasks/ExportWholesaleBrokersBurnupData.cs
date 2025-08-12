@@ -42,7 +42,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         var keys = string.Join(", ", epics.Select(x => x.key).ToArray());
 
 
-        var childrenJql = $"project = JAVPM AND \"Epic Link\" IN ({keys}) ORDER BY created DESC";
+        var childrenJql = $"project = JAVPM AND \"Epic Link\" IN ({keys}) ORDER BY created ASC";
         Console.WriteLine($"ForEach Epic: {childrenJql}");
         var allIssues = await dynamicRunner.SearchJiraIssuesWithJqlAsync(childrenJql, this.IssueFields);
 
@@ -119,11 +119,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
             return results;
         }
 
-        var date = children.Min(i => i.CreatedDateTime);
-        if (date == DateTime.MinValue)
-        {
-            return results;
-        }
+        var date = new DateTime(2025, 6, 17); // children.Min(i => i.CreatedDateTime);
 
         while (date <= DateTime.Today)
         {
