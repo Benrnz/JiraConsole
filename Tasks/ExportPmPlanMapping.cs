@@ -15,6 +15,7 @@ public class ExportPmPlanMapping : IJiraExportTask
         new("customfield_10004", "StoryPoints"),
         new("timeoriginalestimate", "Original Estimate"),
         new("created"),
+        new("reporter", "Reporter", "displayName"),
     ];
     public FieldMapping[] PmPlanFields =>
     [
