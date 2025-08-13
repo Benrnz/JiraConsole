@@ -155,7 +155,7 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
                     TotalDaysEffort = children
                         .Where(i => i.CreatedDateTime <= date).Sum(i => i.StoryPoints),
                     WorkCompleted = children
-                        .Where(i => i.ResolvedDateTime <= date && i.Status == "Done")
+                        .Where(i => i.ResolvedDateTime <= date && i.Status == Constants.DoneStatus)
                         .Sum(i => i.StoryPoints)
                 };
                 if (dataPoint.TotalDaysEffort + dataPoint.WorkCompleted > 0)
