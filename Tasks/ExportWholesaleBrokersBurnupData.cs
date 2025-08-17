@@ -132,7 +132,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
 
         if (epics.Any(e => e.IssueType != Constants.EpicType && e.IssueType is not null))
         {
-            foreach (var issue in epics.Where(e => e.IssueType?.name != Constants.EpicType))
+            foreach (var issue in epics.Where(e => e.IssueType != Constants.EpicType))
             {
                 this.resultList.Add(CreateJiraIssueFromDynamic(issue, "Directly labelled issue"));
             }
