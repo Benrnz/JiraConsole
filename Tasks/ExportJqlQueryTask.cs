@@ -3,10 +3,6 @@
 // ReSharper disable once UnusedType.Global
 public class ExportJqlQueryTask : IJiraExportTask
 {
-    public string Key => "JQL";
-
-    public string Description => "Export issues matching a JQL query";
-
     public FieldMapping[] Fields =>
     [
         //  JIRA Field Name, Friendly Alias, Flatten object with field name
@@ -28,8 +24,12 @@ public class ExportJqlQueryTask : IJiraExportTask
         new("customfield_10007", "Sprint", "name"),
         new("priority", "Priority", "name"),
         new("resolutiondate", "Resolved"),
-        new("customfield_11400", "Team", "name"),
+        new("customfield_11400", "Team", "name")
     ];
+
+    public string Key => "JQL";
+
+    public string Description => "Export issues matching a JQL query";
 
 
     public async Task ExecuteAsync(string[] fields)

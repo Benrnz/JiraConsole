@@ -1,6 +1,4 @@
-﻿using BensJiraConsole;
-
-namespace BensJiraConsole.Tasks;
+﻿namespace BensJiraConsole.Tasks;
 
 public class ExportWholesaleBrokersBurnupData : IJiraExportTask
 {

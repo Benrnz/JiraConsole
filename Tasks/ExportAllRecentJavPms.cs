@@ -4,9 +4,6 @@ public record FieldMapping(string Field, string Alias = "", string FlattenField 
 
 public class ExportAllRecentJavPms : IJiraExportTask
 {
-    public string Key => "JAVPMs";
-    public string Description => "Export all JAVPM tickets from the last 18 months.";
-
     /// <summary> Fields to include in the export: </summary>
     public FieldMapping[] Fields =>
     [
@@ -29,8 +26,11 @@ public class ExportAllRecentJavPms : IJiraExportTask
         new("customfield_10007", "Sprint", "name"),
         new("priority", "Priority", "name"),
         new("resolutiondate", "Resolved"),
-        new("customfield_11400", "Team", "name"),
+        new("customfield_11400", "Team", "name")
     ];
+
+    public string Key => "JAVPMs";
+    public string Description => "Export all JAVPM tickets from the last 18 months.";
 
     public async Task ExecuteAsync(string[] fields)
     {

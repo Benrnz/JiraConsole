@@ -6,8 +6,8 @@ namespace BensJiraConsole;
 
 public class JiraApiClient
 {
-    private static readonly HttpClient Client = new();
     private const string BaseUrl = "https://javlnsupport.atlassian.net/rest/api/3/";
+    private static readonly HttpClient Client = new();
 
     public JiraApiClient()
     {

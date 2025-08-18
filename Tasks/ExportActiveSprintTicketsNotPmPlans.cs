@@ -3,9 +3,6 @@
 // ReSharper disable once UnusedType.Global
 public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
 {
-    public string Key => "SPRINT";
-    public string Description => "Export Any Sprint ticket that does not map up to a PMPLAN (Superclass and Ruby Ducks only)";
-
     public FieldMapping[] Fields =>
     [
         //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
@@ -14,7 +11,7 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
         new("parent", "Parent", "key"),
         new("customfield_10004", "StoryPoints"),
         new("timeoriginalestimate", "Original Estimate"),
-        new("created"),
+        new("created")
     ];
 
     public FieldMapping[] PmPlanFields =>
@@ -27,6 +24,9 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
         new("customfield_12137", "Estimation Status", "value"),
         new("customfield_11986", "Is Reqd For GoLive")
     ];
+
+    public string Key => "SPRINT";
+    public string Description => "Export Any Sprint ticket that does not map up to a PMPLAN (Superclass and Ruby Ducks only)";
 
     public async Task ExecuteAsync(string[] fields)
     {

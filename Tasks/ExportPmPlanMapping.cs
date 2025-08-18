@@ -3,9 +3,6 @@
 // ReSharper disable once UnusedType.Global
 public class ExportPmPlanMapping : IJiraExportTask
 {
-    public string Key => "PMPLAN_STORIES";
-    public string Description => "Export PM Plan children mapping";
-
     public FieldMapping[] Fields =>
     [
         //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
@@ -16,8 +13,9 @@ public class ExportPmPlanMapping : IJiraExportTask
         new("timeoriginalestimate", "Original Estimate"),
         new("created"),
         new("issuetype", "IssueType", "name"),
-        new("reporter", "Reporter", "displayName"),
+        new("reporter", "Reporter", "displayName")
     ];
+
     public FieldMapping[] PmPlanFields =>
     [
         //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
@@ -28,6 +26,9 @@ public class ExportPmPlanMapping : IJiraExportTask
         new("customfield_12137", "EstimationStatus", "value"),
         new("customfield_11986", "IsReqdForGoLive")
     ];
+
+    public string Key => "PMPLAN_STORIES";
+    public string Description => "Export PM Plan children mapping";
 
     public async Task ExecuteAsync(string[] fields)
     {

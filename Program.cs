@@ -4,6 +4,8 @@ using BensJiraConsole;
 
 public static class Program
 {
+    private static string ProvidedFileName = string.Empty;
+
     private static string[] PreferredFields { get; } =
     [
         "summary",
@@ -15,8 +17,6 @@ public static class Program
         "created",
         "assignee"
     ];
-
-    private static string ProvidedFileName = string.Empty;
 
     public static async Task Main(string[] args)
     {

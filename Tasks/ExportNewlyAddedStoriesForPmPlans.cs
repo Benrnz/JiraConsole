@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
@@ -31,13 +33,13 @@ public class ExportNewlyAddedStoriesForPmPlans : IJiraExportTask
         {
             Console.WriteLine($"Enter a {dateDescription} (dd-MM-yyyy):");
             input = Console.ReadLine();
-            if (DateTime.TryParseExact(input, "dd-MM-yyyy", null, System.Globalization.DateTimeStyles.None, out var date))
+            if (DateTime.TryParseExact(input, "dd-MM-yyyy", null, DateTimeStyles.None, out var date))
             {
                 return date;
             }
 
             Console.WriteLine("Invalid date format. Please try again.");
-        } while(input != "exit");
+        } while (input != "exit");
 
         return DateTime.Today;
     }

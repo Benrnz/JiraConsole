@@ -6,9 +6,8 @@ namespace BensJiraConsole;
 
 public class JiraQueryDynamicRunner
 {
-    public string[] IgnoreFields => ["avatarId", "hierarchyLevel", "iconUrl", "id", "expand", "self", "subtask"];
-
     private SortedList<string, FieldMapping> fieldAliases = new();
+    public string[] IgnoreFields => ["avatarId", "hierarchyLevel", "iconUrl", "id", "expand", "self", "subtask"];
 
     public async Task<List<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, FieldMapping[] fields)
     {
@@ -31,6 +30,7 @@ public class JiraQueryDynamicRunner
             {
                 results.Add(DeserializeToDynamic(issue, string.Empty));
             }
+
             Console.WriteLine($"    Fetched {results.Count} issues.");
         } while (!isLastPage || nextPageToken != null);
 

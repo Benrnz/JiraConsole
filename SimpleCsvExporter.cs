@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Diagnostics;
-using System.Dynamic;
+﻿using System.Dynamic;
 using System.Reflection;
 using System.Text;
 
@@ -8,14 +6,14 @@ namespace BensJiraConsole;
 
 public class SimpleCsvExporter(string taskKey)
 {
-    private const string DefaultFolder = "C:\\Downloads\\JiraExports";
-
     public enum FileNameMode
     {
         Auto,
         ExactName,
-        Hint,
+        Hint
     }
+
+    private const string DefaultFolder = "C:\\Downloads\\JiraExports";
 
     private readonly string taskKey = taskKey ?? throw new ArgumentNullException(nameof(taskKey));
 
@@ -83,7 +81,7 @@ public class SimpleCsvExporter(string taskKey)
             }
             else if (value is double doubleValue)
             {
-                sb.Append(Math.Round(doubleValue,3));
+                sb.Append(Math.Round(doubleValue, 3));
             }
             else if (value is DateTimeOffset dateTimeOffset)
             {
@@ -95,8 +93,9 @@ public class SimpleCsvExporter(string taskKey)
             }
             else if (value is not null)
             {
-                sb.Append(value.ToString());
+                sb.Append(value);
             }
+
             sb.Append(",");
         }
 
@@ -156,7 +155,7 @@ public class SimpleCsvExporter(string taskKey)
         var propertyNames = new HashSet<string>();
         first
             .GetType()
-            .GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
             .Select(p => p.Name)
             .ToList()
             .ForEach(p => propertyNames.Add(p));

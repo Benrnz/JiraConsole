@@ -1,14 +1,8 @@
-﻿using Microsoft.VisualBasic.CompilerServices;
-
-namespace BensJiraConsole.Tasks;
+﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
 public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
 {
-    public string Key => "NOESTIMATE";
-
-    public string Description => "Export Active Sprint tickets with no estimate (Superclass, Ruby Ducks, Spearhead only)";
-
     public FieldMapping[] Fields =>
     [
         //  JIRA Field Name, Friendly Alias, Flatten object with field name
@@ -30,15 +24,20 @@ public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
         new("customfield_10007", "Sprint", "name"),
         new("priority", "Priority", "name"),
         new("resolutiondate", "Resolved"),
-        new("customfield_11400", "Team", "name"),
+        new("customfield_11400", "Team", "name")
     ];
+
+    public string Key => "NOESTIMATE";
+
+    public string Description => "Export Active Sprint tickets with no estimate (Superclass, Ruby Ducks, Spearhead only)";
 
 
     public async Task ExecuteAsync(string[] fields)
     {
         Console.WriteLine(Description);
         var runner = new JiraQueryDynamicRunner();
-        var jql = "project=JAVPM AND sprint IN openSprints() AND \"Story Points[Number]\" IN (EMPTY, 0) AND \"Team[Team]\" IN (f08f7fdc-cfab-4de7-8fdd-8da57b10adb6, 60412efa-7e2e-4285-bb4e-f329c3b6d417, 1a05d236-1562-4e58-ae88-1ffc6c5edb32)";
+        var jql =
+            "project=JAVPM AND sprint IN openSprints() AND \"Story Points[Number]\" IN (EMPTY, 0) AND \"Team[Team]\" IN (f08f7fdc-cfab-4de7-8fdd-8da57b10adb6, 60412efa-7e2e-4285-bb4e-f329c3b6d417, 1a05d236-1562-4e58-ae88-1ffc6c5edb32)";
         Console.WriteLine(jql);
         var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
         Console.WriteLine($"{issues.Count} issues fetched.");
