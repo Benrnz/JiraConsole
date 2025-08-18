@@ -113,8 +113,8 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
     {
         return new JiraIssue(
             (string)i.key,
-            (DateTime)i.created.UtcDateTime,
-            (DateTime?)i.Resolved?.UtcDateTime,
+            (DateTimeOffset)i.created,
+            (DateTimeOffset?)i.Resolved,
             (string)i.Status,
             (double?)i.StoryPoints,
             source);
@@ -223,7 +223,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         {
             var dataPoint = new BurnUpChartData
             {
-                Date = date,
+                Date = date.LocalDateTime,
                 TotalDaysEffort = children
                     .Where(i => i.CreatedDateTime <= date).Sum(i => i.StoryPoints),
                 WorkCompleted = children
@@ -241,5 +241,5 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         return results.ToArray();
     }
 
-    private record JiraIssue(string Key, DateTime CreatedDateTime, DateTime? ResolvedDateTime, string Status, double? StoryPoints, string Source);
+    private record JiraIssue(string Key, DateTimeOffset CreatedDateTime, DateTimeOffset? ResolvedDateTime, string Status, double? StoryPoints, string Source);
 }

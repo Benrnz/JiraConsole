@@ -49,8 +49,8 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
             Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
             var range = children.Select(c => new JiraIssue(
                 (string)c.key,
-                (DateTime)c.created.UtcDateTime,
-                (DateTime?)c.Resolved?.UtcDateTime,
+                (DateTimeOffset)c.created,
+                (DateTimeOffset?)c.Resolved,
                 (string)c.Status,
                 (double?)c.StoryPoints,
                 (string)pmPlan.key));
@@ -141,21 +141,17 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
             }
 
             var chartData = new List<BurnUpChartData>();
-            var date = children.Min(i => i.CreatedDateTime);
-            if (date == DateTime.MinValue)
-            {
-                continue;
-            }
+            var date = DateUtils.FindBestStartDate(children.Min(i => i.CreatedDateTime));
 
-            while (date <= DateTime.Today)
+            while (date < DateTime.Today)
             {
                 var dataPoint = new BurnUpChartData
                 {
-                    Date = date,
+                    Date = date.LocalDateTime,
                     TotalDaysEffort = children
-                        .Where(i => i.CreatedDateTime <= date).Sum(i => i.StoryPoints),
+                        .Where(i => i.CreatedDateTime < date).Sum(i => i.StoryPoints),
                     WorkCompleted = children
-                        .Where(i => i.ResolvedDateTime <= date && i.Status == Constants.DoneStatus)
+                        .Where(i => i.ResolvedDateTime < date && i.Status == Constants.DoneStatus)
                         .Sum(i => i.StoryPoints)
                 };
                 if (dataPoint.TotalDaysEffort + dataPoint.WorkCompleted > 0)
@@ -172,5 +168,5 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         return results;
     }
 
-    private record JiraIssue(string Key, DateTime CreatedDateTime, DateTime? ResolvedDateTime, string Status, double? StoryPoints, string PmPlan);
+    private record JiraIssue(string Key, DateTimeOffset CreatedDateTime, DateTimeOffset? ResolvedDateTime, string Status, double? StoryPoints, string PmPlan);
 }
