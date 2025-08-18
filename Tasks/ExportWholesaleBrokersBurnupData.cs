@@ -1,11 +1,13 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿using BensJiraConsole;
+
+namespace BensJiraConsole.Tasks;
 
 public class ExportWholesaleBrokersBurnupData : IJiraExportTask
 {
     private const int LinerTrendWeeks = 4;
     private static readonly DateTime ForecastCeilingDate = new(2026, 3, 31);
 
-    private readonly FieldMapping[] EpicFields =
+    private readonly FieldMapping[] epicFields =
     [
         new("issuetype", "IssueType", "name"),
         new("status", "Status", "name"),
@@ -14,7 +16,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         new("resolutiondate", "Resolved")
     ];
 
-    private readonly FieldMapping[] IssueFields =
+    private readonly FieldMapping[] issueFields =
     [
         //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
         new("summary", "Summary"),
@@ -84,7 +86,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         var issueCount = 0;
         foreach (var pmPlan in keys)
         {
-            var allIssues = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan), this.IssueFields);
+            var allIssues = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan), this.issueFields);
             allIssues.ForEach(i =>
             {
                 this.resultList.Add(CreateJiraIssueFromDynamic(i, "Child of PMPLAN"));
@@ -99,7 +101,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
     {
         var childrenJql = $"project = JAVPM AND \"Epic Link\" IN ({keys}) ORDER BY created ASC";
         Console.WriteLine($"ForEach Epic: {childrenJql}");
-        var allIssues = await dynamicRunner.SearchJiraIssuesWithJqlAsync(childrenJql, this.IssueFields);
+        var allIssues = await dynamicRunner.SearchJiraIssuesWithJqlAsync(childrenJql, this.issueFields);
         Console.WriteLine($"Found {allIssues.Count} issues");
 
         allIssues.Select(i => CreateJiraIssueFromDynamic(i, "Child of labelled epic"))
@@ -123,7 +125,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         var jqlEpics = "project = JAVPM AND labels = Wholesale_Broker order by created DESC";
         Console.WriteLine(jqlEpics);
 
-        var epics = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlEpics, this.EpicFields);
+        var epics = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlEpics, this.epicFields);
         if (!epics.Any())
         {
             Console.WriteLine("No Wholesale Brokers epics found.");
@@ -215,7 +217,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
             return results.ToArray();
         }
 
-        var date = new DateTime(2025, 6, 17); // children.Min(i => i.CreatedDateTime);
+        var date = DateUtils.FindBestStartDate(children.Min(i => i.CreatedDateTime));
 
         while (date <= DateTime.Today)
         {
