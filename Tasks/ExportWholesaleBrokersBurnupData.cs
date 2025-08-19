@@ -7,16 +7,15 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
 
     private readonly FieldMapping[] epicFields =
     [
-        new("issuetype", "IssueType", "name"),
-        new("status", "Status", "name"),
-        new("customfield_10004", "StoryPoints"),
-        new("created"),
-        new("resolutiondate", "Resolved")
+        JiraFields.IssueType,
+        JiraFields.Status,
+        JiraFields.StoryPoints,
+        JiraFields.Created,
+        JiraFields.Resolution
     ];
 
     private readonly FieldMapping[] issueFields =
     [
-        //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
         new("summary", "Summary"),
         new("status", "Status", "name"),
         new("parent", "Parent", "key"),

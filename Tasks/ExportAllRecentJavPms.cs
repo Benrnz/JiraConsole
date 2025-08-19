@@ -1,7 +1,5 @@
 ﻿namespace BensJiraConsole.Tasks;
 
-public record FieldMapping(string Field, string Alias = "", string FlattenField = "");
-
 public class ExportAllRecentJavPms : IJiraExportTask
 {
     /// <summary> Fields to include in the export: </summary>
