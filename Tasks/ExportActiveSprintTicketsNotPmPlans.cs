@@ -55,9 +55,10 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
             if (allIssues.All(c => c.key != sprintTicket.key))
             {
                 nonEnvestWork.Add(sprintTicket);
-                Console.WriteLine(sprintTicket.key);
             }
         }
+
+        Console.WriteLine($"project = JAVPM AND key IN ({string.Join(", ", nonEnvestWork.Select(x => (string)x.key))}) ORDER BY key");
 
         Console.WriteLine($"{nonEnvestWork.Count} tickets found in open sprints that are not Envest work.");
 
