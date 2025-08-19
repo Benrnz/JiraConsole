@@ -53,14 +53,22 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
 
         var chartData = CreateBurnUpChartData();
 
-        ExportCsvFiles(chartData);
+        var fileName = ExportCsvFiles(chartData);
+        await SaveToGoogleDrive(fileName);
     }
 
-    private void ExportCsvFiles(BurnUpChartData[] chartData)
+    private async Task SaveToGoogleDrive(string fileName)
+    {
+        var googleUploader = new GoogleDriveUploader();
+        await googleUploader.UploadCsvAsync(fileName, $"{Key}.csv", "BensJiraConsoleUploads");
+    }
+
+    private string ExportCsvFiles(BurnUpChartData[] chartData)
     {
         var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName };
-        exporter.Export(chartData, Key);
+        var fileName = exporter.Export(chartData, Key);
         exporter.Export(this.resultList, Key + "_Issues");
+        return fileName;
     }
 
     private BurnUpChartData[] CreateBurnUpChartData()
