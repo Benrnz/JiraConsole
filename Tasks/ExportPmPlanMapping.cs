@@ -30,6 +30,8 @@ public class ExportPmPlanMapping : IJiraExportTask
     public string Key => "PMPLAN_STORIES";
     public string Description => "Export PM Plan children mapping";
 
+    public IEnumerable<dynamic> PmPlans { get; private set; } = [];
+
     public async Task ExecuteAsync(string[] fields)
     {
         Console.WriteLine(Description);
@@ -47,10 +49,10 @@ public class ExportPmPlanMapping : IJiraExportTask
         var childrenJql = $"project=JAVPM AND (issue in (linkedIssues(\"{{0}}\")) OR parent in (linkedIssues(\"{{0}}\"))) {additionalCriteria} ORDER BY key";
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
         var dynamicRunner = new JiraQueryDynamicRunner();
-        var pmPlans = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
+        PmPlans = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
 
         var allIssues = new Dictionary<string, dynamic>(); // Ensure the final list of JAVPMs is unique NO DUPLICATES
-        foreach (var pmPlan in pmPlans)
+        foreach (var pmPlan in PmPlans)
         {
             var children = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
             Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
@@ -58,7 +60,8 @@ public class ExportPmPlanMapping : IJiraExportTask
             {
                 child.PmPlan = pmPlan.key;
                 child.IsReqdForGoLive = pmPlan.IsReqdForGoLive;
-                child.PmPlanEstimationStatus = pmPlan.EstimationStatus;
+                child.EstimationStatus = pmPlan.EstimationStatus;
+                child.PmPlanHighLevelEstimate = pmPlan.PmPlanHighLevelEstimate;
                 allIssues.TryAdd(child.key, child);
             }
         }

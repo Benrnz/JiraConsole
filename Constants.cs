@@ -6,4 +6,5 @@ public static class Constants
     public const string StoryType = "Story";
     public const string BugType = "Bug";
     public const string DoneStatus = "Done";
+    public const string HasDevTeamEstimate = "Dev Team Estimate";
 }
