@@ -7,4 +7,19 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+      <PackageReference Include="Google.Apis.Auth" Version="1.70.0" />
+      <PackageReference Include="Google.Apis.Drive.v3" Version="1.70.0.3856" />
+    </ItemGroup>
+
+    <Target Name="CopyClientSecret" AfterTargets="Build">
+        <ItemGroup>
+            <ClientSecretFile Include="client_secret_apps.googleusercontent.com.json" />
+        </ItemGroup>
+        <Copy
+                SourceFiles="@(ClientSecretFile)"
+                DestinationFolder="$(OutDir)"
+                SkipUnchangedFiles="true"
+                Condition="Exists('@(ClientSecretFile)')" />
+    </Target>
 </Project>

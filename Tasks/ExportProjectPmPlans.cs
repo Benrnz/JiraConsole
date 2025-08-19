@@ -25,6 +25,9 @@ public class ExportProjectPmPlans : IJiraExportTask
         var runner = new JiraQueryDynamicRunner();
         var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);
         var exporter = new SimpleCsvExporter(Key);
-        exporter.Export(pmPlans);
+        var fileName = exporter.Export(pmPlans);
+
+        var googleUploader = new GoogleDriveUploader();
+        await googleUploader.UploadCsvAsync(fileName, "PmPlans.csv", "BensJiraConsoleUploads");
     }
 }
