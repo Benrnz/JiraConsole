@@ -1,7 +1,7 @@
 ﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportPmPlanReleaseBurnUp : IJiraExportTask
+public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
 {
     public string Key => "PMPLAN_RBURNUP";
     public string Description => "Export Overall PM Plan Release Burn Up";
