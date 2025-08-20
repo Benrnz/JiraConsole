@@ -55,6 +55,14 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
             (double?)i.PmPlanHighLevelEstimate);
     }
 
-    private record JiraIssue(string Key, DateTimeOffset CreatedDateTime, string Status, double? StoryPoints, string Source, bool IsReqdForGoLive = false,
-        string EstimationStatus = "", double? PmPlanHighLevelEstimate = null, string? PmPlan = null);
+    private record JiraIssue(
+        string Key,
+        DateTimeOffset CreatedDateTime,
+        string Status,
+        double? StoryPoints,
+        string Source,
+        bool IsReqdForGoLive = false,
+        string EstimationStatus = "",
+        double? PmPlanHighLevelEstimate = null,
+        string? PmPlan = null);
 }

@@ -25,10 +25,10 @@ public class ExportPmPlanMapping : IJiraExportTask
         JiraFields.IsReqdForGoLive
     ];
 
+    public IEnumerable<dynamic> PmPlans { get; private set; } = [];
+
     public string Key => "PMPLAN_STORIES";
     public string Description => "Export PM Plan children mapping";
-
-    public IEnumerable<dynamic> PmPlans { get; private set; } = [];
 
     public async Task ExecuteAsync(string[] fields)
     {

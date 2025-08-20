@@ -1,6 +1,5 @@
 ﻿using System.Dynamic;
 using System.Text.Json;
-using BensJiraConsole.Tasks;
 
 namespace BensJiraConsole;
 

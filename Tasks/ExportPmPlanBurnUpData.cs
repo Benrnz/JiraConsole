@@ -17,7 +17,7 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         JiraFields.Resolved
     ];
 
-    private static  readonly FieldMapping[] PmPlanFields =
+    private static readonly FieldMapping[] PmPlanFields =
     [
         JiraFields.Summary,
         JiraFields.Status,
@@ -33,7 +33,8 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
     public async Task ExecuteAsync(string[] fields)
     {
         Console.WriteLine(Description);
-        var jqlPmPlans = $"IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest AND \"Required for Go-live[Checkbox]\" = 1 AND \"Estimation Status[Dropdown]\" = \"{Constants.HasDevTeamEstimate}\" ORDER BY Key";
+        var jqlPmPlans =
+            $"IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest AND \"Required for Go-live[Checkbox]\" = 1 AND \"Estimation Status[Dropdown]\" = \"{Constants.HasDevTeamEstimate}\" ORDER BY Key";
         Console.WriteLine(jqlPmPlans);
         var childrenJql = "project=JAVPM AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");

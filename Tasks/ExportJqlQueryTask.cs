@@ -3,7 +3,7 @@
 // ReSharper disable once UnusedType.Global
 public class ExportJqlQueryTask : IJiraExportTask
 {
-    private static  readonly FieldMapping[] Fields =
+    private static readonly FieldMapping[] Fields =
     [
         JiraFields.Summary,
         JiraFields.Status,

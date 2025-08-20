@@ -14,7 +14,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         JiraFields.Resolution
     ];
 
-    private static  readonly FieldMapping[] IssueFields =
+    private static readonly FieldMapping[] IssueFields =
     [
         JiraFields.Summary,
         JiraFields.Status,
@@ -116,10 +116,16 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
 
     private static JiraIssue CreateJiraIssueFromDynamic(dynamic i, string source)
     {
+        DateTimeOffset? resolvedDate = null;
+        if (i.Resolved is DateTimeOffset dateTime)
+        {
+            resolvedDate = dateTime;
+        }
+
         return new JiraIssue(
             (string)i.key,
             (DateTimeOffset)i.created,
-            (DateTimeOffset?)i.Resolved,
+            resolvedDate,
             (string)i.Status,
             (double?)i.StoryPoints,
             source);
