@@ -27,6 +27,6 @@ public class ExportProjectPmPlans : IJiraExportTask
         var fileName = exporter.Export(pmPlans);
 
         var googleUploader = new GoogleDriveUploader();
-        await googleUploader.UploadCsvAsync(fileName, $"{Key}.csv", "BensJiraConsoleUploads");
+        await googleUploader.UploadCsvAsync(fileName, $"{Key}.csv");
     }
 }

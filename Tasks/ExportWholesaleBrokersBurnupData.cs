@@ -59,7 +59,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
     private async Task SaveToGoogleDrive(string fileName)
     {
         var googleUploader = new GoogleDriveUploader();
-        await googleUploader.UploadCsvAsync(fileName, $"{Key}.csv", "BensJiraConsoleUploads");
+        await googleUploader.UploadCsvAsync(fileName, $"{Key}.csv");
     }
 
     private string ExportCsvFiles(BurnUpChartData[] chartData)

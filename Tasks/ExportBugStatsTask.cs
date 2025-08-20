@@ -27,11 +27,33 @@ public class ExportBugStatsTask : IJiraExportTask
         Console.WriteLine(Description);
         var dynamicRunner = new JiraQueryDynamicRunner();
         var jql = """project = JAVPM AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND created >= startOfMonth("-13M")""";
+        Console.WriteLine(jql);
+        Console.WriteLine();
         var jiras = (await dynamicRunner.SearchJiraIssuesWithJqlAsync(jql, Fields))
             .Select(CreateJiraIssue)
             .OrderBy(i => i.Created)
             .ToList();
 
+        await ExportBugStatsSeverities(jiras);
+        await ExportBugStatsCategories(jiras);
+
+    }
+
+    private async Task ExportBugStatsCategories(List<JiraIssue> jiras)
+    {
+        var currentMonth = CalculateStartDate();
+        var bugCounts = new List<BarChartData>();
+        // do
+        // {
+        //     var filteredList = jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList();
+        //     //Maybe create a dictionary to hold counts by category?
+        //     bugCounts.Add(new BarChartData(currentMonth, p1sTotal, p2sTotal, othersTotal));
+        //     currentMonth = currentMonth.AddMonths(1);
+        // } while (currentMonth < DateTime.Today);
+    }
+
+    private async Task ExportBugStatsSeverities(List<JiraIssue> jiras)
+    {
         var currentMonth = CalculateStartDate();
         var bugCounts = new List<BarChartData>();
         do
@@ -47,7 +69,10 @@ public class ExportBugStatsTask : IJiraExportTask
         } while (currentMonth < DateTime.Today);
 
         var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName };
-        exporter.Export(bugCounts);
+        var fileName = exporter.Export(bugCounts, Key);
+
+        var googleExporter = new GoogleDriveUploader();
+        await googleExporter.UploadCsvAsync(fileName, $"{Key}-Severities.csv");
     }
 
     private DateTime CalculateStartDate()
@@ -58,7 +83,8 @@ public class ExportBugStatsTask : IJiraExportTask
 
     private JiraIssue CreateJiraIssue(dynamic i)
     {
-        Console.WriteLine(this.dynamicIndex++);
+        Console.Write(this.dynamicIndex++);
+        Console.Write(" ");
         var typedIssue = new JiraIssue(
             JiraFields.Key.Parse<string>(i),
             JiraFields.Summary.Parse<string>(i),
