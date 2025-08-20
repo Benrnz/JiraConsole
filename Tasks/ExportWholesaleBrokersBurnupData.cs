@@ -11,7 +11,8 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         JiraFields.Status,
         JiraFields.StoryPoints,
         JiraFields.Created,
-        JiraFields.Resolution
+        JiraFields.Resolution,
+        JiraFields.Resolved
     ];
 
     private static readonly FieldMapping[] IssueFields =

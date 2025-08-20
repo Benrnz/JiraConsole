@@ -13,7 +13,7 @@ public static class JiraFields
     public static readonly FieldMapping FlagCount = new() { Field = "customfield_12236", Alias = "FlagCount" };
     public static readonly FieldMapping IsReqdForGoLive = new FieldMappingWithParser<bool>() { Field = "customfield_11986", Alias = "IsReqdForGoLive", Parser = ParseIsReqdForGoLive };
     public static readonly FieldMapping IssueType = new() { Field = "issuetype", Alias = "IssueType", FlattenField = "name" };
-    public static readonly FieldMapping Key = new() { Field = "key", Alias = "Key" };
+    public static readonly FieldMapping Key = new FieldMappingWithParser<string>() { Field = "key", Alias = "Key", Parser = ParsesKey};
     public static readonly FieldMapping OriginalEstimate = new() { Field = "timeoriginalestimate", Alias = "OriginalEstimate" };
     public static readonly FieldMapping ParentKey = new() { Field = "parent", Alias = "Parent", FlattenField = "key" };
     public static readonly FieldMapping PmPlanHighLevelEstimate = new() { Field = "customfield_12038", Alias = "PmPlanHighLevelEstimate" };
@@ -73,5 +73,20 @@ public static class JiraFields
         }
 
         throw new NotSupportedException($"IsReqdForGoLive data type {d.IsReqdForGoLive.GetType().Name} is not supported");
+    }
+
+    private static string ParsesKey(dynamic d)
+    {
+        if (d is IDictionary<string, object> dictionary && dictionary.TryGetValue("key", out var value))
+        {
+            if (value is null)
+            {
+                throw new NotSupportedException("Key cannot be null - likely bug in app.");
+            }
+
+            return (string)value;
+        }
+
+        throw new NotSupportedException("Key is not found in the returned results - likely bug in app.");
     }
 }

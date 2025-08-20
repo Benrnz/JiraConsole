@@ -10,10 +10,14 @@ public class FieldMapping
 
     private string FieldName => this.fieldName ??= string.IsNullOrEmpty(Alias) ? Field : Alias;
 
-    public virtual T Parse<T>(dynamic d)
+    public virtual T? Parse<T>(dynamic d)
     {
         if (d is IDictionary<string, object> dictionary && dictionary.TryGetValue(FieldName, out var value))
         {
+            if (value is null)
+            {
+                return default;
+            }
             return (T)value;
         }
 
