@@ -23,8 +23,7 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         JiraFields.Status,
         JiraFields.IssueType,
         JiraFields.PmPlanHighLevelEstimate,
-        JiraFields.EstimationStatus,
-        JiraFields.IsReqdForGoLive
+        JiraFields.EstimationStatus
     ];
 
     public string Key => "PMPLAN_BURNUP";
@@ -47,12 +46,12 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
             List<dynamic> children = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), IssueFields);
             Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
             var range = children.Select(c => new JiraIssue(
-                (string)c.key,
-                (DateTimeOffset)c.Created,
-                (DateTimeOffset?)c.Resolved,
-                (string)c.Status,
-                (double?)c.StoryPoints,
-                (string)pmPlan.key));
+                JiraFields.Key.Parse<string>(c),
+                JiraFields.Created.Parse<DateTimeOffset>(c),
+                JiraFields.Resolved.Parse<DateTimeOffset?>(c),
+                JiraFields.Status.Parse<string>(c),
+                JiraFields.StoryPoints.Parse<double?>(c),
+                JiraFields.Key.Parse<string>(pmPlan)));
             allIssues.AddRange(range);
         }
 

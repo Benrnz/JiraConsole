@@ -11,7 +11,7 @@ public static class JiraFields
     public static readonly FieldMapping DevTimeSpent = new FieldMappingWithParser<string?> { Field = "customfield_11934", Alias = "DevTimeSpent", Parser = ParseDevTimeSpent };
     public static readonly FieldMapping EstimationStatus = new() { Field = "customfield_12137", Alias = "EstimationStatus", FlattenField = "value" };
     public static readonly FieldMapping FlagCount = new() { Field = "customfield_12236", Alias = "FlagCount" };
-    public static readonly FieldMapping IsReqdForGoLive = new() { Field = "customfield_11986", Alias = "IsReqdForGoLive" };
+    public static readonly FieldMapping IsReqdForGoLive = new FieldMappingWithParser<bool>() { Field = "customfield_11986", Alias = "IsReqdForGoLive", Parser = ParseIsReqdForGoLive };
     public static readonly FieldMapping IssueType = new() { Field = "issuetype", Alias = "IssueType", FlattenField = "name" };
     public static readonly FieldMapping Key = new() { Field = "key", Alias = "Key" };
     public static readonly FieldMapping OriginalEstimate = new() { Field = "timeoriginalestimate", Alias = "OriginalEstimate" };
@@ -47,5 +47,31 @@ public static class JiraFields
         }
 
         throw new NotSupportedException($"DevTimeSpent data type {d.DevTimeSpent.GetType().Name} is not supported");
+    }
+
+    private static bool ParseIsReqdForGoLive(dynamic d)
+    {
+        // IsReqdForGoLive is a number in the real data, but can be a string in some cases or null.
+        if (d.IsReqdForGoLive is string str)
+        {
+            return double.TryParse(str, out var result) && result > 0.01;
+        }
+
+        if (d.IsReqdForGoLive is double dbl)
+        {
+            return dbl > 0.01;
+        }
+
+        if (d.IsReqdForGoLive is bool boolvalue)
+        {
+            return boolvalue;
+        }
+
+        if (d.IsReqdForGoLive is null)
+        {
+            return false;
+        }
+
+        throw new NotSupportedException($"IsReqdForGoLive data type {d.IsReqdForGoLive.GetType().Name} is not supported");
     }
 }

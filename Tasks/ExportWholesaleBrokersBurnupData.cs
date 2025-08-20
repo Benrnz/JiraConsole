@@ -123,11 +123,11 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         }
 
         return new JiraIssue(
-            (string)i.key,
-            (DateTimeOffset)i.Created,
-            resolvedDate,
-            (string)i.Status,
-            (double?)i.StoryPoints,
+            JiraFields.Key.Parse<string>(i),
+            JiraFields.Created.Parse<DateTimeOffset>(i),
+            JiraFields.Resolved.Parse<DateTimeOffset>(i),
+            JiraFields.Status.Parse<string>(i),
+            JiraFields.StoryPoints.Parse<double?>(i),
             source);
     }
 
