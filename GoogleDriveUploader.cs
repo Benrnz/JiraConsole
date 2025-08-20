@@ -1,9 +1,9 @@
-﻿namespace BensJiraConsole;
-
-using Google.Apis.Auth.OAuth2;
+﻿using Google.Apis.Auth.OAuth2;
 using Google.Apis.Drive.v3;
 using Google.Apis.Services;
-using System.IO;
+using File = Google.Apis.Drive.v3.Data.File;
+
+namespace BensJiraConsole;
 
 public class GoogleDriveUploader
 {
@@ -25,10 +25,10 @@ public class GoogleDriveUploader
         }
 
         // Create Drive API service
-        using var service = new DriveService(new BaseClientService.Initializer()
+        using var service = new DriveService(new BaseClientService.Initializer
         {
             HttpClientInitializer = credential,
-            ApplicationName = ApplicationName,
+            ApplicationName = ApplicationName
         });
 
         var parentFolderId = await GetOrCreateFolderIdAsync(service, folderName) ?? string.Empty;
@@ -66,34 +66,30 @@ public class GoogleDriveUploader
         {
             return folder.Id;
         }
-        else
+
+        // If the folder doesn't exist, create it under the root directory
+        Console.WriteLine($"Folder '{folderName}' not found. Creating a new one...");
+
+        var folderMetadata = new File
         {
-            // If the folder doesn't exist, create it under the root directory
-            Console.WriteLine($"Folder '{folderName}' not found. Creating a new one...");
+            Name = folderName,
+            MimeType = "application/vnd.google-apps.folder",
+            Parents = new List<string> { "root" } // 'root' is a special alias for the user's root folder
+        };
 
-            var folderMetadata = new Google.Apis.Drive.v3.Data.File()
-            {
-                Name = folderName,
-                MimeType = "application/vnd.google-apps.folder",
-                Parents = new List<string> { "root" } // 'root' is a special alias for the user's root folder
-            };
+        var request = service.Files.Create(folderMetadata);
+        request.Fields = "id"; // Request the new folder's ID
+        var newFolder = await request.ExecuteAsync();
 
-            var request = service.Files.Create(folderMetadata);
-            request.Fields = "id"; // Request the new folder's ID
-            var newFolder = await request.ExecuteAsync();
-
-            if (newFolder != null)
-            {
-                Console.WriteLine($"New folder created with ID: {newFolder.Id}");
-                return newFolder.Id;
-            }
-            else
-            {
-                // Handle the case where folder creation fails
-                Console.WriteLine("Error: Failed to create the new folder.");
-                return null;
-            }
+        if (newFolder != null)
+        {
+            Console.WriteLine($"New folder created with ID: {newFolder.Id}");
+            return newFolder.Id;
         }
+
+        // Handle the case where folder creation fails
+        Console.WriteLine("Error: Failed to create the new folder.");
+        return null;
     }
 
 // Helper method to find a file's ID by name
@@ -118,7 +114,7 @@ public class GoogleDriveUploader
     private async Task UpdateExistingFile(DriveService service, string fileId, string localFilePath)
     {
         await using var stream = new FileStream(localFilePath, FileMode.Open);
-        var updateRequest = service.Files.Update(new Google.Apis.Drive.v3.Data.File(), fileId, stream, "text/csv");
+        var updateRequest = service.Files.Update(new File(), fileId, stream, "text/csv");
         await updateRequest.UploadAsync();
         var uploadedFile = updateRequest.ResponseBody;
         if (uploadedFile != null)
@@ -129,7 +125,7 @@ public class GoogleDriveUploader
 
     private async Task CreateNewFileInFolderAsync(DriveService service, string localFilePath, string driveFileName, string parentFolderId)
     {
-        var fileMetadata = new Google.Apis.Drive.v3.Data.File()
+        var fileMetadata = new File
         {
             Name = driveFileName,
             MimeType = "text/csv"

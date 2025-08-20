@@ -8,18 +8,18 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Google.Apis.Auth" Version="1.70.0" />
-      <PackageReference Include="Google.Apis.Drive.v3" Version="1.70.0.3856" />
+        <PackageReference Include="Google.Apis.Auth" Version="1.70.0"/>
+        <PackageReference Include="Google.Apis.Drive.v3" Version="1.70.0.3856"/>
     </ItemGroup>
 
     <Target Name="CopyClientSecret" AfterTargets="Build">
         <ItemGroup>
-            <ClientSecretFile Include="client_secret_apps.googleusercontent.com.json" />
+            <ClientSecretFile Include="client_secret_apps.googleusercontent.com.json"/>
         </ItemGroup>
         <Copy
                 SourceFiles="@(ClientSecretFile)"
                 DestinationFolder="$(OutDir)"
                 SkipUnchangedFiles="true"
-                Condition="Exists('@(ClientSecretFile)')" />
+                Condition="Exists('@(ClientSecretFile)')"/>
     </Target>
 </Project>

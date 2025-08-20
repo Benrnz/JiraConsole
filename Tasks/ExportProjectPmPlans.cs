@@ -3,15 +3,14 @@
 // ReSharper disable once UnusedType.Global
 public class ExportProjectPmPlans : IJiraExportTask
 {
-    public FieldMapping[] Fields =>
+    private static readonly FieldMapping[] Fields =
     [
-        //  JIRA Field Name, Friendly Alias, Flatten object with field name
-        new("summary", "Summary"),
-        new("status", "Status", "name"),
-        new("issuetype", "IssueType", "name"),
-        new("customfield_12038", "PmPlan High Level Estimate"),
-        new("customfield_12137", "Estimation Status", "value"),
-        new("customfield_11986", "Is Reqd For GoLive")
+        JiraFields.Summary,
+        JiraFields.Status,
+        JiraFields.IssueType,
+        JiraFields.PmPlanHighLevelEstimate,
+        JiraFields.EstimationStatus,
+        JiraFields.IsReqdForGoLive
     ];
 
     public string Key => "PMPLANS";
