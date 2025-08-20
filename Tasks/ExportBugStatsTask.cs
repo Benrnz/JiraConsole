@@ -14,8 +14,10 @@ public class ExportBugStatsTask : IJiraExportTask
         JiraFields.StoryPoints,
         JiraFields.DevTimeSpent,
         JiraFields.Resolved,
-        JiraFields.Resolution,
+        JiraFields.Resolution
     ];
+
+    private int dynamicIndex;
 
     public string Key => "BUG_STATS";
     public string Description => "Export a series of exports summarising bug statistics for JAVPM.";
@@ -44,7 +46,7 @@ public class ExportBugStatsTask : IJiraExportTask
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        var exporter = new SimpleCsvExporter(Key);
+        var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName };
         exporter.Export(bugCounts);
     }
 
@@ -54,32 +56,38 @@ public class ExportBugStatsTask : IJiraExportTask
         return new DateTime(thirteenMonthsAgo.Year, thirteenMonthsAgo.Month, 1);
     }
 
-    private int dynamicIndex = 0;
     private JiraIssue CreateJiraIssue(dynamic i)
     {
         Console.WriteLine(this.dynamicIndex++);
-        string? devTimeSpent = null;
-        // DevTimeSpent has come through as a DateTimeOffset in real data and also a string.
-        if (i.DevTimeSpent is string stringTime)
-        {
-            devTimeSpent = stringTime;
-        } else if (i.DevTimeSpent is DateTimeOffset dateTime)
-        {
-            devTimeSpent = dateTime.ToString("d");
-        }
-        return new JiraIssue(
-            Key: (string)i.key,
-            Summary: (string)i.Summary,
-            Created: (DateTimeOffset)i.Created,
-            Resolved: (DateTimeOffset?)i.Resolved,
-            Status: (string)i.Status,
-            Category: (string?)i.Category,
-            Severity: (string?)i.Severity,
-            Team: (string?)i.Team,
-            BugType: (string)i.BugType,
-            StoryPoints: (double?)i.StoryPoints,
-            DevTimeSpent: devTimeSpent,
-            Resolution: (string?)i.Resolution);
+        var typedIssue = new JiraIssue(
+            JiraFields.Key.Parse<string>(i),
+            JiraFields.Summary.Parse<string>(i),
+            JiraFields.Created.Parse<DateTimeOffset>(i),
+            JiraFields.Resolved.Parse<DateTimeOffset?>(i),
+            JiraFields.Status.Parse<string>(i),
+            JiraFields.Category.Parse<string?>(i),
+            JiraFields.Severity.Parse<string?>(i),
+            JiraFields.Team.Parse<string?>(i),
+            JiraFields.BugType.Parse<string>(i),
+            JiraFields.StoryPoints.Parse<double?>(i),
+            JiraFields.DevTimeSpent.Parse<string?>(i),
+            JiraFields.Resolution.Parse<string?>(i));
+        return typedIssue;
+
+        // Old way of creating typed issues, kept for reference.  Very prone to errors with dynamic no-intellisense property names.
+        // return new JiraIssue(
+        //     (string)i.key,
+        //     (string)i.Summary,
+        //     (DateTimeOffset)i.Created,
+        //     (DateTimeOffset?)i.Resolved,
+        //     (string)i.Status,
+        //     (string?)i.Category,
+        //     (string?)i.Severity,
+        //     (string?)i.Team,
+        //     (string)i.BugType,
+        //     (double?)i.StoryPoints,
+        //     devTimeSpent,
+        //     (string?)i.Resolution);
     }
 
     // ReSharper disable InconsistentNaming
