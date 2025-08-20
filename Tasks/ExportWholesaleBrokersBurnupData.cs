@@ -124,7 +124,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
 
         return new JiraIssue(
             (string)i.key,
-            (DateTimeOffset)i.created,
+            (DateTimeOffset)i.Created,
             resolvedDate,
             (string)i.Status,
             (double?)i.StoryPoints,

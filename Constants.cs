@@ -7,4 +7,6 @@ public static class Constants
     public const string BugType = "Bug";
     public const string DoneStatus = "Done";
     public const string HasDevTeamEstimate = "Dev Team Estimate";
+    public const string SeverityCritical = "Critical";
+    public const string SeverityMajor = "Major";
 }

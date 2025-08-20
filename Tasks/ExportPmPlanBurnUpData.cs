@@ -48,7 +48,7 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
             Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
             var range = children.Select(c => new JiraIssue(
                 (string)c.key,
-                (DateTimeOffset)c.created,
+                (DateTimeOffset)c.Created,
                 (DateTimeOffset?)c.Resolved,
                 (string)c.Status,
                 (double?)c.StoryPoints,

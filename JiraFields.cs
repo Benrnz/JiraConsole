@@ -6,7 +6,7 @@ public static class JiraFields
     public static readonly FieldMapping IssueType = new("issuetype", "IssueType", "name");
     public static readonly FieldMapping Status = new("status", "Status", "name");
     public static readonly FieldMapping StoryPoints = new("customfield_10004", "StoryPoints");
-    public static readonly FieldMapping Created = new("created");
+    public static readonly FieldMapping Created = new("created", "Created");
     public static readonly FieldMapping Resolved = new("resolutiondate", "Resolved");
     public static readonly FieldMapping Summary = new("summary", "Summary");
     public static readonly FieldMapping ParentKey = new("parent", "Parent", "key");
@@ -15,7 +15,7 @@ public static class JiraFields
     public static readonly FieldMapping ReporterDisplay = new("reporter", "Reporter", "displayName");
     public static readonly FieldMapping Priority = new("priority", "Priority", "name");
     public static readonly FieldMapping Sprint = new("customfield_10007", "Sprint");
-    public static readonly FieldMapping Resolution = new("resolutiondate", "Resolved", "name");
+    public static readonly FieldMapping Resolution = new("resolution", "Resolution", "name");
     public static readonly FieldMapping PmPlanHighLevelEstimate = new("customfield_12038", "PmPlanHighLevelEstimate");
     public static readonly FieldMapping EstimationStatus = new("customfield_12137", "EstimationStatus", "value");
     public static readonly FieldMapping IsReqdForGoLive = new("customfield_11986", "IsReqdForGoLive");

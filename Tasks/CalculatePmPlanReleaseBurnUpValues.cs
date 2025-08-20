@@ -46,7 +46,7 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
 
         return new JiraIssue(
             (string)i.key,
-            (DateTimeOffset)i.created,
+            (DateTimeOffset)i.Created,
             (string)i.Status,
             (double?)i.StoryPoints,
             source,
