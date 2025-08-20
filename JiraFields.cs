@@ -14,20 +14,17 @@ public static class JiraFields
     public static readonly FieldMapping AssigneeDisplay = new("assignee", "Assignee", "displayName");
     public static readonly FieldMapping ReporterDisplay = new("reporter", "Reporter", "displayName");
     public static readonly FieldMapping Priority = new("priority", "Priority", "name");
-    public static readonly FieldMapping DueDate = new("duedate", "Due Date");
-    public static readonly FieldMapping Updated = new("updated", "Updated");
     public static readonly FieldMapping Sprint = new("customfield_10007", "Sprint");
-    public static readonly FieldMapping EpicLink = new("customfield_10008", "Epic Link");
-    public static readonly FieldMapping FixVersions = new("fixVersions", "Fix Versions");
-    public static readonly FieldMapping Components = new("components", "Components");
-    public static readonly FieldMapping Labels = new("labels", "Labels");
-    public static readonly FieldMapping Description = new("description", "Description");
-    public static readonly FieldMapping Project = new("project", "Project", "key");
     public static readonly FieldMapping Resolution = new("resolution", "Resolution", "name");
-    public static readonly FieldMapping Environment = new("environment", "Environment");
-    public static readonly FieldMapping TimeSpent = new("timespent", "Time Spent");
-    public static readonly FieldMapping Progress = new("progress", "Progress");
-    public static readonly FieldMapping AggregateProgress = new("aggregateprogress", "Aggregate Progress");
-    public static readonly FieldMapping Worklog = new("worklog", "Worklog");
+    public static readonly FieldMapping PmPlanHighLevelEstimate = new("customfield_12038", "PmPlan High Level Estimate");
+    public static readonly FieldMapping EstimationStatus = new("customfield_12137", "Estimation Status", "value");
+    public static readonly FieldMapping IsReqdForGoLive = new("customfield_11986", "Is Reqd For GoLive");
+    public static readonly FieldMapping DevTimeSpent = new("customfield_11934", "DevTimeSpent");
+    public static readonly FieldMapping BugType = new("customfield_11903", "BugType", "value");
+    public static readonly FieldMapping CustomersMultiSelect = new("customfield_11812", "CustomersMultiSelect", "value");
+    public static readonly FieldMapping Category = new("customfield_11906", "Category", "value");
+    public static readonly FieldMapping FlagCount = new("customfield_12236", "Flag Count");
+    public static readonly FieldMapping Severity = new("customfield_11899", "Severity", "value");
+    public static readonly FieldMapping Team = new("customfield_11400", "Team", "name");
     // Add any other unique FieldMapping instances found in your codebase here
 }

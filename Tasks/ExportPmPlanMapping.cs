@@ -3,28 +3,26 @@
 // ReSharper disable once UnusedType.Global
 public class ExportPmPlanMapping : IJiraExportTask
 {
-    public FieldMapping[] Fields =>
+    private static readonly FieldMapping[] Fields =
     [
-        //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
-        new("summary", "Summary"),
-        new("status", "Status", "name"),
-        new("parent", "Parent", "key"),
-        new("customfield_10004", "StoryPoints"),
-        new("timeoriginalestimate", "Original Estimate"),
-        new("created"),
-        new("issuetype", "IssueType", "name"),
-        new("reporter", "Reporter", "displayName")
+        JiraFields.Summary,
+        JiraFields.Status,
+        JiraFields.ParentKey,
+        JiraFields.StoryPoints,
+        JiraFields.OriginalEstimate,
+        JiraFields.Created,
+        JiraFields.IssueType,
+        JiraFields.ReporterDisplay
     ];
 
-    public FieldMapping[] PmPlanFields =>
+    private static readonly FieldMapping[] PmPlanFields =
     [
-        //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
-        new("summary", "Summary"),
-        new("status", "Status", "name"),
-        new("issuetype", "IssueType", "name"),
-        new("customfield_12038", "PmPlanHighLevelEstimate"),
-        new("customfield_12137", "EstimationStatus", "value"),
-        new("customfield_11986", "IsReqdForGoLive")
+        JiraFields.Summary,
+        JiraFields.Status,
+        JiraFields.IssueType,
+        JiraFields.PmPlanHighLevelEstimate,
+        JiraFields.EstimationStatus,
+        JiraFields.IsReqdForGoLive
     ];
 
     public string Key => "PMPLAN_STORIES";
