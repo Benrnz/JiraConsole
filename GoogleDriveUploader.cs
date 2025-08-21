@@ -12,7 +12,7 @@ public class GoogleDriveUploader
 
     public async Task UploadCsvAsync(string csvFilePath, string driveFileName, string? folderName = null)
     {
-        folderName ??= "BensJiraConsoleUploads";
+        folderName ??= Constants.ApplicationName;
         UserCredential credential;
 
         // Load the client secrets from the downloaded JSON file

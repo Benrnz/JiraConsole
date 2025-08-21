@@ -36,8 +36,8 @@ public class ExportBugStatsTask : IJiraExportTask
             .OrderBy(i => i.Created)
             .ToList();
 
-        await ExportBugStatsCategories(jiras);
         await ExportBugStatsSeverities(jiras);
+        await ExportBugStatsCategories(jiras);
     }
 
     private List<string> allCategories = new();
@@ -140,6 +140,9 @@ public class ExportBugStatsTask : IJiraExportTask
 
         var googleExporter = new GoogleDriveUploader();
         await googleExporter.UploadCsvAsync(fileName, $"{Key}-Severities.csv");
+
+        var googleSheetUpdater = new GoogleSheetUpdater(fileName);
+        await googleSheetUpdater.EditGoogleSheet();
     }
 
     private DateTime CalculateStartDate()
