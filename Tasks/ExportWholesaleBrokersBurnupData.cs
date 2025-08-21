@@ -54,7 +54,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         var chartData = CreateBurnUpChartData();
 
         var fileName = ExportCsvFiles(chartData);
-        await SaveToGoogleDrive(fileName);
+        //await SaveToGoogleDrive(fileName);
     }
 
     private async Task SaveToGoogleDrive(string fileName)

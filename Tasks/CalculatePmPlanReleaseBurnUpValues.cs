@@ -4,7 +4,7 @@
 public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
 {
     public string Key => "PMPLAN_RBURNUP";
-    public string Description => "Export Overall PM Plan Release Burn Up";
+    public string Description => "Calculate Overall PM Plan Release Burn Up";
 
     public async Task ExecuteAsync(string[] fields)
     {
@@ -16,7 +16,7 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
         var totalWork = CalculateTotalWorkToBeDone(javPms, task.PmPlans);
         var workCompleted = CalculateCompletedWork(javPms);
 
-        Console.WriteLine($"As at ${DateTime.Today:d}");
+        Console.WriteLine($"As at {DateTime.Today:d}");
         Console.WriteLine($"Total work to be done: {totalWork}");
         Console.WriteLine($"Work completed: {workCompleted}");
     }
