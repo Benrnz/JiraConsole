@@ -14,7 +14,6 @@ public class GoogleSheetUpdater
     private static readonly string[] Scopes = [SheetsService.Scope.Spreadsheets];
 
     private const string GoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
-    private const string SheetAndRange = "'BUG_STATS-Severities.CSV'!A1";
     private const string ClientSecretsFile = "client_secret_apps.googleusercontent.com.json";
 
     public GoogleSheetUpdater(string csvFilePathAndName)
@@ -22,7 +21,7 @@ public class GoogleSheetUpdater
         this.csvFilePathAndName = csvFilePathAndName ?? throw new ArgumentNullException(nameof(csvFilePathAndName));
     }
 
-    public async Task EditGoogleSheet()
+    public async Task EditGoogleSheet(string sheetAndRange)
     {
         Console.WriteLine("Starting Google Sheet data import...");
 
@@ -74,7 +73,7 @@ public class GoogleSheetUpdater
                 var row = new List<object>();
                 foreach (var part in parts)
                 {
-                    row.Add(part.Trim());
+                    row.Add(SetType(part.Trim()));
                 }
                 values.Add(row);
             }
@@ -102,7 +101,7 @@ public class GoogleSheetUpdater
         try
         {
             // Create the update request.
-            var updateRequest = service.Spreadsheets.Values.Update(valueRange, GoogleSheetId, SheetAndRange);
+            var updateRequest = service.Spreadsheets.Values.Update(valueRange, GoogleSheetId, sheetAndRange);
             updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.RAW;
 
             // Execute the request to update the Google Sheet.
@@ -115,5 +114,30 @@ public class GoogleSheetUpdater
         {
             Console.WriteLine($"An error occurred during the API call: {ex.Message}");
         }
+    }
+
+    private static object SetType(string? value)
+    {
+        if (value == null)
+        {
+            return string.Empty;
+        }
+
+        // if (DateTime.TryParse(value, out var date))
+        // {
+        //     return date;
+        // }
+
+        if (int.TryParse(value, out var intValue))
+        {
+            return intValue;
+        }
+
+        if (double.TryParse(value, out var doubleValue))
+        {
+            return doubleValue;
+        }
+
+        return value;
     }
 }

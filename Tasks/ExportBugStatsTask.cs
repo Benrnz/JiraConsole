@@ -65,8 +65,9 @@ public class ExportBugStatsTask : IJiraExportTask
         var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseHeaderRow };
         var fileName = exporter.Export(bugCounts, $"{Key}-Categories");
 
-        var googleExporter = new GoogleDriveUploader();
-        await googleExporter.UploadCsvAsync(fileName, $"{Key}-Categories.csv");
+        var googleSheetUpdater = new GoogleSheetUpdater(fileName);
+        await googleSheetUpdater.EditGoogleSheet("'BUG_STATS-Categories.CSV'!A1");
+
     }
 
     private string SerialiseHeaderRow()
@@ -138,11 +139,8 @@ public class ExportBugStatsTask : IJiraExportTask
         var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv };
         var fileName = exporter.Export(bugCounts, $"{Key}-Severities");
 
-        var googleExporter = new GoogleDriveUploader();
-        await googleExporter.UploadCsvAsync(fileName, $"{Key}-Severities.csv");
-
         var googleSheetUpdater = new GoogleSheetUpdater(fileName);
-        await googleSheetUpdater.EditGoogleSheet();
+        await googleSheetUpdater.EditGoogleSheet("'BUG_STATS-Severities.CSV'!A1");
     }
 
     private DateTime CalculateStartDate()
