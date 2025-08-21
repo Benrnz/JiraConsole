@@ -36,8 +36,34 @@ public class ExportBugStatsTask : IJiraExportTask
             .OrderBy(i => i.Created)
             .ToList();
 
+        await ExportBugStatsRecentDevelopment(jiras);
         await ExportBugStatsSeverities(jiras);
         await ExportBugStatsCategories(jiras);
+    }
+
+    private async Task ExportBugStatsRecentDevelopment(List<JiraIssue> jiras)
+    {
+        var currentMonth = CalculateStartDate();
+        var bugCounts = new List<BarChartData>();
+        do
+        {
+            var filteredList = jiras
+                .Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1) && i.Resolution == Constants.CodeFixLast6 && i.BugType == Constants.BugTypeProduction)
+                .ToList();
+            // ReSharper disable InconsistentNaming
+            var p1sTotal = filteredList.Count(i => i.Severity == Constants.SeverityCritical);
+            var p2sTotal = filteredList.Count(i => i.Severity == Constants.SeverityMajor);
+            // ReSharper restore InconsistentNaming
+            var othersTotal = filteredList.Count - p1sTotal - p2sTotal;
+            bugCounts.Add(new BarChartData(currentMonth, p1sTotal, p2sTotal, othersTotal));
+            currentMonth = currentMonth.AddMonths(1);
+        } while (currentMonth < DateTime.Today);
+
+        var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv };
+        var fileName = exporter.Export(bugCounts, $"{Key}-RecentDev");
+
+        var googleSheetUpdater = new GoogleSheetUpdater(fileName);
+        await googleSheetUpdater.EditGoogleSheet("'BUG_STATS-RecentDev.CSV'!A1");
     }
 
     private List<string> allCategories = new();
