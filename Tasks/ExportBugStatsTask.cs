@@ -1,4 +1,6 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿using System.Text;
+
+namespace BensJiraConsole.Tasks;
 
 public class ExportBugStatsTask : IJiraExportTask
 {
@@ -17,7 +19,7 @@ public class ExportBugStatsTask : IJiraExportTask
         JiraFields.Resolution
     ];
 
-    private int dynamicIndex;
+    //private int dynamicIndex;
 
     public string Key => "BUG_STATS";
     public string Description => "Export a series of exports summarising bug statistics for JAVPM.";
@@ -34,22 +36,87 @@ public class ExportBugStatsTask : IJiraExportTask
             .OrderBy(i => i.Created)
             .ToList();
 
-        await ExportBugStatsSeverities(jiras);
         await ExportBugStatsCategories(jiras);
-
+        await ExportBugStatsSeverities(jiras);
     }
+
+    private List<string> allCategories = new();
 
     private async Task ExportBugStatsCategories(List<JiraIssue> jiras)
     {
         var currentMonth = CalculateStartDate();
-        var bugCounts = new List<BarChartData>();
-        // do
-        // {
-        //     var filteredList = jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList();
-        //     //Maybe create a dictionary to hold counts by category?
-        //     bugCounts.Add(new BarChartData(currentMonth, p1sTotal, p2sTotal, othersTotal));
-        //     currentMonth = currentMonth.AddMonths(1);
-        // } while (currentMonth < DateTime.Today);
+        var bugCounts = new List<BarChartDataCategories>();
+        this.allCategories = ParseCategories(jiras.Select(j => j.Category ?? "Unknown").Distinct().ToList());
+        do
+        {
+            var filteredList = jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList();
+            var categoryData = filteredList.GroupBy(j => j.Category ?? "Unknown").ToList();
+            var categoryCounts = new Dictionary<string, int>();
+            foreach (var category in this.allCategories)
+            {
+                var matchingGroups = categoryData.Where(g => g.Key == category || g.Key.Contains(category));
+                categoryCounts[category] = matchingGroups.Select(g => g.Count()).Sum();
+            }
+
+            bugCounts.Add(new BarChartDataCategories(currentMonth, categoryCounts));
+            currentMonth = currentMonth.AddMonths(1);
+        } while (currentMonth < DateTime.Today);
+
+        var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseHeaderRow };
+        var fileName = exporter.Export(bugCounts, $"{Key}-Categories");
+
+        var googleExporter = new GoogleDriveUploader();
+        await googleExporter.UploadCsvAsync(fileName, $"{Key}-Categories.csv");
+    }
+
+    private string SerialiseHeaderRow()
+    {
+        return $"Month,{string.Join(',', this.allCategories)}";
+    }
+
+    private string SerialiseToCsv(object record)
+    {
+        if (record is BarChartDataCategories chartDataCategories)
+        {
+            var builder = new StringBuilder();
+            builder.Append(chartDataCategories.Month.ToString("MMM-yy"));
+            foreach (var category in this.allCategories)
+            {
+                builder.Append(',');
+                builder.Append(chartDataCategories.CategoryData[category]);
+            }
+
+            return builder.ToString();
+        }
+
+        if (record is BarChartData chartDataSeverities)
+        {
+            var builder = new StringBuilder();
+            builder.Append(chartDataSeverities.Month.ToString("MMM-yy"));
+            builder.Append($",{chartDataSeverities.P1s},{chartDataSeverities.P2s},{chartDataSeverities.Others}");
+            return builder.ToString();
+        }
+
+        throw new InvalidOperationException("Unsupported record type for CSV serialization.");
+    }
+
+    private List<string> ParseCategories(List<string> rawList)
+    {
+        // The rawList contains a list of categories, but some elements are comma seperated lists of categories. These need to be split and a new distinct list created.
+        var categories = new HashSet<string>();
+        foreach (var item in rawList)
+        {
+            var splitItems = item.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var splitItem in splitItems)
+            {
+                if (!string.IsNullOrWhiteSpace(splitItem))
+                {
+                    categories.Add(splitItem);
+                }
+            }
+        }
+
+        return categories.ToList();
     }
 
     private async Task ExportBugStatsSeverities(List<JiraIssue> jiras)
@@ -68,8 +135,8 @@ public class ExportBugStatsTask : IJiraExportTask
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName };
-        var fileName = exporter.Export(bugCounts, Key);
+        var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv };
+        var fileName = exporter.Export(bugCounts, $"{Key}-Severities");
 
         var googleExporter = new GoogleDriveUploader();
         await googleExporter.UploadCsvAsync(fileName, $"{Key}-Severities.csv");
@@ -83,8 +150,8 @@ public class ExportBugStatsTask : IJiraExportTask
 
     private JiraIssue CreateJiraIssue(dynamic i)
     {
-        Console.Write(this.dynamicIndex++);
-        Console.Write(" ");
+        //Console.Write(this.dynamicIndex++);
+        //Console.Write(" ");
         var typedIssue = new JiraIssue(
             JiraFields.Key.Parse<string>(i),
             JiraFields.Summary.Parse<string>(i),
@@ -119,6 +186,8 @@ public class ExportBugStatsTask : IJiraExportTask
     // ReSharper disable InconsistentNaming
     private record BarChartData(DateTime Month, int P1s, int P2s, int Others);
     // ReSharper restore InconsistentNaming
+
+    private record BarChartDataCategories(DateTime Month, IDictionary<string, int> CategoryData);
 
     private record JiraIssue(
         string Key,
