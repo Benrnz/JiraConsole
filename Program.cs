@@ -6,18 +6,6 @@ public static class Program
 {
     private static string ProvidedFileName = string.Empty;
 
-    private static string[] PreferredFields { get; } =
-    [
-        "summary",
-        "status",
-        "issuetype",
-        "customfield_11934", // Dev Time Spent
-        "parent",
-        "customfield_10004", // Story Points
-        "created",
-        "assignee"
-    ];
-
     public static async Task Main(string[] args)
     {
         Console.WriteLine("Jira Console Exporter tool.  Select a task to execute, or 'exit' to quit.");
@@ -64,7 +52,7 @@ public static class Program
             return;
         }
 
-        await selectedTask.ExecuteAsync(PreferredFields);
+        await selectedTask.ExecuteAsync([]);
     }
 
     private static IJiraExportTask[] FindExportTaskImplementations()

@@ -11,7 +11,8 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         JiraFields.Status,
         JiraFields.StoryPoints,
         JiraFields.Created,
-        JiraFields.Resolution
+        JiraFields.Resolution,
+        JiraFields.Resolved
     ];
 
     private static readonly FieldMapping[] IssueFields =
@@ -53,13 +54,13 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         var chartData = CreateBurnUpChartData();
 
         var fileName = ExportCsvFiles(chartData);
-        await SaveToGoogleDrive(fileName);
+        //await SaveToGoogleDrive(fileName);
     }
 
     private async Task SaveToGoogleDrive(string fileName)
     {
         var googleUploader = new GoogleDriveUploader();
-        await googleUploader.UploadCsvAsync(fileName, $"{Key}.csv", "BensJiraConsoleUploads");
+        await googleUploader.UploadCsvAsync(fileName, $"{Key}.csv");
     }
 
     private string ExportCsvFiles(BurnUpChartData[] chartData)
@@ -123,11 +124,11 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         }
 
         return new JiraIssue(
-            (string)i.key,
-            (DateTimeOffset)i.created,
-            resolvedDate,
-            (string)i.Status,
-            (double?)i.StoryPoints,
+            JiraFields.Key.Parse<string>(i),
+            JiraFields.Created.Parse<DateTimeOffset>(i),
+            JiraFields.Resolved.Parse<DateTimeOffset>(i),
+            JiraFields.Status.Parse<string>(i),
+            JiraFields.StoryPoints.Parse<double?>(i),
             source);
     }
 

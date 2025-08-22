@@ -14,7 +14,7 @@ public class ExportNewlyAddedStoriesForPmPlans : IJiraExportTask
         var parentTask = new ExportPmPlanMapping();
         var startDate = GetDateFromUser("start date (inclusive)");
         var endDate = GetDateFromUser("end date (exclusive)");
-        var issues = await parentTask.RetrieveAllStoriesMappingToPmPlan($"AND created >= {startDate:yyyy-MM-dd} AND created < {endDate:yyyy-MM-dd}");
+        var issues = await parentTask.RetrieveAllStoriesMappingToPmPlan($"AND created >= {startDate:yyyy-MM-dd} AND Created < {endDate:yyyy-MM-dd}");
 
         Console.WriteLine($"Found {issues.Values.Count} unique stories");
         if (issues.Values.Count < 20)

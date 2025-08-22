@@ -47,6 +47,10 @@ public class SimpleCsvExporter(string taskKey)
         return pathAndFileName;
     }
 
+    public Func<object, string>? OverrideSerialiseRecord { get; set; } = null;
+
+    public Func<string>? OverrideSerialiseHeader { get; set; } = null;
+
     private void WriteCsv(string path, IEnumerable<object> issues)
     {
         if (!Path.Exists(path))
@@ -57,11 +61,29 @@ public class SimpleCsvExporter(string taskKey)
         using var writer = new StreamWriter(path);
 
         var propertyNames = GetAllPropertyNames(issues, out var isDynamic);
-        writer.WriteLine(string.Join(',', propertyNames));
+
+        // Write Header names
+        if (OverrideSerialiseHeader == null)
+        {
+            writer.WriteLine(string.Join(',', propertyNames));
+        }
+        else
+        {
+            writer.WriteLine(OverrideSerialiseHeader());
+        }
 
         for (var i = 0; i < issues.Count(); i++)
         {
-            var record = isDynamic ? ReadAllValuesDynamic(issues.ElementAt(i), propertyNames) : ReadAllValues(issues.ElementAt(i), propertyNames);
+            string record;
+            if (OverrideSerialiseRecord == null)
+            {
+                record = isDynamic ? ReadAllValuesDynamic(issues.ElementAt(i), propertyNames) : ReadAllValues(issues.ElementAt(i), propertyNames);
+            }
+            else
+            {
+                record = OverrideSerialiseRecord(issues.ElementAt(i));
+            }
+
             writer.WriteLine(record);
         }
     }

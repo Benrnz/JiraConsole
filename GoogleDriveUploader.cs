@@ -10,8 +10,9 @@ public class GoogleDriveUploader
     private static readonly string[] Scopes = { DriveService.Scope.DriveFile };
     private static readonly string ApplicationName = "Google Drive CSV Uploader";
 
-    public async Task UploadCsvAsync(string csvFilePath, string driveFileName, string folderName)
+    public async Task UploadCsvAsync(string csvFilePath, string driveFileName, string? folderName = null)
     {
+        folderName ??= Constants.ApplicationName;
         UserCredential credential;
 
         // Load the client secrets from the downloaded JSON file
