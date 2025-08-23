@@ -4,24 +4,11 @@ using BensJiraConsole;
 
 public static class Program
 {
-    private static string ProvidedFileName = string.Empty;
-
     public static async Task Main(string[] args)
     {
         Console.WriteLine("Jira Console Exporter tool.  Select a task to execute, or 'exit' to quit.");
         var tasks = FindExportTaskImplementations();
-        if (args.Length >= 2)
-        {
-            ProvidedFileName = args[1];
-            var invalidChars = Path.GetInvalidFileNameChars();
-            if (!ProvidedFileName.Any(c => invalidChars.Contains(c)))
-            {
-                Console.WriteLine($"ERROR: Invalid filename '{ProvidedFileName}' provided.");
-            }
-        }
-
         await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET", tasks);
-
         Console.WriteLine("Exiting.");
     }
 
@@ -42,6 +29,8 @@ public static class Program
         if (mode == "NOT_SET")
         {
             Console.WriteLine(help);
+            Console.WriteLine("Type 'exit' to quit.");
+            Console.Out.Flush();
             mode = Console.ReadLine();
             await ExecuteMode(mode, tasks);
             return;
@@ -62,6 +51,10 @@ public static class Program
             .Where(type => typeof(IJiraExportTask).IsAssignableFrom(type)
                            && type is { IsInterface: false, IsAbstract: false })
             .ToList();
-        return types.Select(Activator.CreateInstance).Cast<IJiraExportTask>().ToArray();
+        return types
+            .Select(Activator.CreateInstance)
+            .Cast<IJiraExportTask>()
+            .OrderBy(t => t.Key)
+            .ToArray();
     }
 }
