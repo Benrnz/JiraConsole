@@ -12,4 +12,5 @@ public static class Constants
     public const string SeverityMajor = "Major";
     public const string CodeFixLast6 = "Code Fix - Bug from recent development (past 6 months)";
     public const string BugTypeProduction = "Production";
+    public const string Unknown = "Unknown";
 }

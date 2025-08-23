@@ -6,6 +6,8 @@ public static class JiraFields
     public static readonly FieldMapping AssigneeDisplay = new() { Field = "assignee", Alias = "Assignee", FlattenField = "displayName" };
     public static readonly FieldMapping BugType = new() { Field = "customfield_11903", Alias = "BugType", FlattenField = "value" };
     public static readonly FieldMapping Category = new() { Field = "customfield_11906", Alias = "Category", FlattenField = "value" };
+    public static readonly FieldMapping CodeAreaParent = new() { Field = "customfield_12605", Alias = "CodeAreaParent", FlattenField = "value" };
+    public static readonly FieldMapping CodeArea = new() { Field = "customfield_12604", Alias = "CodeArea", FlattenField = "value" };
     public static readonly FieldMapping Created = new() { Field = "created", Alias = "Created" };
     public static readonly FieldMapping CustomersMultiSelect = new() { Field = "customfield_11812", Alias = "CustomersMultiSelect", FlattenField = "value" };
     public static readonly FieldMapping DevTimeSpent = new FieldMappingWithParser<string?> { Field = "customfield_11934", Alias = "DevTimeSpent", Parser = ParseDevTimeSpent };
@@ -13,7 +15,7 @@ public static class JiraFields
     public static readonly FieldMapping FlagCount = new() { Field = "customfield_12236", Alias = "FlagCount" };
     public static readonly FieldMapping IsReqdForGoLive = new FieldMappingWithParser<bool>() { Field = "customfield_11986", Alias = "IsReqdForGoLive", Parser = ParseIsReqdForGoLive };
     public static readonly FieldMapping IssueType = new() { Field = "issuetype", Alias = "IssueType", FlattenField = "name" };
-    public static readonly FieldMapping Key = new FieldMappingWithParser<string>() { Field = "key", Alias = "Key", Parser = ParsesKey};
+    public static readonly FieldMapping Key = new FieldMappingWithParser<string>() { Field = "key", Alias = "Key", Parser = ParsesKey };
     public static readonly FieldMapping OriginalEstimate = new() { Field = "timeoriginalestimate", Alias = "OriginalEstimate" };
     public static readonly FieldMapping ParentKey = new() { Field = "parent", Alias = "Parent", FlattenField = "key" };
     public static readonly FieldMapping PmPlanHighLevelEstimate = new() { Field = "customfield_12038", Alias = "PmPlanHighLevelEstimate" };
