@@ -229,7 +229,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
             return results.ToArray();
         }
 
-        var date = DateUtils.FindBestStartDate(children.Min(i => i.CreatedDateTime));
+        var date = DateUtils.FindBestStartDateForWeeklyData(children.Min(i => i.CreatedDateTime));
 
         while (date <= DateTime.Today)
         {

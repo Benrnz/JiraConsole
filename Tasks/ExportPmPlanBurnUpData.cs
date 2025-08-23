@@ -139,7 +139,7 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
             }
 
             var chartData = new List<BurnUpChartData>();
-            var date = DateUtils.FindBestStartDate(children.Min(i => i.CreatedDateTime));
+            var date = DateUtils.FindBestStartDateForWeeklyData(children.Min(i => i.CreatedDateTime));
 
             while (date < DateTime.Today)
             {
