@@ -1,5 +1,6 @@
 ﻿using System.Dynamic;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace BensJiraConsole;
@@ -124,6 +125,15 @@ public class SimpleCsvExporter(string taskKey)
         return sb.ToString().TrimEnd(',');
     }
 
+    private string SanitiseString(string rawString)
+    {
+        if (rawString is null)
+        {
+            return string.Empty;
+        }
+        return rawString.Replace('"', '\'').Replace(',', ';');
+    }
+
     private string ReadAllValuesDynamic(dynamic issue, HashSet<string> propertyNames)
     {
         var sb = new StringBuilder();
@@ -140,7 +150,7 @@ public class SimpleCsvExporter(string taskKey)
                     if (value is string stringValue)
                     {
                         sb.Append("\"");
-                        sb.Append(stringValue);
+                        sb.Append(SanitiseString(stringValue));
                         sb.Append("\"");
                     }
                     else if (value is DateTimeOffset dateTimeOffset)
