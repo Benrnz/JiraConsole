@@ -23,7 +23,9 @@ public class ExportNewlyAddedStoriesForPmPlans : IJiraExportTask
         }
 
         var exporter = new SimpleCsvExporter(Key);
-        exporter.Export(issues.Values);
+        var filename = exporter.Export(issues.Values);
+        var uploader = new GoogleDriveUploader();
+        await uploader.UploadCsvAsync(filename, Path.GetFileName(filename));
     }
 
     private DateTime GetDateFromUser(string dateDescription)
