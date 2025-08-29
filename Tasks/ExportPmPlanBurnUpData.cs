@@ -1,9 +1,11 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿using System.Diagnostics;
+
+namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
 public class ExportPmPlanBurnUpData : IJiraExportTask
 {
-    private const int LinerTrendWeeks = 4;
+    private const int LinearTrendWeeks = 4;
     private static readonly DateTime ForecastCeilingDate = new(2026, 3, 31);
 
     private static readonly FieldMapping[] IssueFields =
@@ -79,25 +81,24 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
             return chartData; // Not enough data points to calculate trend lines
         }
 
-        var startIdx = count > LinerTrendWeeks ? count - LinerTrendWeeks + 1 : 0;
-        var windowSize = count - startIdx + 1;
-        var lastSixPoints = chartData.Skip(startIdx - 1).Take(windowSize).ToList();
-        if (lastSixPoints.Count < 2 || windowSize < 2)
+        var windowSize = count >= LinearTrendWeeks ? LinearTrendWeeks : count;
+        var lastFourPoints = chartData.TakeLast(windowSize).ToList();
+        if (lastFourPoints.Count < 2)
         {
             return chartData; // Not enough points to calculate a trend
         }
 
         var newChartData = chartData.ToList();
 
-        var effortTrendIncrement = (lastSixPoints.Last().TotalDaysEffort - lastSixPoints.First().TotalDaysEffort) / (windowSize - 1);
-        var workCompletedTrendIncrement = (lastSixPoints.Last().WorkCompleted - lastSixPoints.First().WorkCompleted) / (windowSize - 1);
+        var effortTrendIncrement = (lastFourPoints.Last().TotalDaysEffort - lastFourPoints.First().TotalDaysEffort) / windowSize;
+        var workCompletedTrendIncrement = (lastFourPoints.Last().WorkCompleted - lastFourPoints.First().WorkCompleted) / windowSize;
 
-        var runningTotalEffortTrendValue = lastSixPoints.First().TotalDaysEffort;
-        var runningTotalWorkTrendValue = lastSixPoints.First().WorkCompleted;
+        var runningTotalEffortTrendValue = lastFourPoints.First().TotalDaysEffort;
+        var runningTotalWorkTrendValue = lastFourPoints.First().WorkCompleted;
         for (var i = 0; i < windowSize; i++)
         {
-            lastSixPoints[i].TotalDaysEffortTrend = runningTotalEffortTrendValue;
-            lastSixPoints[i].WorkCompletedTrend = runningTotalWorkTrendValue;
+            lastFourPoints[i].TotalDaysEffortTrend = runningTotalEffortTrendValue;
+            lastFourPoints[i].WorkCompletedTrend = runningTotalWorkTrendValue;
             runningTotalEffortTrendValue += effortTrendIncrement;
             runningTotalWorkTrendValue += workCompletedTrendIncrement;
         }
