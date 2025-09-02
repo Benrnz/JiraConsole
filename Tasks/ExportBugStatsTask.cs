@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System.Reflection.Metadata.Ecma335;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 
 namespace BensJiraConsole.Tasks;
 
@@ -18,7 +20,8 @@ public class ExportBugStatsTask : IJiraExportTask
         JiraFields.Resolved,
         JiraFields.Resolution,
         JiraFields.CodeAreaParent,
-        JiraFields.CodeArea
+        JiraFields.CodeArea,
+        JiraFields.CustomersMultiSelect
     ];
 
     private List<string> allCategories = new();
@@ -42,8 +45,33 @@ public class ExportBugStatsTask : IJiraExportTask
 
         await ExportBugStatsCodeAreas(jiras);
         await ExportBugStatsRecentDevelopment(jiras);
-        await ExportBugStatsSeverities(jiras);
+        var monthTotalsForSeverities = await ExportBugStatsSeverities(jiras);
+        await ExportBugStatsEnvestSeverities(jiras, monthTotalsForSeverities);
         await ExportBugStatsCategories(jiras);
+    }
+
+    private async Task ExportBugStatsEnvestSeverities(List<JiraIssue> jiras, List<BarChartData> severityTotals)
+    {
+        var chartData = new List<LayeredBarChartData>();
+        var envestChartData = await ExportBugStatsSeverities(jiras, Constants.Envest);
+        foreach (var totalChartDataMonth in severityTotals)
+        {
+            var month = totalChartDataMonth.Month;
+            var envestOnlyChartData = envestChartData.Single(x => x.Month == month);
+            var row = new LayeredBarChartData(totalChartDataMonth, envestOnlyChartData);
+            chartData.Add(row);
+        }
+
+        var exporter = new SimpleCsvExporter(Key)
+        {
+            Mode = SimpleCsvExporter.FileNameMode.ExactName,
+            OverrideSerialiseHeader = () => "Month,Totals,,,Envest Only\n,P1,P2,Other,EP1,EP2,EOther",
+            OverrideSerialiseRecord = SerialiseToCsv
+        };
+        var fileName = exporter.Export(chartData, $"{Key}-SeveritiesEnvest");
+
+        var googleSheetUpdater = new GoogleSheetUpdater(fileName);
+        await googleSheetUpdater.EditGoogleSheet("'Envest'!A1");
     }
 
     private async Task ExportBugStatsRecentDevelopment(List<JiraIssue> jiras)
@@ -207,6 +235,19 @@ public class ExportBugStatsTask : IJiraExportTask
             return builder.ToString();
         }
 
+        if (record is LayeredBarChartData layeredBarChartData)
+        {
+            var builder = new StringBuilder();
+            builder.Append(layeredBarChartData.Total.Month.ToString("MMM-yy"));
+            builder.Append($",{layeredBarChartData.Total.P1s}");
+            builder.Append($",{layeredBarChartData.Total.P2s}");
+            builder.Append($",{layeredBarChartData.Total.Others}");
+            builder.Append($",{layeredBarChartData.Envest.P1s}");
+            builder.Append($",{layeredBarChartData.Envest.P2s}");
+            builder.Append($",{layeredBarChartData.Envest.Others}");
+            return builder.ToString();
+        }
+
         throw new InvalidOperationException("Unsupported record type for CSV serialization.");
     }
 
@@ -248,13 +289,15 @@ public class ExportBugStatsTask : IJiraExportTask
         return codeAreas.OrderBy(a => a).ToList();
     }
 
-    private async Task ExportBugStatsSeverities(List<JiraIssue> jiras)
+    private async Task<List<BarChartData>> ExportBugStatsSeverities(List<JiraIssue> jiras, string? customerFilter = null)
     {
         var currentMonth = CalculateStartDate();
         var bugCounts = new List<BarChartData>();
         do
         {
-            var filteredList = jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList();
+            var filteredList = customerFilter is null ?
+                jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList() :
+                jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1) && i.Customer.Contains(customerFilter)).ToList();
             // ReSharper disable InconsistentNaming
             var p1sTotal = filteredList.Count(i => i.Severity == Constants.SeverityCritical);
             var p2sTotal = filteredList.Count(i => i.Severity == Constants.SeverityMajor);
@@ -264,11 +307,21 @@ public class ExportBugStatsTask : IJiraExportTask
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv };
-        var fileName = exporter.Export(bugCounts, $"{Key}-Severities");
+        if (customerFilter is null)
+        {
+            // Only update the master Severities total sheet if we're running without a specific customer filter.
+            var exporter = new SimpleCsvExporter(Key)
+            {
+                Mode = SimpleCsvExporter.FileNameMode.ExactName,
+                OverrideSerialiseRecord = SerialiseToCsv
+            };
+            var fileName = exporter.Export(bugCounts, $"{Key}-Severities");
 
-        var googleSheetUpdater = new GoogleSheetUpdater(fileName);
-        await googleSheetUpdater.EditGoogleSheet("'Severities'!A1");
+            var googleSheetUpdater = new GoogleSheetUpdater(fileName);
+            await googleSheetUpdater.EditGoogleSheet("'Severities'!A1");
+        }
+
+        return bugCounts;
     }
 
     private DateTime CalculateStartDate()
@@ -295,13 +348,16 @@ public class ExportBugStatsTask : IJiraExportTask
             JiraFields.DevTimeSpent.Parse<string?>(i),
             JiraFields.Resolution.Parse<string?>(i),
             JiraFields.CodeAreaParent.Parse<string?>(i),
-            JiraFields.CodeArea.Parse<string?>(i));
+            JiraFields.CodeArea.Parse<string?>(i),
+            JiraFields.CustomersMultiSelect.Parse<string?>(i) ?? string.Empty);
         return typedIssue;
     }
 
     // ReSharper disable InconsistentNaming
     private record BarChartData(DateTime Month, int P1s, int P2s, int Others);
     // ReSharper restore InconsistentNaming
+
+    private record LayeredBarChartData(BarChartData Total, BarChartData Envest);
 
     private record BarChartDataCategories(DateTime Month, IDictionary<string, int> CategoryData);
 
@@ -321,5 +377,6 @@ public class ExportBugStatsTask : IJiraExportTask
         string? DevTimeSpent,
         string? Resolution,
         string? CodeAreaParent,
-        string? CodeArea);
+        string? CodeArea,
+        string Customer);
 }
