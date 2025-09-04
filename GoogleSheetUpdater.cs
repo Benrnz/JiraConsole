@@ -15,12 +15,12 @@ public class GoogleSheetUpdater(string sourceCsvData, string googleSheetId)
 
     private const string ClientSecretsFile = "client_secret_apps.googleusercontent.com.json";
 
-    private string googleSheetId = googleSheetId ?? throw new ArgumentNullException(nameof(googleSheetId));
+    private readonly string googleSheetId = googleSheetId ?? throw new ArgumentNullException(nameof(googleSheetId));
+
+    public bool QuoteStrings { get; set; } = false;
 
     public async Task EditGoogleSheet(string sheetAndRange)
     {
-        Console.WriteLine("Starting Google Sheet data import...");
-
         UserCredential credential;
 
         try
@@ -46,8 +46,6 @@ public class GoogleSheetUpdater(string sourceCsvData, string googleSheetId)
             Console.WriteLine($"An error occurred during authentication: {ex.Message}");
             return;
         }
-
-        Console.WriteLine("Authentication successful. Building Sheets service...");
 
         // Create the Google Sheets service client.
         var service = new SheetsService(new BaseClientService.Initializer()
@@ -86,8 +84,6 @@ public class GoogleSheetUpdater(string sourceCsvData, string googleSheetId)
             return;
         }
 
-        Console.WriteLine($"Successfully read {values.Count} rows from {this.csvFilePathAndName}.");
-
         // Define the data to be updated in the Google Sheet.
         var valueRange = new ValueRange
         {
@@ -113,17 +109,12 @@ public class GoogleSheetUpdater(string sourceCsvData, string googleSheetId)
         }
     }
 
-    private static object SetType(string? value)
+    private object SetType(string? value)
     {
         if (value == null)
         {
             return string.Empty;
         }
-
-        // if (DateTime.TryParse(value, out var date))
-        // {
-        //     return date;
-        // }
 
         if (int.TryParse(value, out var intValue))
         {
@@ -133,6 +124,23 @@ public class GoogleSheetUpdater(string sourceCsvData, string googleSheetId)
         if (double.TryParse(value, out var doubleValue))
         {
             return doubleValue;
+        }
+
+        // Assume string
+        if (QuoteStrings)
+        {
+            return value;
+        }
+
+        // Strip quotes if present
+        if (value.StartsWith("\""))
+        {
+            value = value.Remove(0, 1);
+        }
+
+        if (value.EndsWith("\""))
+        {
+            value = value.Remove(value.Length - 1, 1);
         }
 
         return value;
