@@ -28,6 +28,9 @@ public class CalculateDailyReportTask : IJiraExportTask
         // Ruby Ducks team
         jql = """Project = JAVPM AND "Team[Team]" = 60412efa-7e2e-4285-bb4e-f329c3b6d417 AND Sprint IN openSprints()""";
         await CalculateTeamStats(runner, jql, "Ruby Ducks");
+
+        // TODO 1: accept a date paramter to state the start of the sprint. If start of sprint is today, export the list of tickets to Google Drive.
+        // TODO 2: If today is not start of sprint, compare todays list to Google Drive start of sprint list and report any differences.
     }
 
     private async Task CalculateTeamStats(JiraQueryDynamicRunner runner, string jql, string teamName)
