@@ -74,7 +74,8 @@ public class CalculateDailyReportTask : IJiraExportTask
     private async Task ProcessNormalSprintDay(string teamName, DateTime sprintStart, List<JiraIssue> tickets)
     {
         var sheetData = await this.reader.ReadData($"'{teamName}'!A1:G1000");
-        if (!DateTime.TryParse(sheetData.FirstOrDefault()?[6].ToString(), out var sheetStart))
+        var headerRow = sheetData.FirstOrDefault();
+        if (headerRow is null || headerRow.Count < 7 || !DateTime.TryParse(headerRow?[6].ToString(), out var sheetStart))
         {
             Console.WriteLine($"Sheet appears blank or invalid, assuming start of sprint is today...");
             await ProcessStartOfSprint(teamName, sprintStart, tickets);
@@ -126,6 +127,8 @@ public class CalculateDailyReportTask : IJiraExportTask
         };
         var pathAndFileName = exporter.Export(tickets, fileName);
         var updater = new GoogleSheetUpdater(pathAndFileName, GoogleSheetId);
+        await updater.DeleteSheet($"{teamName}");
+        await updater.AddSheet($"{teamName}");
         await updater.EditGoogleSheet($"'{teamName}'!A1");
         Console.WriteLine($"Successfully recorded the list of tickets brought into the beginning of the sprint.");
     }
