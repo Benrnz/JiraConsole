@@ -73,7 +73,7 @@ public class ExportBugStatsTask : IJiraExportTask
         };
         var fileName = exporter.Export(chartData, $"{Key}-SeveritiesEnvest");
 
-        var googleSheetUpdater = new GoogleSheetUpdater(fileName);
+        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
         await googleSheetUpdater.EditGoogleSheet("'Envest'!A1");
     }
 
@@ -320,9 +320,11 @@ public class ExportBugStatsTask : IJiraExportTask
                 OverrideSerialiseRecord = SerialiseToCsv
             };
             var fileName = exporter.Export(bugCounts, $"{Key}-Severities");
+            var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
+            await googleSheetUpdater.EditGoogleSheet("'Severities'!A1");
+        }
 
-        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
-        await googleSheetUpdater.EditGoogleSheet("'Severities'!A1");
+        return bugCounts;
     }
 
     private DateTime CalculateStartDate()
