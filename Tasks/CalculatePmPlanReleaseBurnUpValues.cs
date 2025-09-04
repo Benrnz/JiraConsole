@@ -12,6 +12,8 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
 
         var task = new ExportPmPlanMapping();
         var javPms = (await task.RetrieveAllStoriesMappingToPmPlan()).Values.Select(x => (JiraIssue)CreateJiraIssueFromDynamic(x, "PmPlanMapping")).ToList();
+        var exporter = new SimpleCsvExporter(Key);
+        exporter.Export(javPms);
 
         var totalWork = CalculateTotalWorkToBeDone(javPms, task.PmPlans);
         var workCompleted = CalculateCompletedWork(javPms);
