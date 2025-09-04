@@ -12,7 +12,7 @@ public static class JiraFields
     public static readonly FieldMapping CustomersMultiSelect = new() { Field = "customfield_11812", Alias = "CustomersMultiSelect", FlattenField = "value" };
     public static readonly FieldMapping DevTimeSpent = new FieldMappingWithParser<string?> { Field = "customfield_11934", Alias = "DevTimeSpent", Parser = ParseDevTimeSpent };
     public static readonly FieldMapping EstimationStatus = new() { Field = "customfield_12137", Alias = "EstimationStatus", FlattenField = "value" };
-    public static readonly FieldMapping FlagCount = new() { Field = "customfield_12236", Alias = "FlagCount" };
+    public static readonly FieldMapping FlagCount = new FieldMappingWithParser<int> { Field = "customfield_12236", Alias = "FlagCount", Parser = ParseFlagCount };
     public static readonly FieldMapping IsReqdForGoLive = new FieldMappingWithParser<bool>() { Field = "customfield_11986", Alias = "IsReqdForGoLive", Parser = ParseIsReqdForGoLive };
     public static readonly FieldMapping IssueType = new() { Field = "issuetype", Alias = "IssueType", FlattenField = "name" };
     public static readonly FieldMapping Key = new FieldMappingWithParser<string>() { Field = "key", Alias = "Key", Parser = ParsesKey };
@@ -29,6 +29,26 @@ public static class JiraFields
     public static readonly FieldMapping StoryPoints = new() { Field = "customfield_10004", Alias = "StoryPoints" };
     public static readonly FieldMapping Summary = new() { Field = "summary", Alias = "Summary" };
     public static readonly FieldMapping Team = new() { Field = "customfield_11400", Alias = "Team", FlattenField = "name" };
+
+    private static int ParseFlagCount(dynamic d)
+    {
+        if (d.FlagCount is null)
+        {
+            return 0;
+        }
+
+        if (d.FlagCount is double dbl)
+        {
+            return Convert.ToInt32(dbl);
+        }
+
+        if (d.FlagCount is float f)
+        {
+            return Convert.ToInt32(f);
+        }
+
+        throw new NotSupportedException("Incorrect data type for FlagCount.");
+    }
 
     private static string? ParseDevTimeSpent(dynamic d)
     {
