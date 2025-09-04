@@ -6,6 +6,9 @@ namespace BensJiraConsole.Tasks;
 
 public class ExportBugStatsTask : IJiraExportTask
 {
+    // JAVPM Bug Analysis
+    private const string GoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
+
     private static readonly FieldMapping[] Fields =
     [
         JiraFields.Summary,
@@ -95,7 +98,7 @@ public class ExportBugStatsTask : IJiraExportTask
         var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv };
         var fileName = exporter.Export(bugCounts, $"{Key}-RecentDev");
 
-        var googleSheetUpdater = new GoogleSheetUpdater(fileName);
+        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
         await googleSheetUpdater.EditGoogleSheet("'RecentDev'!A1");
     }
 
@@ -119,10 +122,11 @@ public class ExportBugStatsTask : IJiraExportTask
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseCatergoriesHeaderRow };
+        var exporter = new SimpleCsvExporter(Key)
+            { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseCatergoriesHeaderRow };
         var fileName = exporter.Export(bugCounts, $"{Key}-Categories");
 
-        var googleSheetUpdater = new GoogleSheetUpdater(fileName);
+        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
         await googleSheetUpdater.EditGoogleSheet("'ProductCategories'!A1");
     }
 
@@ -170,7 +174,7 @@ public class ExportBugStatsTask : IJiraExportTask
         var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseCodeAreasHeaderRow };
         var fileName = exporter.Export(bugCounts, $"{Key}-Areas");
 
-        var googleSheetUpdater = new GoogleSheetUpdater(fileName);
+        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
         await googleSheetUpdater.EditGoogleSheet("'CodeAreas'!A1");
     }
 
@@ -317,11 +321,8 @@ public class ExportBugStatsTask : IJiraExportTask
             };
             var fileName = exporter.Export(bugCounts, $"{Key}-Severities");
 
-            var googleSheetUpdater = new GoogleSheetUpdater(fileName);
-            await googleSheetUpdater.EditGoogleSheet("'Severities'!A1");
-        }
-
-        return bugCounts;
+        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
+        await googleSheetUpdater.EditGoogleSheet("'Severities'!A1");
     }
 
     private DateTime CalculateStartDate()

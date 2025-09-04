@@ -43,7 +43,7 @@ public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
 
         if (issues.Count < 20)
         {
-            issues.ForEach(i => Console.WriteLine($"{i.key}"));
+            issues.ForEach(i => Console.WriteLine($"{i.key} {i.Team}"));
         }
 
         var exporter = new SimpleCsvExporter(Key);
