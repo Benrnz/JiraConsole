@@ -4,11 +4,6 @@ public class CalculateDailyReportTask : IJiraExportTask
 {
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
 
-    private readonly GoogleSheetReader reader = new(GoogleSheetId);
-
-    public string Key => "DAILY";
-    public string Description => "Calculate the daily stats for the daily report for the two teams involved.";
-
     private static readonly FieldMapping[] Fields =
     [
         JiraFields.Summary,
@@ -19,6 +14,11 @@ public class CalculateDailyReportTask : IJiraExportTask
         JiraFields.AssigneeDisplay,
         JiraFields.FlagCount
     ];
+
+    private readonly GoogleSheetReader reader = new(GoogleSheetId);
+
+    public string Key => "DAILY";
+    public string Description => "Calculate the daily stats for the daily report for the two teams involved.";
 
     public async Task ExecuteAsync(string[] fields)
     {
@@ -71,13 +71,37 @@ public class CalculateDailyReportTask : IJiraExportTask
         }
     }
 
+    private JiraIssue CreateJiraIssue(dynamic ticket)
+    {
+        return new JiraIssue(
+            JiraFields.Key.Parse<string>(ticket),
+            JiraFields.Status.Parse<string>(ticket),
+            JiraFields.StoryPoints.Parse<double>(ticket) ?? 0,
+            JiraFields.Team.Parse<string>(ticket),
+            JiraFields.AssigneeDisplay.Parse<string?>(ticket),
+            JiraFields.FlagCount.Parse<int>(ticket)
+        );
+    }
+
+    private JiraIssue CreateJiraIssue(List<object> sheetData)
+    {
+        return new JiraIssue(
+            sheetData[0].ToString() ?? throw new NotSupportedException("Key"),
+            sheetData[1].ToString() ?? throw new NotSupportedException("Status"),
+            double.Parse(sheetData[2]?.ToString() ?? "0"),
+            sheetData[3].ToString() ?? throw new NotSupportedException("Team"),
+            sheetData[4].ToString() ?? string.Empty,
+            int.Parse(sheetData[5]?.ToString() ?? "0")
+        );
+    }
+
     private async Task ProcessNormalSprintDay(string teamName, DateTime sprintStart, List<JiraIssue> tickets)
     {
         var sheetData = await this.reader.ReadData($"'{teamName}'!A1:G1000");
         var headerRow = sheetData.FirstOrDefault();
         if (headerRow is null || headerRow.Count < 7 || !DateTime.TryParse(headerRow?[6].ToString(), out var sheetStart))
         {
-            Console.WriteLine($"Sheet appears blank or invalid, assuming start of sprint is today...");
+            Console.WriteLine("Sheet appears blank or invalid, assuming start of sprint is today...");
             await ProcessStartOfSprint(teamName, sprintStart, tickets);
             return;
         }
@@ -90,7 +114,7 @@ public class CalculateDailyReportTask : IJiraExportTask
 
         var originalTickets = sheetData.Skip(1).Select(CreateJiraIssue).ToList(); // skip header row
 
-        Console.WriteLine($"Removed tickets since start of sprint:");
+        Console.WriteLine("Removed tickets since start of sprint:");
         var removedTickets = tickets.Where(t => originalTickets.All(o => o.Key != t.Key)).ToList();
         if (removedTickets.Any())
         {
@@ -102,7 +126,7 @@ public class CalculateDailyReportTask : IJiraExportTask
             Console.WriteLine("    None");
         }
 
-        Console.WriteLine($"New tickets added since start of sprint:");
+        Console.WriteLine("New tickets added since start of sprint:");
         var newTickets = originalTickets.Where(o => tickets.All(t => t.Key != o.Key)).ToList();
         if (newTickets.Any())
         {
@@ -130,31 +154,7 @@ public class CalculateDailyReportTask : IJiraExportTask
         await updater.DeleteSheet($"{teamName}");
         await updater.AddSheet($"{teamName}");
         await updater.EditGoogleSheet($"'{teamName}'!A1");
-        Console.WriteLine($"Successfully recorded the list of tickets brought into the beginning of the sprint.");
-    }
-
-    private JiraIssue CreateJiraIssue(dynamic ticket)
-    {
-        return new JiraIssue(
-            JiraFields.Key.Parse<string>(ticket),
-            JiraFields.Status.Parse<string>(ticket),
-            JiraFields.StoryPoints.Parse<double>(ticket) ?? 0,
-            JiraFields.Team.Parse<string>(ticket),
-            JiraFields.AssigneeDisplay.Parse<string?>(ticket),
-            JiraFields.FlagCount.Parse<int>(ticket)
-        );
-    }
-
-    private JiraIssue CreateJiraIssue(List<object> sheetData)
-    {
-        return new JiraIssue(
-            sheetData[0].ToString() ?? throw new NotSupportedException("Key"),
-            sheetData[1].ToString() ?? throw new NotSupportedException("Status"),
-            double.Parse(sheetData[2]?.ToString() ?? "0"),
-            sheetData[3].ToString() ?? throw new NotSupportedException("Team"),
-            sheetData[4].ToString() ?? string.Empty,
-            int.Parse(sheetData[5]?.ToString() ?? "0")
-        );
+        Console.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
     }
 
     private record JiraIssue(string Key, string Status, double StoryPoints, string Team, string? Assignee, int FlagCount);
