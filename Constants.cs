@@ -8,6 +8,8 @@ public static class Constants
     public const string BugType = "Bug";
     public const string DoneStatus = "Done";
     public const string HasDevTeamEstimate = "Dev Team Estimate";
+    public const string InDevStatus = "In Dev";
+    public const string InQaStatus = "In Test";
     public const string SeverityCritical = "Critical";
     public const string SeverityMajor = "Major";
     public const string CodeFixLast6 = "Code Fix - Bug from recent development (past 6 months)";
