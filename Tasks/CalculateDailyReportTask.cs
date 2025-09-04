@@ -2,6 +2,8 @@
 
 public class CalculateDailyReportTask : IJiraExportTask
 {
+    private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
+
     public string Key => "DAILY";
     public string Description => "Calculate the daily stats for the daily report for the two teams involved.";
 
@@ -19,21 +21,27 @@ public class CalculateDailyReportTask : IJiraExportTask
     public async Task ExecuteAsync(string[] fields)
     {
         Console.WriteLine(Description);
+        DateTime sprintStart;
+        do
+        {
+            Console.Write("Enter the start date of the sprint (dd-MM-yyyy):");
+        } while (!DateTime.TryParse(Console.ReadLine(), out sprintStart));
+
         var runner = new JiraQueryDynamicRunner();
 
         // Superclass team
         var jql = """Project = JAVPM AND "Team[Team]" = 1a05d236-1562-4e58-ae88-1ffc6c5edb32 AND Sprint IN openSprints()""";
-        await CalculateTeamStats(runner, jql, "Superclass");
+        await CalculateTeamStats(runner, jql, "Superclass", sprintStart);
 
         // Ruby Ducks team
         jql = """Project = JAVPM AND "Team[Team]" = 60412efa-7e2e-4285-bb4e-f329c3b6d417 AND Sprint IN openSprints()""";
-        await CalculateTeamStats(runner, jql, "Ruby Ducks");
+        await CalculateTeamStats(runner, jql, "Ruby Ducks", sprintStart);
 
         // TODO 1: accept a date paramter to state the start of the sprint. If start of sprint is today, export the list of tickets to Google Drive.
         // TODO 2: If today is not start of sprint, compare todays list to Google Drive start of sprint list and report any differences.
     }
 
-    private async Task CalculateTeamStats(JiraQueryDynamicRunner runner, string jql, string teamName)
+    private async Task CalculateTeamStats(JiraQueryDynamicRunner runner, string jql, string teamName, DateTime sprintStart)
     {
         Console.WriteLine($"Calculating team stats for {teamName}");
         Console.WriteLine(jql);
@@ -50,6 +58,25 @@ public class CalculateDailyReportTask : IJiraExportTask
         Console.WriteLine($"     - Total Story Points: {totalStoryPoints}, remaining ({remainingStoryPoints} {1 - (remainingStoryPoints / totalStoryPoints):P0}).");
         Console.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
         Console.WriteLine($"     - Flagged Tickets: {ticketsFlagged}");
+
+        if (sprintStart == DateTime.Today)
+        {
+            // Save the list of tickets to Google Drive
+            Console.WriteLine("Today is the start of the new sprint.  Recording the list of tickets to Google Drive...");
+            var fileName = $"{Key}_{teamName}.csv";
+            var exporter = new SimpleCsvExporter(Key) {Mode = SimpleCsvExporter.FileNameMode.ExactName};
+            var pathAndFileName = exporter.Export(tickets, fileName);
+            var updater = new GoogleSheetUpdater(pathAndFileName, GoogleSheetId);
+            await updater.EditGoogleSheet($"'{teamName}'!A1");
+            Console.WriteLine($"Successfully recorded the list of tickets brought into the beginning of the sprint.");
+        }
+        else
+        {
+            // TODO Read the original list of tickets from Google Drive.
+            // If no file found create one and treat today as start of sprint.
+            // Compare the original list to today's list - if there are new tickets not in original list, report additions to the sprint.
+            // If there are tickets in original list not in today's list, report removals from the sprint.
+        }
     }
 
     private JiraIssue CreateJiraIssue(dynamic ticket)

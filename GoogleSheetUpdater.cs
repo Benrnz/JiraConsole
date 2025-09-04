@@ -6,20 +6,16 @@ using Google.Apis.Util.Store;
 
 namespace BensJiraConsole;
 
-public class GoogleSheetUpdater
+public class GoogleSheetUpdater(string sourceCsvData, string googleSheetId)
 {
-    private readonly string csvFilePathAndName;
+    private readonly string csvFilePathAndName = sourceCsvData ?? throw new ArgumentNullException(nameof(sourceCsvData));
 
     // The scopes required to access and modify Google Sheets.
     private static readonly string[] Scopes = [SheetsService.Scope.Spreadsheets];
 
-    private const string GoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
     private const string ClientSecretsFile = "client_secret_apps.googleusercontent.com.json";
 
-    public GoogleSheetUpdater(string csvFilePathAndName)
-    {
-        this.csvFilePathAndName = csvFilePathAndName ?? throw new ArgumentNullException(nameof(csvFilePathAndName));
-    }
+    private string googleSheetId = googleSheetId ?? throw new ArgumentNullException(nameof(googleSheetId));
 
     public async Task EditGoogleSheet(string sheetAndRange)
     {
@@ -57,7 +53,7 @@ public class GoogleSheetUpdater
         var service = new SheetsService(new BaseClientService.Initializer()
         {
             HttpClientInitializer = credential,
-            ApplicationName = Constants.ApplicationName,
+            ApplicationName = Constants.ApplicationName
         });
 
         // Read the CSV data from the local file.
@@ -75,6 +71,7 @@ public class GoogleSheetUpdater
                 {
                     row.Add(SetType(part.Trim()));
                 }
+
                 values.Add(row);
             }
         }
@@ -101,13 +98,13 @@ public class GoogleSheetUpdater
         try
         {
             // Create the update request.
-            var updateRequest = service.Spreadsheets.Values.Update(valueRange, GoogleSheetId, sheetAndRange);
+            var updateRequest = service.Spreadsheets.Values.Update(valueRange, this.googleSheetId, sheetAndRange);
             updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.RAW;
 
             // Execute the request to update the Google Sheet.
             var response = await updateRequest.ExecuteAsync();
 
-            Console.WriteLine($"\nSuccessfully updated {response.UpdatedCells} cells in Google Sheet ID: {GoogleSheetId}");
+            Console.WriteLine($"\nSuccessfully updated {response.UpdatedCells} cells in https://docs.google.com/spreadsheets/d/{this.googleSheetId}/");
             Console.WriteLine("Import complete. Press any key to exit.");
         }
         catch (Exception ex)
