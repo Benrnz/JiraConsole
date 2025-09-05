@@ -2,7 +2,7 @@
 
 public interface IJiraExportTask
 {
-    string Key { get; }
     string Description { get; }
-    Task ExecuteAsync(string[] fields);
+    string Key { get; }
+    Task ExecuteAsync(string[] args);
 }

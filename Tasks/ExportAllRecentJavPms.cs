@@ -29,7 +29,7 @@ public class ExportAllRecentJavPms : IJiraExportTask
     public string Key => "JAVPMs";
     public string Description => "Export all JAVPM tickets from the last 18 months.";
 
-    public async Task ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
         var jql = "project=JAVPM AND created > -540d ORDER BY created"; //540 days = 18 months

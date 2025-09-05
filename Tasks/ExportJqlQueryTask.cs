@@ -31,7 +31,7 @@ public class ExportJqlQueryTask : IJiraExportTask
     public string Description => "Export issues matching a JQL query";
 
 
-    public async Task ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
         Console.Write("Enter your JQL query: ");

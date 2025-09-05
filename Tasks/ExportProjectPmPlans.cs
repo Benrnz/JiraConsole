@@ -16,7 +16,7 @@ public class ExportProjectPmPlans : IJiraExportTask
     public string Key => "PMPLANS";
     public string Description => "Export PM Plans for Envest";
 
-    public async Task ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";

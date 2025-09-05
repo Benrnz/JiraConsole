@@ -32,7 +32,7 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
 
     public string Description => "Export Wholesale Brokers data for drawing a release burn-up chart";
 
-    public async Task ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
         var dynamicRunner = new JiraQueryDynamicRunner();
@@ -55,121 +55,6 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
 
         var fileName = ExportCsvFiles(chartData);
         //await SaveToGoogleDrive(fileName);
-    }
-
-    private async Task SaveToGoogleDrive(string fileName)
-    {
-        var googleUploader = new GoogleDriveUploader();
-        await googleUploader.UploadCsvAsync(fileName, $"{Key}.csv");
-    }
-
-    private string ExportCsvFiles(BurnUpChartData[] chartData)
-    {
-        var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName };
-        var fileName = exporter.Export(chartData, Key);
-        exporter.Export(this.resultList, Key + "_Issues");
-        return fileName;
-    }
-
-    private BurnUpChartData[] CreateBurnUpChartData()
-    {
-        // Remove duplicates
-        var distinctIssues = this.resultList
-            .GroupBy(i => i.Key)
-            .Select(g => g.First())
-            .ToList();
-
-        var chartData = ParseChartData(distinctIssues);
-        chartData = AddTrendLines(chartData);
-        return chartData;
-    }
-
-    private async Task RetrieveChildrenOfPmPlans(string[] keys, JiraQueryDynamicRunner dynamicRunner)
-    {
-        var childrenJql = "project=JAVPM AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
-        Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
-
-        var issueCount = 0;
-        foreach (var pmPlan in keys)
-        {
-            var allIssues = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan), IssueFields);
-            allIssues.ForEach(i =>
-            {
-                this.resultList.Add(CreateJiraIssueFromDynamic(i, "Child of PMPLAN"));
-                issueCount++;
-            });
-        }
-
-        Console.WriteLine($"Found {issueCount} issues");
-    }
-
-    private async Task RetrieveChildrenOfEpics(string keys, JiraQueryDynamicRunner dynamicRunner)
-    {
-        var childrenJql = $"project = JAVPM AND \"Epic Link\" IN ({keys}) ORDER BY created ASC";
-        Console.WriteLine($"ForEach Epic: {childrenJql}");
-        var allIssues = await dynamicRunner.SearchJiraIssuesWithJqlAsync(childrenJql, IssueFields);
-        Console.WriteLine($"Found {allIssues.Count} issues");
-
-        allIssues.Select(i => CreateJiraIssueFromDynamic(i, "Child of labelled epic"))
-            .ToList()
-            .ForEach(i => this.resultList.Add(i));
-    }
-
-    private static JiraIssue CreateJiraIssueFromDynamic(dynamic i, string source)
-    {
-        DateTimeOffset? resolvedDate = null;
-        if (i.Resolved is DateTimeOffset dateTime)
-        {
-            resolvedDate = dateTime;
-        }
-
-        return new JiraIssue(
-            JiraFields.Key.Parse<string>(i),
-            JiraFields.Created.Parse<DateTimeOffset>(i),
-            JiraFields.Resolved.Parse<DateTimeOffset>(i),
-            JiraFields.Status.Parse<string>(i),
-            JiraFields.StoryPoints.Parse<double?>(i),
-            source);
-    }
-
-    private async Task<string?> RetrieveEpics(JiraQueryDynamicRunner dynamicRunner)
-    {
-        var jqlEpics = "project = JAVPM AND labels = Wholesale_Broker order by created DESC";
-        Console.WriteLine(jqlEpics);
-
-        var epics = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlEpics, EpicFields);
-        if (!epics.Any())
-        {
-            Console.WriteLine("No Wholesale Brokers epics found.");
-            return null;
-        }
-
-        if (epics.Any(e => e.IssueType != Constants.EpicType && e.IssueType is not null))
-        {
-            foreach (var issue in epics.Where(e => e.IssueType != Constants.EpicType))
-            {
-                this.resultList.Add(CreateJiraIssueFromDynamic(issue, "Directly labelled issue"));
-            }
-        }
-
-        Console.WriteLine($"Found {epics.Count} epics. Found {this.resultList.Count} other issues.");
-
-        return string.Join(", ", epics.Select(x => x.key).ToArray());
-    }
-
-    private async Task<string[]?> RetrievePmPlans(JiraQueryDynamicRunner dynamicRunner)
-    {
-        var jqlPmPlans = "project = \"Product Planning\" \nAND \"PM Customer[Checkboxes]\" = \"Wholesale Brokers\"";
-        Console.WriteLine(jqlPmPlans);
-
-        var pmPlans = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, []);
-        if (!pmPlans.Any())
-        {
-            Console.WriteLine("No Wholesale Brokers PMPLANs found.");
-            return null;
-        }
-
-        return pmPlans.Select(x => (string)x.key).ToArray();
     }
 
     private BurnUpChartData[] AddTrendLines(BurnUpChartData[] chartData)
@@ -219,6 +104,44 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         return newChartData.ToArray();
     }
 
+    private BurnUpChartData[] CreateBurnUpChartData()
+    {
+        // Remove duplicates
+        var distinctIssues = this.resultList
+            .GroupBy(i => i.Key)
+            .Select(g => g.First())
+            .ToList();
+
+        var chartData = ParseChartData(distinctIssues);
+        chartData = AddTrendLines(chartData);
+        return chartData;
+    }
+
+    private static JiraIssue CreateJiraIssueFromDynamic(dynamic i, string source)
+    {
+        DateTimeOffset? resolvedDate = null;
+        if (i.Resolved is DateTimeOffset dateTime)
+        {
+            resolvedDate = dateTime;
+        }
+
+        return new JiraIssue(
+            JiraFields.Key.Parse<string>(i),
+            JiraFields.Created.Parse<DateTimeOffset>(i),
+            JiraFields.Resolved.Parse<DateTimeOffset>(i),
+            JiraFields.Status.Parse<string>(i),
+            JiraFields.StoryPoints.Parse<double?>(i),
+            source);
+    }
+
+    private string ExportCsvFiles(BurnUpChartData[] chartData)
+    {
+        var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName };
+        var fileName = exporter.Export(chartData, Key);
+        exporter.Export(this.resultList, Key + "_Issues");
+        return fileName;
+    }
+
     private BurnUpChartData[] ParseChartData(IEnumerable<JiraIssue> rawData)
     {
         var results = new List<BurnUpChartData>();
@@ -251,6 +174,83 @@ public class ExportWholesaleBrokersBurnupData : IJiraExportTask
         }
 
         return results.ToArray();
+    }
+
+    private async Task RetrieveChildrenOfEpics(string keys, JiraQueryDynamicRunner dynamicRunner)
+    {
+        var childrenJql = $"project = JAVPM AND \"Epic Link\" IN ({keys}) ORDER BY created ASC";
+        Console.WriteLine($"ForEach Epic: {childrenJql}");
+        var allIssues = await dynamicRunner.SearchJiraIssuesWithJqlAsync(childrenJql, IssueFields);
+        Console.WriteLine($"Found {allIssues.Count} issues");
+
+        allIssues.Select(i => CreateJiraIssueFromDynamic(i, "Child of labelled epic"))
+            .ToList()
+            .ForEach(i => this.resultList.Add(i));
+    }
+
+    private async Task RetrieveChildrenOfPmPlans(string[] keys, JiraQueryDynamicRunner dynamicRunner)
+    {
+        var childrenJql = "project=JAVPM AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
+        Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
+
+        var issueCount = 0;
+        foreach (var pmPlan in keys)
+        {
+            var allIssues = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan), IssueFields);
+            allIssues.ForEach(i =>
+            {
+                this.resultList.Add(CreateJiraIssueFromDynamic(i, "Child of PMPLAN"));
+                issueCount++;
+            });
+        }
+
+        Console.WriteLine($"Found {issueCount} issues");
+    }
+
+    private async Task<string?> RetrieveEpics(JiraQueryDynamicRunner dynamicRunner)
+    {
+        var jqlEpics = "project = JAVPM AND labels = Wholesale_Broker order by created DESC";
+        Console.WriteLine(jqlEpics);
+
+        var epics = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlEpics, EpicFields);
+        if (!epics.Any())
+        {
+            Console.WriteLine("No Wholesale Brokers epics found.");
+            return null;
+        }
+
+        if (epics.Any(e => e.IssueType != Constants.EpicType && e.IssueType is not null))
+        {
+            foreach (var issue in epics.Where(e => e.IssueType != Constants.EpicType))
+            {
+                this.resultList.Add(CreateJiraIssueFromDynamic(issue, "Directly labelled issue"));
+            }
+        }
+
+        Console.WriteLine($"Found {epics.Count} epics. Found {this.resultList.Count} other issues.");
+
+        return string.Join(", ", epics.Select(x => x.key).ToArray());
+    }
+
+    private async Task<string[]?> RetrievePmPlans(JiraQueryDynamicRunner dynamicRunner)
+    {
+        var jqlPmPlans = "project = \"Product Planning\" \nAND \"PM Customer[Checkboxes]\" = \"Wholesale Brokers\"";
+        Console.WriteLine(jqlPmPlans);
+
+        var pmPlans = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, []);
+        if (!pmPlans.Any())
+        {
+            Console.WriteLine("No Wholesale Brokers PMPLANs found.");
+            return null;
+        }
+
+        return pmPlans.Select(x => (string)x.key).ToArray();
+    }
+
+    private async Task SaveToGoogleDrive(string fileName)
+    {
+        var googleUploader = new GoogleDriveUploader();
+        await googleUploader.UploadCsvAsync(fileName, $"{Key}.csv");
     }
 
     private record JiraIssue(string Key, DateTimeOffset CreatedDateTime, DateTimeOffset? ResolvedDateTime, string Status, double? StoryPoints, string Source);

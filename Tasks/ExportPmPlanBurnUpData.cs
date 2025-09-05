@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace BensJiraConsole.Tasks;
+﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
 public class ExportPmPlanBurnUpData : IJiraExportTask
@@ -31,7 +29,7 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
     public string Key => "PMPLAN_BURNUP";
     public string Description => "Export PM Plan data for drawing a release burn-up chart";
 
-    public async Task ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
         var jqlPmPlans =

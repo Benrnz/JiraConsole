@@ -30,7 +30,7 @@ public class ExportPmPlanMapping : IJiraExportTask
     public string Key => "PMPLAN_STORIES";
     public string Description => "Export PM Plan children mapping";
 
-    public async Task ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
         var allIssues = await RetrieveAllStoriesMappingToPmPlan();

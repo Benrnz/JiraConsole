@@ -1,6 +1,4 @@
-﻿using System.Reflection.Metadata.Ecma335;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
+﻿using System.Text;
 
 namespace BensJiraConsole.Tasks;
 
@@ -28,13 +26,14 @@ public class ExportBugStatsTask : IJiraExportTask
     ];
 
     private List<string> allCategories = new();
+
     private List<string> allCodeAreas = new();
     //private int dynamicIndex;
 
     public string Key => "BUG_STATS";
     public string Description => "Export a series of exports summarising bug statistics for JAVPM.";
 
-    public async Task ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
         var dynamicRunner = new JiraQueryDynamicRunner();
@@ -51,6 +50,103 @@ public class ExportBugStatsTask : IJiraExportTask
         var monthTotalsForSeverities = await ExportBugStatsSeverities(jiras);
         await ExportBugStatsEnvestSeverities(jiras, monthTotalsForSeverities);
         await ExportBugStatsCategories(jiras);
+    }
+
+    private DateTime CalculateStartDate()
+    {
+        var thirteenMonthsAgo = DateTime.Now.AddMonths(-13);
+        return new DateTime(thirteenMonthsAgo.Year, thirteenMonthsAgo.Month, 1);
+    }
+
+    private bool CodeAreaMatches(string? codeArea, string? codeAreaParent, string matchThisCategory)
+    {
+        if (codeArea is not null && codeArea.Contains(matchThisCategory))
+        {
+            return true;
+        }
+
+        if (codeAreaParent is not null && codeAreaParent.Contains(matchThisCategory))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private JiraIssue CreateJiraIssue(dynamic i)
+    {
+        //Console.Write(this.dynamicIndex++);
+        //Console.Write(" ");
+        var typedIssue = new JiraIssue(
+            JiraFields.Key.Parse<string>(i),
+            JiraFields.Summary.Parse<string>(i),
+            JiraFields.Created.Parse<DateTimeOffset>(i),
+            JiraFields.Resolved.Parse<DateTimeOffset?>(i),
+            JiraFields.Status.Parse<string>(i),
+            JiraFields.Category.Parse<string?>(i),
+            JiraFields.Severity.Parse<string?>(i),
+            JiraFields.Team.Parse<string?>(i),
+            JiraFields.BugType.Parse<string>(i),
+            JiraFields.StoryPoints.Parse<double?>(i),
+            JiraFields.DevTimeSpent.Parse<string?>(i),
+            JiraFields.Resolution.Parse<string?>(i),
+            JiraFields.CodeAreaParent.Parse<string?>(i),
+            JiraFields.CodeArea.Parse<string?>(i),
+            JiraFields.CustomersMultiSelect.Parse<string?>(i) ?? string.Empty);
+        return typedIssue;
+    }
+
+    private async Task ExportBugStatsCategories(List<JiraIssue> jiras)
+    {
+        var currentMonth = CalculateStartDate();
+        var bugCounts = new List<BarChartDataCategories>();
+        this.allCategories = ParseCategories(jiras.Select(j => j.Category ?? Constants.Unknown).Distinct().ToList());
+        do
+        {
+            var filteredList = jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList();
+            var categoryData = filteredList.GroupBy(j => j.Category ?? Constants.Unknown).ToList();
+            var categoryCounts = new Dictionary<string, int>();
+            foreach (var category in this.allCategories)
+            {
+                var matchingGroups = categoryData.Where(g => g.Key == category || g.Key.Contains(category));
+                categoryCounts[category] = matchingGroups.Select(g => g.Count()).Sum();
+            }
+
+            bugCounts.Add(new BarChartDataCategories(currentMonth, categoryCounts));
+            currentMonth = currentMonth.AddMonths(1);
+        } while (currentMonth < DateTime.Today);
+
+        var exporter = new SimpleCsvExporter(Key)
+            { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseCatergoriesHeaderRow };
+        var fileName = exporter.Export(bugCounts, $"{Key}-Categories");
+
+        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
+        await googleSheetUpdater.EditGoogleSheet("'ProductCategories'!A1");
+    }
+
+    private async Task ExportBugStatsCodeAreas(List<JiraIssue> jiras)
+    {
+        var currentMonth = CalculateStartDate();
+        var bugCounts = new List<BarChartDataCodeAreas>();
+        this.allCodeAreas = ParseCodeAreas(jiras.Select(j => JoinCodeAreasParent(j.CodeArea, j.CodeAreaParent)).Distinct().ToList());
+        do
+        {
+            var filteredList = jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList();
+            var areaCounts = new Dictionary<string, int>();
+            foreach (var codeArea in this.allCodeAreas)
+            {
+                areaCounts[codeArea] = filteredList.Count(j => CodeAreaMatches(j.CodeArea, j.CodeAreaParent, codeArea));
+            }
+
+            bugCounts.Add(new BarChartDataCodeAreas(currentMonth, areaCounts));
+            currentMonth = currentMonth.AddMonths(1);
+        } while (currentMonth < DateTime.Today);
+
+        var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseCodeAreasHeaderRow };
+        var fileName = exporter.Export(bugCounts, $"{Key}-Areas");
+
+        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
+        await googleSheetUpdater.EditGoogleSheet("'CodeAreas'!A1");
     }
 
     private async Task ExportBugStatsEnvestSeverities(List<JiraIssue> jiras, List<BarChartData> severityTotals)
@@ -102,32 +198,38 @@ public class ExportBugStatsTask : IJiraExportTask
         await googleSheetUpdater.EditGoogleSheet("'RecentDev'!A1");
     }
 
-    private async Task ExportBugStatsCategories(List<JiraIssue> jiras)
+    private async Task<List<BarChartData>> ExportBugStatsSeverities(List<JiraIssue> jiras, string? customerFilter = null)
     {
         var currentMonth = CalculateStartDate();
-        var bugCounts = new List<BarChartDataCategories>();
-        this.allCategories = ParseCategories(jiras.Select(j => j.Category ?? Constants.Unknown).Distinct().ToList());
+        var bugCounts = new List<BarChartData>();
         do
         {
-            var filteredList = jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList();
-            var categoryData = filteredList.GroupBy(j => j.Category ?? Constants.Unknown).ToList();
-            var categoryCounts = new Dictionary<string, int>();
-            foreach (var category in this.allCategories)
-            {
-                var matchingGroups = categoryData.Where(g => g.Key == category || g.Key.Contains(category));
-                categoryCounts[category] = matchingGroups.Select(g => g.Count()).Sum();
-            }
-
-            bugCounts.Add(new BarChartDataCategories(currentMonth, categoryCounts));
+            var filteredList = customerFilter is null
+                ? jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList()
+                : jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1) && i.Customer.Contains(customerFilter)).ToList();
+            // ReSharper disable InconsistentNaming
+            var p1sTotal = filteredList.Count(i => i.Severity == Constants.SeverityCritical);
+            var p2sTotal = filteredList.Count(i => i.Severity == Constants.SeverityMajor);
+            // ReSharper restore InconsistentNaming
+            var othersTotal = filteredList.Count - p1sTotal - p2sTotal;
+            bugCounts.Add(new BarChartData(currentMonth, p1sTotal, p2sTotal, othersTotal));
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        var exporter = new SimpleCsvExporter(Key)
-            { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseCatergoriesHeaderRow };
-        var fileName = exporter.Export(bugCounts, $"{Key}-Categories");
+        if (customerFilter is null)
+        {
+            // Only update the master Severities total sheet if we're running without a specific customer filter.
+            var exporter = new SimpleCsvExporter(Key)
+            {
+                Mode = SimpleCsvExporter.FileNameMode.ExactName,
+                OverrideSerialiseRecord = SerialiseToCsv
+            };
+            var fileName = exporter.Export(bugCounts, $"{Key}-Severities");
+            var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
+            await googleSheetUpdater.EditGoogleSheet("'Severities'!A1");
+        }
 
-        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
-        await googleSheetUpdater.EditGoogleSheet("'ProductCategories'!A1");
+        return bugCounts;
     }
 
     private string JoinCodeAreasParent(string? codeArea, string? codeAreaParent)
@@ -153,44 +255,42 @@ public class ExportBugStatsTask : IJiraExportTask
         return $"{myCodeArea} / {myCodeAreaParent}";
     }
 
-    private async Task ExportBugStatsCodeAreas(List<JiraIssue> jiras)
+    private List<string> ParseCategories(List<string> rawList)
     {
-        var currentMonth = CalculateStartDate();
-        var bugCounts = new List<BarChartDataCodeAreas>();
-        this.allCodeAreas = ParseCodeAreas(jiras.Select(j => JoinCodeAreasParent(j.CodeArea, j.CodeAreaParent)).Distinct().ToList());
-        do
+        // The rawList contains a list of categories, but some elements are comma seperated lists of categories. These need to be split and a new distinct list created.
+        var categories = new HashSet<string>();
+        foreach (var item in rawList)
         {
-            var filteredList = jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList();
-            var areaCounts = new Dictionary<string, int>();
-            foreach (var codeArea in this.allCodeAreas)
+            var splitItems = item.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var splitItem in splitItems)
             {
-                areaCounts[codeArea] = filteredList.Count(j => CodeAreaMatches(j.CodeArea, j.CodeAreaParent, codeArea));
+                if (!string.IsNullOrWhiteSpace(splitItem))
+                {
+                    categories.Add(splitItem);
+                }
             }
+        }
 
-            bugCounts.Add(new BarChartDataCodeAreas(currentMonth, areaCounts));
-            currentMonth = currentMonth.AddMonths(1);
-        } while (currentMonth < DateTime.Today);
-
-        var exporter = new SimpleCsvExporter(Key) { Mode = SimpleCsvExporter.FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseCodeAreasHeaderRow };
-        var fileName = exporter.Export(bugCounts, $"{Key}-Areas");
-
-        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
-        await googleSheetUpdater.EditGoogleSheet("'CodeAreas'!A1");
+        return categories.OrderBy(c => c).ToList();
     }
 
-    private bool CodeAreaMatches(string? codeArea, string? codeAreaParent, string matchThisCategory)
+    private List<string> ParseCodeAreas(List<string> rawList)
     {
-        if (codeArea is not null && codeArea.Contains(matchThisCategory))
+        // Parse the raw data in rawList and extract unique code areas. Some elements in the list may contain multiple code areas separated by commas or /.
+        var codeAreas = new HashSet<string>();
+        foreach (var item in rawList)
         {
-            return true;
+            var splitItems = item.Split([',', '/'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var splitItem in splitItems)
+            {
+                if (!string.IsNullOrWhiteSpace(splitItem))
+                {
+                    codeAreas.Add(splitItem);
+                }
+            }
         }
 
-        if (codeAreaParent is not null && codeAreaParent.Contains(matchThisCategory))
-        {
-            return true;
-        }
-
-        return false;
+        return codeAreas.OrderBy(a => a).ToList();
     }
 
     private string SerialiseCatergoriesHeaderRow()
@@ -253,107 +353,6 @@ public class ExportBugStatsTask : IJiraExportTask
         }
 
         throw new InvalidOperationException("Unsupported record type for CSV serialization.");
-    }
-
-    private List<string> ParseCategories(List<string> rawList)
-    {
-        // The rawList contains a list of categories, but some elements are comma seperated lists of categories. These need to be split and a new distinct list created.
-        var categories = new HashSet<string>();
-        foreach (var item in rawList)
-        {
-            var splitItems = item.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var splitItem in splitItems)
-            {
-                if (!string.IsNullOrWhiteSpace(splitItem))
-                {
-                    categories.Add(splitItem);
-                }
-            }
-        }
-
-        return categories.OrderBy(c => c).ToList();
-    }
-
-    private List<string> ParseCodeAreas(List<string> rawList)
-    {
-        // Parse the raw data in rawList and extract unique code areas. Some elements in the list may contain multiple code areas separated by commas or /.
-        var codeAreas = new HashSet<string>();
-        foreach (var item in rawList)
-        {
-            var splitItems = item.Split([',', '/'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var splitItem in splitItems)
-            {
-                if (!string.IsNullOrWhiteSpace(splitItem))
-                {
-                    codeAreas.Add(splitItem);
-                }
-            }
-        }
-
-        return codeAreas.OrderBy(a => a).ToList();
-    }
-
-    private async Task<List<BarChartData>> ExportBugStatsSeverities(List<JiraIssue> jiras, string? customerFilter = null)
-    {
-        var currentMonth = CalculateStartDate();
-        var bugCounts = new List<BarChartData>();
-        do
-        {
-            var filteredList = customerFilter is null ?
-                jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList() :
-                jiras.Where(i => i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1) && i.Customer.Contains(customerFilter)).ToList();
-            // ReSharper disable InconsistentNaming
-            var p1sTotal = filteredList.Count(i => i.Severity == Constants.SeverityCritical);
-            var p2sTotal = filteredList.Count(i => i.Severity == Constants.SeverityMajor);
-            // ReSharper restore InconsistentNaming
-            var othersTotal = filteredList.Count - p1sTotal - p2sTotal;
-            bugCounts.Add(new BarChartData(currentMonth, p1sTotal, p2sTotal, othersTotal));
-            currentMonth = currentMonth.AddMonths(1);
-        } while (currentMonth < DateTime.Today);
-
-        if (customerFilter is null)
-        {
-            // Only update the master Severities total sheet if we're running without a specific customer filter.
-            var exporter = new SimpleCsvExporter(Key)
-            {
-                Mode = SimpleCsvExporter.FileNameMode.ExactName,
-                OverrideSerialiseRecord = SerialiseToCsv
-            };
-            var fileName = exporter.Export(bugCounts, $"{Key}-Severities");
-            var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
-            await googleSheetUpdater.EditGoogleSheet("'Severities'!A1");
-        }
-
-        return bugCounts;
-    }
-
-    private DateTime CalculateStartDate()
-    {
-        var thirteenMonthsAgo = DateTime.Now.AddMonths(-13);
-        return new DateTime(thirteenMonthsAgo.Year, thirteenMonthsAgo.Month, 1);
-    }
-
-    private JiraIssue CreateJiraIssue(dynamic i)
-    {
-        //Console.Write(this.dynamicIndex++);
-        //Console.Write(" ");
-        var typedIssue = new JiraIssue(
-            JiraFields.Key.Parse<string>(i),
-            JiraFields.Summary.Parse<string>(i),
-            JiraFields.Created.Parse<DateTimeOffset>(i),
-            JiraFields.Resolved.Parse<DateTimeOffset?>(i),
-            JiraFields.Status.Parse<string>(i),
-            JiraFields.Category.Parse<string?>(i),
-            JiraFields.Severity.Parse<string?>(i),
-            JiraFields.Team.Parse<string?>(i),
-            JiraFields.BugType.Parse<string>(i),
-            JiraFields.StoryPoints.Parse<double?>(i),
-            JiraFields.DevTimeSpent.Parse<string?>(i),
-            JiraFields.Resolution.Parse<string?>(i),
-            JiraFields.CodeAreaParent.Parse<string?>(i),
-            JiraFields.CodeArea.Parse<string?>(i),
-            JiraFields.CustomersMultiSelect.Parse<string?>(i) ?? string.Empty);
-        return typedIssue;
     }
 
     // ReSharper disable InconsistentNaming

@@ -20,7 +20,7 @@ public class CalculateDailyReportTask : IJiraExportTask
     public string Key => "DAILY";
     public string Description => "Calculate the daily stats for the daily report for the two teams involved.";
 
-    public async Task ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
         DateTime sprintStart;

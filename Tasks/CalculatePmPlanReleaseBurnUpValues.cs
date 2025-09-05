@@ -6,7 +6,7 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
     public string Key => "PMPLAN_RBURNUP";
     public string Description => "Calculate Overall PM Plan Release Burn Up";
 
-    public async Task ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
 

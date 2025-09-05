@@ -8,7 +8,7 @@ public class ExportNewlyAddedStoriesForPmPlans : IJiraExportTask
     public string Key => "PMPLAN_NEW";
     public string Description => "Export all newly added stories for a time period that map to PMPLANs";
 
-    public async Task ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
         var parentTask = new ExportPmPlanMapping();

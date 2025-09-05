@@ -31,7 +31,7 @@ public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
     public string Description => "Export Active Sprint tickets with no estimate (Superclass, Ruby Ducks, Spearhead only)";
 
 
-    public async Task ExecuteAsync(string[] fields)
+    public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
         var runner = new JiraQueryDynamicRunner();

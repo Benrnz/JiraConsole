@@ -4,8 +4,11 @@ using BensJiraConsole;
 
 public static class Program
 {
+    private static string[] CommandLineArgs = [];
+
     public static async Task Main(string[] args)
     {
+        CommandLineArgs = args;
         Console.WriteLine("Jira Console Exporter tool.  Select a task to execute, or 'exit' to quit.");
         var tasks = FindExportTaskImplementations();
         await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET", tasks);
@@ -41,7 +44,7 @@ public static class Program
             return;
         }
 
-        await selectedTask.ExecuteAsync([]);
+        await selectedTask.ExecuteAsync(CommandLineArgs);
     }
 
     private static IJiraExportTask[] FindExportTaskImplementations()
