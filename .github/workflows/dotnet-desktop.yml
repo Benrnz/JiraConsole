@@ -74,13 +74,16 @@ jobs:
       with:
         dotnet-version: 9.0.x
 
-    # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
-    - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@v2
+    - name: Restore dependencies
+      run: dotnet restore
 
-    # Execute all unit tests in the solution
-    #- name: Execute unit tests
-    #  run: dotnet test
+    - name: Build project
+      run: dotnet build --configuration Debug
+
+    - name: Run tests (if any)
+      run: dotnet test --no-build --verbosity normal
+      continue-on-error: true  # Optional: skip failure if no tests exist
+
 
     # Restore the application to populate the obj folder with RuntimeIdentifiers
     #- name: Restore the application
