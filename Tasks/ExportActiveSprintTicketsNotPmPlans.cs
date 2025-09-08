@@ -24,7 +24,7 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
     ];
 
     public string Key => "SPRINT";
-    public string Description => "Export Any Sprint ticket that does not map up to a PMPLAN (Superclass and Ruby Ducks only)";
+    public string Description => "Export Any _Sprint_ ticket that does not map up to a PMPLAN (Superclass and Ruby Ducks only)";
 
     public async Task ExecuteAsync(string[] args)
     {

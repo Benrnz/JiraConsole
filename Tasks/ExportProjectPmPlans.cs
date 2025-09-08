@@ -14,7 +14,7 @@ public class ExportProjectPmPlans : IJiraExportTask
     ];
 
     public string Key => "PMPLANS";
-    public string Description => "Export PM Plans for Envest";
+    public string Description => "Export _PMPlans_ for Envest";
 
     public async Task ExecuteAsync(string[] args)
     {

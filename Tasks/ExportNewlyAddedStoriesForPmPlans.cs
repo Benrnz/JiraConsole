@@ -6,12 +6,12 @@ namespace BensJiraConsole.Tasks;
 public class ExportNewlyAddedStoriesForPmPlans : IJiraExportTask
 {
     public string Key => "PMPLAN_NEW";
-    public string Description => "Export all newly added stories for a time period that map to PMPLANs";
+    public string Description => "Export all _newly_ added stories for a time period that map to PMPLANs";
 
     public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
-        var parentTask = new ExportPmPlanMapping();
+        var parentTask = new ExportPmPlanStories();
         var startDate = GetDateFromUser("start date (inclusive)");
         var endDate = GetDateFromUser("end date (exclusive)");
         var issues = await parentTask.RetrieveAllStoriesMappingToPmPlan($"AND created >= {startDate:yyyy-MM-dd} AND Created < {endDate:yyyy-MM-dd}");

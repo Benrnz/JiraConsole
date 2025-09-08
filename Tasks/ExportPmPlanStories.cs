@@ -1,7 +1,7 @@
 ﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportPmPlanMapping : IJiraExportTask
+public class ExportPmPlanStories : IJiraExportTask
 {
     private static readonly FieldMapping[] Fields =
     [
@@ -28,7 +28,7 @@ public class ExportPmPlanMapping : IJiraExportTask
     public IEnumerable<dynamic> PmPlans { get; private set; } = [];
 
     public string Key => "PMPLAN_STORIES";
-    public string Description => "Export PM Plan children mapping";
+    public string Description => "Export _PMPlan_children_stories_";
 
     public async Task ExecuteAsync(string[] args)
     {

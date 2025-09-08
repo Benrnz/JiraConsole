@@ -31,7 +31,7 @@ public class ExportBugStatsTask : IJiraExportTask
     //private int dynamicIndex;
 
     public string Key => "BUG_STATS";
-    public string Description => "Export a series of exports summarising bug statistics for JAVPM.";
+    public string Description => "Export a series of exports summarising _bug_stats_ for JAVPM.";
 
     public async Task ExecuteAsync(string[] args)
     {

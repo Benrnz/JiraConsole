@@ -28,7 +28,7 @@ public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
 
     public string Key => "NOESTIMATE";
 
-    public string Description => "Export Active Sprint tickets with no estimate (Superclass, Ruby Ducks, Spearhead only)";
+    public string Description => "Export Active Sprint tickets with _No_Estimate_ (Superclass, Ruby Ducks, Spearhead only)";
 
 
     public async Task ExecuteAsync(string[] args)

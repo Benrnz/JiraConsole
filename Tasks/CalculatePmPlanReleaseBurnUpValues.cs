@@ -4,13 +4,13 @@
 public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
 {
     public string Key => "PMPLAN_RBURNUP";
-    public string Description => "Calculate Overall PM Plan Release Burn Up";
+    public string Description => "Calculate Overall _PMPlan_Release_Burn_Up_";
 
     public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
 
-        var task = new ExportPmPlanMapping();
+        var task = new ExportPmPlanStories();
         var javPms = (await task.RetrieveAllStoriesMappingToPmPlan()).Values.Select(x => (JiraIssue)CreateJiraIssueFromDynamic(x, "PmPlanMapping")).ToList();
         var exporter = new SimpleCsvExporter(Key);
         exporter.Export(javPms);

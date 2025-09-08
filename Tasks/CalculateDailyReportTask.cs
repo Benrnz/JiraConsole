@@ -18,7 +18,7 @@ public class CalculateDailyReportTask : IJiraExportTask
     private readonly GoogleSheetReader reader = new(GoogleSheetId);
 
     public string Key => "DAILY";
-    public string Description => "Calculate the daily stats for the daily report for the two teams involved.";
+    public string Description => "Calculate the _daily_ stats for the daily report for the two teams involved.";
 
     public async Task ExecuteAsync(string[] args)
     {

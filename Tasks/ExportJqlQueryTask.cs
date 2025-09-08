@@ -28,7 +28,7 @@ public class ExportJqlQueryTask : IJiraExportTask
 
     public string Key => "JQL";
 
-    public string Description => "Export issues matching a JQL query";
+    public string Description => "Export issues matching a _JQL_ query";
 
 
     public async Task ExecuteAsync(string[] args)

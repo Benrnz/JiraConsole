@@ -26,8 +26,8 @@ public class ExportAllRecentJavPms : IJiraExportTask
         JiraFields.Team
     ];
 
-    public string Key => "JAVPMs";
-    public string Description => "Export all JAVPM tickets from the last 18 months.";
+    public string Key => "ALLJAVPM";
+    public string Description => "Export _all_JAVPM_ tickets from the last 18 months.";
 
     public async Task ExecuteAsync(string[] args)
     {

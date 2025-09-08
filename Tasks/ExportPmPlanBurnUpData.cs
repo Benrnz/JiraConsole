@@ -26,8 +26,8 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         JiraFields.EstimationStatus
     ];
 
-    public string Key => "PMPLAN_BURNUP";
-    public string Description => "Export PM Plan data for drawing a release burn-up chart";
+    public string Key => "PMPLAN_BURNUPS";
+    public string Description => "Export PM Plan data for drawing a release _burn-up_charts_";
 
     public async Task ExecuteAsync(string[] args)
     {
