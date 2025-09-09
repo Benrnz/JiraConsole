@@ -38,9 +38,6 @@ public class CalculateDailyReportTask : IJiraExportTask
         // Ruby Ducks team
         jql = """Project = JAVPM AND "Team[Team]" = 60412efa-7e2e-4285-bb4e-f329c3b6d417 AND Sprint IN openSprints()""";
         await CalculateTeamStats(runner, jql, "Ruby Ducks", sprintStart);
-
-        // TODO 1: accept a date paramter to state the start of the sprint. If start of sprint is today, export the list of tickets to Google Drive.
-        // TODO 2: If today is not start of sprint, compare todays list to Google Drive start of sprint list and report any differences.
     }
 
     private async Task CalculateTeamStats(JiraQueryDynamicRunner runner, string jql, string teamName, DateTime sprintStart)
@@ -88,10 +85,10 @@ public class CalculateDailyReportTask : IJiraExportTask
         return new JiraIssue(
             sheetData[0].ToString() ?? throw new NotSupportedException("Key"),
             sheetData[1].ToString() ?? throw new NotSupportedException("Status"),
-            double.Parse(sheetData[2]?.ToString() ?? "0"),
+            double.Parse(sheetData[2].ToString() ?? "0"),
             sheetData[3].ToString() ?? throw new NotSupportedException("Team"),
             sheetData[4].ToString() ?? string.Empty,
-            int.Parse(sheetData[5]?.ToString() ?? "0")
+            int.Parse(sheetData[5].ToString() ?? "0")
         );
     }
 
@@ -99,7 +96,7 @@ public class CalculateDailyReportTask : IJiraExportTask
     {
         var sheetData = await this.reader.ReadData($"'{teamName}'!A1:G1000");
         var headerRow = sheetData.FirstOrDefault();
-        if (headerRow is null || headerRow.Count < 7 || !DateTime.TryParse(headerRow?[6].ToString(), out var sheetStart))
+        if (headerRow is null || headerRow.Count < 7 || !DateTime.TryParse(headerRow[6].ToString(), out var sheetStart))
         {
             Console.WriteLine("Sheet appears blank or invalid, assuming start of sprint is today...");
             await ProcessStartOfSprint(teamName, sprintStart, tickets);
@@ -118,7 +115,9 @@ public class CalculateDailyReportTask : IJiraExportTask
         var removedTickets = tickets.Where(t => originalTickets.All(o => o.Key != t.Key)).ToList();
         if (removedTickets.Any())
         {
-            removedTickets.ForEach(t => Console.WriteLine($"    {t.Key}"));
+            Console.Write("    ");
+            removedTickets.ForEach(t => Console.Write($"{t.Key}, "));
+            Console.WriteLine();
             Console.WriteLine($"    {removedTickets.Count} total.");
         }
         else
@@ -130,7 +129,9 @@ public class CalculateDailyReportTask : IJiraExportTask
         var newTickets = originalTickets.Where(o => tickets.All(t => t.Key != o.Key)).ToList();
         if (newTickets.Any())
         {
-            newTickets.ForEach(t => Console.WriteLine($"    {t.Key}"));
+            Console.Write("    ");
+            newTickets.ForEach(t => Console.Write($"{t.Key}, "));
+            Console.WriteLine();
             Console.WriteLine($"    {newTickets.Count} total.");
         }
         else
