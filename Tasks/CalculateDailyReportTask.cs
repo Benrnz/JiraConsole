@@ -116,9 +116,9 @@ public class CalculateDailyReportTask : IJiraExportTask
         if (removedTickets.Any())
         {
             Console.Write("    ");
-            removedTickets.ForEach(t => Console.Write($"{t.Key}, "));
+            removedTickets.ForEach(t => Console.Write($"{t.Key} ({t.StoryPoints}sp), "));
             Console.WriteLine();
-            Console.WriteLine($"    {removedTickets.Count} total.");
+            Console.WriteLine($"    {removedTickets.Count} total. {removedTickets.Sum(t => t.StoryPoints):F1}sp total.");
         }
         else
         {
@@ -130,9 +130,9 @@ public class CalculateDailyReportTask : IJiraExportTask
         if (newTickets.Any())
         {
             Console.Write("    ");
-            newTickets.ForEach(t => Console.Write($"{t.Key}, "));
+            newTickets.ForEach(t => Console.Write($"{t.Key} ({t.StoryPoints}sp), "));
             Console.WriteLine();
-            Console.WriteLine($"    {newTickets.Count} total.");
+            Console.WriteLine($"    {newTickets.Count} total. {newTickets.Sum(t => t.StoryPoints):F1}sp total.");
         }
         else
         {
