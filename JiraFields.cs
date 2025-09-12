@@ -13,9 +13,9 @@ public static class JiraFields
     public static readonly FieldMapping DevTimeSpent = new FieldMappingWithParser<string?> { Field = "customfield_11934", Alias = "DevTimeSpent", Parser = ParseDevTimeSpent };
     public static readonly FieldMapping EstimationStatus = new() { Field = "customfield_12137", Alias = "EstimationStatus", FlattenField = "value" };
     public static readonly FieldMapping FlagCount = new FieldMappingWithParser<int> { Field = "customfield_12236", Alias = "FlagCount", Parser = ParseFlagCount };
-    public static readonly FieldMapping IsReqdForGoLive = new FieldMappingWithParser<bool>() { Field = "customfield_11986", Alias = "IsReqdForGoLive", Parser = ParseIsReqdForGoLive };
+    public static readonly FieldMapping IsReqdForGoLive = new FieldMappingWithParser<bool> { Field = "customfield_11986", Alias = "IsReqdForGoLive", Parser = ParseIsReqdForGoLive };
     public static readonly FieldMapping IssueType = new() { Field = "issuetype", Alias = "IssueType", FlattenField = "name" };
-    public static readonly FieldMapping Key = new FieldMappingWithParser<string>() { Field = "key", Alias = "Key", Parser = ParsesKey };
+    public static readonly FieldMapping Key = new FieldMappingWithParser<string> { Field = "key", Alias = "Key", Parser = ParsesKey };
     public static readonly FieldMapping OriginalEstimate = new() { Field = "timeoriginalestimate", Alias = "OriginalEstimate" };
     public static readonly FieldMapping ParentKey = new() { Field = "parent", Alias = "Parent", FlattenField = "key" };
     public static readonly FieldMapping PmPlanHighLevelEstimate = new() { Field = "customfield_12038", Alias = "PmPlanHighLevelEstimate" };
@@ -24,31 +24,12 @@ public static class JiraFields
     public static readonly FieldMapping Resolution = new() { Field = "resolution", Alias = "Resolution", FlattenField = "name" };
     public static readonly FieldMapping Resolved = new() { Field = "resolutiondate", Alias = "Resolved" };
     public static readonly FieldMapping Severity = new() { Field = "customfield_11899", Alias = "Severity", FlattenField = "value" };
-    public static readonly FieldMapping Sprint = new() { Field = "customfield_10007", Alias = "Sprint" };
+    public static readonly FieldMapping Sprint = new() { Field = "customfield_10007", Alias = "Sprint", FlattenField = "name" };
+    public static readonly FieldMapping SprintStartDate = new() { Field = "customfield_10007", FlattenField = "startDate" };
     public static readonly FieldMapping Status = new() { Field = "status", Alias = "Status", FlattenField = "name" };
     public static readonly FieldMapping StoryPoints = new() { Field = "customfield_10004", Alias = "StoryPoints" };
     public static readonly FieldMapping Summary = new() { Field = "summary", Alias = "Summary" };
     public static readonly FieldMapping Team = new() { Field = "customfield_11400", Alias = "Team", FlattenField = "name" };
-
-    private static int ParseFlagCount(dynamic d)
-    {
-        if (d.FlagCount is null)
-        {
-            return 0;
-        }
-
-        if (d.FlagCount is double dbl)
-        {
-            return Convert.ToInt32(dbl);
-        }
-
-        if (d.FlagCount is float f)
-        {
-            return Convert.ToInt32(f);
-        }
-
-        throw new NotSupportedException("Incorrect data type for FlagCount.");
-    }
 
     private static string? ParseDevTimeSpent(dynamic d)
     {
@@ -69,6 +50,26 @@ public static class JiraFields
         }
 
         throw new NotSupportedException($"DevTimeSpent data type {d.DevTimeSpent.GetType().Name} is not supported");
+    }
+
+    private static int ParseFlagCount(dynamic d)
+    {
+        if (d.FlagCount is null)
+        {
+            return 0;
+        }
+
+        if (d.FlagCount is double dbl)
+        {
+            return Convert.ToInt32(dbl);
+        }
+
+        if (d.FlagCount is float f)
+        {
+            return Convert.ToInt32(f);
+        }
+
+        throw new NotSupportedException("Incorrect data type for FlagCount.");
     }
 
     private static bool ParseIsReqdForGoLive(dynamic d)

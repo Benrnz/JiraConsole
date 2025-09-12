@@ -1,19 +1,11 @@
 ﻿using System.Dynamic;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace BensJiraConsole;
 
-public class SimpleCsvExporter(string taskKey)
+public class SimpleCsvExporter(string taskKey) : ICsvExporter
 {
-    public enum FileNameMode
-    {
-        Auto,
-        ExactName,
-        Hint
-    }
-
     private const string DefaultFolder = "C:\\Downloads\\JiraExports";
 
     private readonly string taskKey = taskKey ?? throw new ArgumentNullException(nameof(taskKey));
@@ -52,41 +44,42 @@ public class SimpleCsvExporter(string taskKey)
 
     public Func<string>? OverrideSerialiseHeader { get; set; } = null;
 
-    private void WriteCsv(string path, IEnumerable<object> issues)
+    private HashSet<string> GetAllPropertyNames(IEnumerable<object> issues, out bool isDynamic)
     {
-        if (!Path.Exists(path))
+        var first = issues.First();
+        if (first is ExpandoObject)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            isDynamic = true;
+            return GetAllPropertyNamesDynamic(issues);
         }
 
-        using var writer = new StreamWriter(path);
+        isDynamic = false;
+        var propertyNames = new HashSet<string>();
+        first
+            .GetType()
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Select(p => p.Name)
+            .ToList()
+            .ForEach(p => propertyNames.Add(p));
 
-        var propertyNames = GetAllPropertyNames(issues, out var isDynamic);
+        return propertyNames;
+    }
 
-        // Write Header names
-        if (OverrideSerialiseHeader == null)
+    private HashSet<string> GetAllPropertyNamesDynamic(IEnumerable<dynamic> issues)
+    {
+        var propertyNames = new HashSet<string>();
+        foreach (var issue in issues)
         {
-            writer.WriteLine(string.Join(',', propertyNames));
-        }
-        else
-        {
-            writer.WriteLine(OverrideSerialiseHeader());
-        }
-
-        for (var i = 0; i < issues.Count(); i++)
-        {
-            string record;
-            if (OverrideSerialiseRecord == null)
+            if (issue is ExpandoObject expando)
             {
-                record = isDynamic ? ReadAllValuesDynamic(issues.ElementAt(i), propertyNames) : ReadAllValues(issues.ElementAt(i), propertyNames);
+                foreach (var kvp in (IDictionary<string, object>)expando)
+                {
+                    propertyNames.Add(kvp.Key);
+                }
             }
-            else
-            {
-                record = OverrideSerialiseRecord(issues.ElementAt(i));
-            }
-
-            writer.WriteLine(record);
         }
+
+        return propertyNames;
     }
 
     private string ReadAllValues(object issue, HashSet<string> propertyNames)
@@ -123,15 +116,6 @@ public class SimpleCsvExporter(string taskKey)
         }
 
         return sb.ToString().TrimEnd(',');
-    }
-
-    private string SanitiseString(string rawString)
-    {
-        if (rawString is null)
-        {
-            return string.Empty;
-        }
-        return rawString.Replace('"', '\'').Replace(',', ';');
     }
 
     private string ReadAllValuesDynamic(dynamic issue, HashSet<string> propertyNames)
@@ -174,41 +158,50 @@ public class SimpleCsvExporter(string taskKey)
         return sb.ToString().TrimEnd(',');
     }
 
-    private HashSet<string> GetAllPropertyNames(IEnumerable<object> issues, out bool isDynamic)
+    private string SanitiseString(string rawString)
     {
-        var first = issues.First();
-        if (first is ExpandoObject)
+        if (rawString is null)
         {
-            isDynamic = true;
-            return GetAllPropertyNamesDynamic(issues);
+            return string.Empty;
         }
 
-        isDynamic = false;
-        var propertyNames = new HashSet<string>();
-        first
-            .GetType()
-            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .Select(p => p.Name)
-            .ToList()
-            .ForEach(p => propertyNames.Add(p));
-
-        return propertyNames;
+        return rawString.Replace('"', '\'').Replace(',', ';');
     }
 
-    private HashSet<string> GetAllPropertyNamesDynamic(IEnumerable<dynamic> issues)
+    private void WriteCsv(string path, IEnumerable<object> issues)
     {
-        var propertyNames = new HashSet<string>();
-        foreach (var issue in issues)
+        if (!Path.Exists(path))
         {
-            if (issue is ExpandoObject expando)
-            {
-                foreach (var kvp in (IDictionary<string, object>)expando)
-                {
-                    propertyNames.Add(kvp.Key);
-                }
-            }
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         }
 
-        return propertyNames;
+        using var writer = new StreamWriter(path);
+
+        var propertyNames = GetAllPropertyNames(issues, out var isDynamic);
+
+        // Write Header names
+        if (OverrideSerialiseHeader == null)
+        {
+            writer.WriteLine(string.Join(',', propertyNames));
+        }
+        else
+        {
+            writer.WriteLine(OverrideSerialiseHeader());
+        }
+
+        for (var i = 0; i < issues.Count(); i++)
+        {
+            string record;
+            if (OverrideSerialiseRecord == null)
+            {
+                record = isDynamic ? ReadAllValuesDynamic(issues.ElementAt(i), propertyNames) : ReadAllValues(issues.ElementAt(i), propertyNames);
+            }
+            else
+            {
+                record = OverrideSerialiseRecord(issues.ElementAt(i));
+            }
+
+            writer.WriteLine(record);
+        }
     }
 }

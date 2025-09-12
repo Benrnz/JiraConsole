@@ -3,12 +3,13 @@ using System.Text.Json;
 
 namespace BensJiraConsole;
 
-public class JiraQueryDynamicRunner
+public class JiraQueryDynamicRunner : IJiraQueryRunner
 {
     private SortedList<string, FieldMapping> fieldAliases = new();
-    public string[] IgnoreFields => ["avatarId", "hierarchyLevel", "iconUrl", "id", "expand", "self", "subtask"];
 
-    public async Task<List<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, FieldMapping[] fields)
+    private string[] IgnoreFields => ["avatarId", "hierarchyLevel", "iconUrl", "id", "expand", "self", "subtask"];
+
+    public async Task<IReadOnlyList<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, FieldMapping[] fields)
     {
         string? nextPageToken = null;
         var isLastPage = false;
@@ -18,7 +19,7 @@ public class JiraQueryDynamicRunner
         {
             var responseJson = await client.PostSearchJqlAsync(jql, fields.Select(x => x.Field).ToArray(), nextPageToken);
 
-            this.fieldAliases = new SortedList<string, FieldMapping>(fields.ToDictionary(x => x.Field, x => x));
+            this.fieldAliases = new SortedList<string, FieldMapping>(fields.DistinctBy(f => f.Field).ToDictionary(x => x.Field, x => x));
 
             using var doc = JsonDocument.Parse(responseJson);
             var issues = doc.RootElement.GetProperty("issues");
@@ -34,73 +35,6 @@ public class JiraQueryDynamicRunner
         } while (!isLastPage || nextPageToken != null);
 
         return results;
-    }
-
-    private string FieldName(string field)
-    {
-        if (this.fieldAliases.TryGetValue(field, out var mapping))
-        {
-            return string.IsNullOrEmpty(mapping.Alias) ? field : mapping.Alias;
-        }
-
-        return field;
-    }
-
-    private bool PropertyShouldBeFlattened(string field, out string childField)
-    {
-        if (this.fieldAliases.TryGetValue(field, out var mapping))
-        {
-            childField = mapping.FlattenField;
-            return !string.IsNullOrEmpty(mapping.FlattenField);
-        }
-
-        childField = string.Empty;
-        return false;
-    }
-
-    private dynamic DeserializeToDynamic(JsonElement element, string propertyName)
-    {
-        switch (element.ValueKind)
-        {
-            case JsonValueKind.Object:
-                return DeserialiseDynamicObject(element);
-
-            case JsonValueKind.Array:
-                return DeserialiseDynamicArray(element, propertyName);
-
-            case JsonValueKind.String:
-                var elementString = element.GetString();
-                if (DateTimeOffset.TryParse(elementString, out var dto))
-                {
-                    return dto;
-                }
-
-                return elementString!;
-
-            case JsonValueKind.Number:
-                if (element.TryGetInt64(out var l))
-                {
-                    return l;
-                }
-
-                if (element.TryGetDouble(out var d))
-                {
-                    return d;
-                }
-
-                return element.GetDecimal();
-
-            case JsonValueKind.True:
-            case JsonValueKind.False:
-                return element.GetBoolean();
-
-            case JsonValueKind.Null:
-            case JsonValueKind.Undefined:
-                return null;
-
-            default:
-                return element.GetRawText();
-        }
     }
 
     private dynamic DeserialiseDynamicArray(JsonElement element, string propertyName)
@@ -163,26 +97,71 @@ public class JiraQueryDynamicRunner
 
         return expando;
     }
+
+    private dynamic DeserializeToDynamic(JsonElement element, string propertyName)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                return DeserialiseDynamicObject(element);
+
+            case JsonValueKind.Array:
+                return DeserialiseDynamicArray(element, propertyName);
+
+            case JsonValueKind.String:
+                var elementString = element.GetString();
+                if (DateTimeOffset.TryParse(elementString, out var dto))
+                {
+                    return dto;
+                }
+
+                return elementString!;
+
+            case JsonValueKind.Number:
+                if (element.TryGetInt64(out var l))
+                {
+                    return l;
+                }
+
+                if (element.TryGetDouble(out var d))
+                {
+                    return d;
+                }
+
+                return element.GetDecimal();
+
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+                return element.GetBoolean();
+
+            case JsonValueKind.Null:
+            case JsonValueKind.Undefined:
+                return null;
+
+            default:
+                return element.GetRawText();
+        }
+    }
+
+    private string FieldName(string field)
+    {
+        if (this.fieldAliases.TryGetValue(field, out var mapping))
+        {
+            return string.IsNullOrEmpty(mapping.Alias) ? field : mapping.Alias;
+        }
+
+        return field;
+    }
+
+    private bool PropertyShouldBeFlattened(string field, out string childField)
+    {
+        if (this.fieldAliases.TryGetValue(field, out var mapping))
+        {
+            childField = mapping.FlattenField;
+            return !string.IsNullOrEmpty(mapping.FlattenField);
+        }
+
+        childField = string.Empty;
+        return false;
+    }
 }
-//     public async Task<List<JiraIssue>> SearchJiraIssuesWithJqlAsync(string jql, string[] fields)
-//     {
-//         var client = new JiraApiClient();
-//         var responseJson = await client.PostSearchJqlAsync(jql, fields);
-//         var mapper = new JiraIssueMapper();
-//         var results = mapper.MapToJiraIssue(responseJson);
-//         var totalResults = results.Count;
-//         while (!mapper.WasLastPage)
-//         {
-//             Console.WriteLine($"    {totalResults} results fetched. Fetching next page of results...");
-//             responseJson = await client.PostSearchJqlAsync(jql, fields, mapper.NextPageToken);
-//             var moreResults = mapper.MapToJiraIssue(responseJson);
-//             totalResults += moreResults.Count;
-//             results.AddRange(moreResults);
-//         }
-//
-//         if (totalResults > 100)
-//         {
-//             Console.WriteLine($"    {totalResults} total results fetched.");
-//         }
-//         return results;
-//     }
