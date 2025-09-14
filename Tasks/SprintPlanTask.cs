@@ -22,6 +22,8 @@ public class SprintPlanTask : IJiraExportTask
 
     private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
 
+    private readonly IWorkSheetUpdater sheetUpdater = new GoogleSheetUpdater(GoogleSheetId);
+
     public string Description => "Export to a Google Sheet a over-arching plan of all future sprints for the two project teams.";
     public string Key => TaskKey;
 
@@ -44,6 +46,8 @@ public class SprintPlanTask : IJiraExportTask
         var file = this.exporter.Export(issues);
 
         // Export to Google Sheets.
+        this.sheetUpdater.CsvFilePathAndName = file;
+        await this.sheetUpdater.EditGoogleSheet("'Data'!A1");
     }
 
     private JiraIssue CreateJiraIssue(dynamic i)
@@ -59,22 +63,22 @@ public class SprintPlanTask : IJiraExportTask
         var storyPointsField = JiraFields.StoryPoints.Parse<double?>(i) ?? 0.0;
 
         var typedIssue = new JiraIssue(
-            JiraFields.Key.Parse<string>(i),
-            JiraFields.Summary.Parse<string>(i),
             teamField,
             sprintField,
+            sprintDateParsed,
+            JiraFields.Key.Parse<string>(i),
+            JiraFields.Summary.Parse<string>(i),
             storyPointsField,
-            JiraFields.Status.Parse<string>(i),
-            sprintDateParsed);
+            JiraFields.Status.Parse<string>(i));
         return typedIssue;
     }
 
     private record JiraIssue(
-        string Key,
-        string Summary,
         string Team,
         string Sprint,
+        DateTimeOffset SprintStartDate,
+        string Key,
+        string Summary,
         double StoryPoints,
-        string Status,
-        DateTimeOffset SprintStartDate);
+        string Status);
 }

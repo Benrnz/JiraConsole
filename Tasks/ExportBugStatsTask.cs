@@ -120,7 +120,7 @@ public class ExportBugStatsTask : IJiraExportTask
             { Mode = FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseCatergoriesHeaderRow };
         var fileName = exporter.Export(bugCounts, $"{Key}-Categories");
 
-        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
+        var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
         await googleSheetUpdater.EditGoogleSheet("'ProductCategories'!A1");
     }
 
@@ -145,7 +145,7 @@ public class ExportBugStatsTask : IJiraExportTask
         var exporter = new SimpleCsvExporter(Key) { Mode = FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseCodeAreasHeaderRow };
         var fileName = exporter.Export(bugCounts, $"{Key}-Areas");
 
-        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
+        var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
         await googleSheetUpdater.EditGoogleSheet("'CodeAreas'!A1");
     }
 
@@ -169,7 +169,7 @@ public class ExportBugStatsTask : IJiraExportTask
         };
         var fileName = exporter.Export(chartData, $"{Key}-SeveritiesEnvest");
 
-        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
+        var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
         await googleSheetUpdater.EditGoogleSheet("'Envest'!A1");
     }
 
@@ -194,7 +194,7 @@ public class ExportBugStatsTask : IJiraExportTask
         var exporter = new SimpleCsvExporter(Key) { Mode = FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv };
         var fileName = exporter.Export(bugCounts, $"{Key}-RecentDev");
 
-        var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
+        var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
         await googleSheetUpdater.EditGoogleSheet("'RecentDev'!A1");
     }
 
@@ -225,7 +225,7 @@ public class ExportBugStatsTask : IJiraExportTask
                 OverrideSerialiseRecord = SerialiseToCsv
             };
             var fileName = exporter.Export(bugCounts, $"{Key}-Severities");
-            var googleSheetUpdater = new GoogleSheetUpdater(fileName, GoogleSheetId);
+            var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
             await googleSheetUpdater.EditGoogleSheet("'Severities'!A1");
         }
 
