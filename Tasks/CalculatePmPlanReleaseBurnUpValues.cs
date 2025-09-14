@@ -44,6 +44,7 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
 
     private static JiraIssue CreateJiraIssueFromDynamic(dynamic i, string source)
     {
+        var pmPlanKey = i.PmPlan as string;
         return new JiraIssue(
             JiraFields.Key.Parse<string>(i),
             JiraFields.Created.Parse<DateTimeOffset>(i),
@@ -52,7 +53,8 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
             source,
             JiraFields.IsReqdForGoLive.Parse<bool>(i),
             JiraFields.EstimationStatus.Parse<string>(i),
-            JiraFields.PmPlanHighLevelEstimate.Parse<double?>(i));
+            JiraFields.PmPlanHighLevelEstimate.Parse<double?>(i),
+            pmPlanKey);
     }
 
     private record JiraIssue(
