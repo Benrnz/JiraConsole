@@ -17,10 +17,18 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
 
         var totalWork = CalculateTotalWorkToBeDone(javPms, task.PmPlans);
         var workCompleted = CalculateCompletedWork(javPms);
+        var highLevelEstimates = task.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus != Constants.HasDevTeamEstimate && p.PmPlanHighLevelEstimate > 0);
+        var noEstimates = task.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus != Constants.HasDevTeamEstimate && (p.PmPlanHighLevelEstimate is null || p.PmPlanHighLevelEstimate == 0));
+        var specedAndEstimated = task.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus == Constants.HasDevTeamEstimate);
+        var storiesWithNoEstimate = javPms.Count(i => i.IsReqdForGoLive && i.Status != Constants.DoneStatus && (i.StoryPoints is null || i.StoryPoints == 0));
 
         Console.WriteLine($"As at {DateTime.Today:d}");
         Console.WriteLine($"Total work to be done: {totalWork}");
         Console.WriteLine($"Work completed: {workCompleted}");
+        Console.WriteLine($"PmPlans with High level estimates only: {highLevelEstimates}");
+        Console.WriteLine($"PmPlans with no estimate: {noEstimates}");
+        Console.WriteLine($"PmPlans with Spec'ed and Estimated: {specedAndEstimated}");
+        Console.WriteLine($"Stories with no estimate: {storiesWithNoEstimate} / {javPms.Count(i => i.IsReqdForGoLive && i.Status != Constants.DoneStatus)}");
     }
 
     private double CalculateCompletedWork(List<JiraIssue> jiraIssues)
