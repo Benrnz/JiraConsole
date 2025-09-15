@@ -15,7 +15,9 @@ public class SprintPlanTask : IJiraExportTask
         JiraFields.Team,
         JiraFields.StoryPoints,
         JiraFields.Sprint,
-        JiraFields.SprintStartDate
+        JiraFields.SprintStartDate,
+        JiraFields.IssueType,
+        JiraFields.ParentKey
     ];
 
     private readonly ICsvExporter exporter = new SimpleCsvExporter(TaskKey);
@@ -69,7 +71,9 @@ public class SprintPlanTask : IJiraExportTask
             JiraFields.Key.Parse<string>(i),
             JiraFields.Summary.Parse<string>(i),
             storyPointsField,
-            JiraFields.Status.Parse<string>(i));
+            JiraFields.Status.Parse<string>(i),
+            JiraFields.IssueType.Parse<string>(i),
+            JiraFields.ParentKey.Parse<string?>(i));
         return typedIssue;
     }
 
@@ -80,5 +84,7 @@ public class SprintPlanTask : IJiraExportTask
         string Key,
         string Summary,
         double StoryPoints,
-        string Status);
+        string Status,
+        string Type,
+        string? ParentEpic = null);
 }
