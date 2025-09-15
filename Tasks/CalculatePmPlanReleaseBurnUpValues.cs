@@ -1,4 +1,6 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿using System.Reflection.Metadata;
+
+namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
 public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
@@ -21,6 +23,9 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
         var noEstimates = task.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus != Constants.HasDevTeamEstimate && (p.PmPlanHighLevelEstimate is null || p.PmPlanHighLevelEstimate == 0));
         var specedAndEstimated = task.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus == Constants.HasDevTeamEstimate);
         var storiesWithNoEstimate = javPms.Count(i => i.IsReqdForGoLive && i.Status != Constants.DoneStatus && (i.StoryPoints is null || i.StoryPoints == 0));
+        var avgVelocity = javPms.Where(i => i.Status == Constants.DoneStatus && i.CreatedDateTime >= DateTimeOffset.Now.AddDays(-42))
+            .Sum(i => i.StoryPoints ?? 0)
+            / 3.0; // 6 weeks or 3 sprints.
 
         Console.WriteLine($"As at {DateTime.Today:d}");
         Console.WriteLine($"Total work to be done: {totalWork}");
@@ -29,6 +34,7 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
         Console.WriteLine($"PmPlans with no estimate: {noEstimates}");
         Console.WriteLine($"PmPlans with Spec'ed and Estimated: {specedAndEstimated}");
         Console.WriteLine($"Stories with no estimate: {storiesWithNoEstimate} / {javPms.Count(i => i.IsReqdForGoLive && i.Status != Constants.DoneStatus)}");
+        Console.WriteLine($"Average Velocity (last 6 weeks): {avgVelocity:N1} story points per week");
     }
 
     private double CalculateCompletedWork(List<JiraIssue> jiraIssues)
