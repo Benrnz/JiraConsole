@@ -42,6 +42,7 @@ public class SprintPlanTask : IJiraExportTask
             .OrderBy(i => i.Team)
             .ThenBy(i => i.SprintStartDate)
             .ThenBy(i => i.Sprint)
+            .ThenBy(i => i.PmPlan)
             .ToList();
 
         // Find PMPLAN for each issue if it exists.
@@ -71,25 +72,15 @@ public class SprintPlanTask : IJiraExportTask
         {
             sprintField = sprintField.Split(',').Last();
         }
-        // SprintStartDate could be multiple for example "2025-08-09T01:01:01.000+00:00,2025-08-23T01:01:01.000+00:00"
-        string? sprintDates = JiraFields.SprintStartDate.Parse<string?>(i);
-        var sprintDateParsed = DateTimeOffset.MaxValue; 
-        if (sprintDates is not null)
-        {
-            var sprintDate = sprintDates.Split(',').LastOrDefault() ?? string.Empty;
-            if (!DateTimeOffset.TryParse(sprintDate, out sprintDateParsed))
-            {
-                sprintDateParsed = DateTimeOffset.MaxValue;
-            }
-        }
 
+        var sprintDate = JiraFields.SprintStartDate.Parse<DateTimeOffset>(i);
         var teamField = JiraFields.Team.Parse<string?>(i) ?? "No Team";
         var storyPointsField = JiraFields.StoryPoints.Parse<double?>(i) ?? 0.0;
 
         var typedIssue = new JiraIssue(
             teamField,
             sprintField,
-            sprintDateParsed,
+            sprintDate,
             JiraFields.Key.Parse<string>(i),
             JiraFields.Summary.Parse<string>(i),
             storyPointsField,

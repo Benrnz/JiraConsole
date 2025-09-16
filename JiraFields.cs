@@ -1,4 +1,6 @@
-﻿namespace BensJiraConsole;
+﻿using System.Runtime.CompilerServices;
+
+namespace BensJiraConsole;
 
 public static class JiraFields
 {
@@ -25,7 +27,7 @@ public static class JiraFields
     public static readonly FieldMapping Resolved = new() { Field = "resolutiondate", Alias = "Resolved" };
     public static readonly FieldMapping Severity = new() { Field = "customfield_11899", Alias = "Severity", FlattenField = "value" };
     public static readonly FieldMapping Sprint = new() { Field = "customfield_10007", Alias = "Sprint", FlattenField = "name" };
-    public static readonly FieldMapping SprintStartDate = new() { Field = "customfield_10007", Alias = "SprintStartDate", FlattenField = "startDate" };
+    public static readonly FieldMapping SprintStartDate = new FieldMappingWithParser<DateTimeOffset> { Field = "customfield_10007", Alias = "SprintStartDate", FlattenField = "startDate", Parser = ParseSprintStartDate };
     public static readonly FieldMapping Status = new() { Field = "status", Alias = "Status", FlattenField = "name" };
     public static readonly FieldMapping StoryPoints = new() { Field = "customfield_10004", Alias = "StoryPoints" };
     public static readonly FieldMapping Summary = new() { Field = "summary", Alias = "Summary" };
@@ -111,5 +113,30 @@ public static class JiraFields
         }
 
         throw new NotSupportedException("Key is not found in the returned results - likely bug in app.");
+    }
+
+    private static DateTimeOffset ParseSprintStartDate(dynamic d)
+    {
+        // SprintStartDate could be multiple for example "2025-08-09T01:01:01.000+00:00,2025-08-23T01:01:01.000+00:00"
+        // or could be one date or could be null.
+        // This parser will return max date if null, and the last date if there are multiple.
+        if (d.SprintStartDate is null)
+        {
+            return DateTimeOffset.MaxValue;
+        }
+
+        if (d.SprintStartDate is string sprintDates)
+        {
+            var sprintDateParsed = DateTimeOffset.MaxValue;
+            var sprintDate = sprintDates.Split(',').LastOrDefault() ?? string.Empty;
+            if (!DateTimeOffset.TryParse(sprintDate, out sprintDateParsed))
+            {
+                sprintDateParsed = DateTimeOffset.MaxValue;
+            }
+
+            return sprintDateParsed;
+        }
+
+        throw new NotSupportedException($"SprintStartDate data type {d.SprintStartDate.GetType().Name} is not supported");
     }
 }
