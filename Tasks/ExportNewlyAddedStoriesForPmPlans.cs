@@ -16,14 +16,14 @@ public class ExportNewlyAddedStoriesForPmPlans : IJiraExportTask
         var endDate = GetDateFromUser("end date (exclusive)");
         var issues = await parentTask.RetrieveAllStoriesMappingToPmPlan($"AND created >= {startDate:yyyy-MM-dd} AND Created < {endDate:yyyy-MM-dd}");
 
-        Console.WriteLine($"Found {issues.Values.Count} unique stories");
-        if (issues.Values.Count < 20)
+        Console.WriteLine($"Found {issues.Count} unique stories");
+        if (issues.Count < 20)
         {
-            issues.Values.ToList().ForEach(i => Console.WriteLine($"{i.key}"));
+            issues.ToList().ForEach(i => Console.WriteLine($"{i.Key}"));
         }
 
         var exporter = new SimpleCsvExporter(Key);
-        var filename = exporter.Export(issues.Values);
+        var filename = exporter.Export(issues);
         var uploader = new GoogleDriveUploader();
         await uploader.UploadCsvAsync(filename, Path.GetFileName(filename));
     }

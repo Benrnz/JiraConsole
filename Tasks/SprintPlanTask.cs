@@ -44,6 +44,15 @@ public class SprintPlanTask : IJiraExportTask
             .ThenBy(i => i.Sprint)
             .ToList();
 
+        // Find PMPLAN for each issue if it exists.
+        var pmPlanStories = await new ExportPmPlanStories().RetrieveAllStoriesMappingToPmPlan();
+        var temp = issues.Join(pmPlanStories, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlan: p))
+            .ToList();
+        temp.ForEach(x =>
+            {
+                x.Issue.PmPlan = x.PmPlan.PmPlan;
+            });
+
         // temp save to CSV
         var file = this.exporter.Export(issues);
 
@@ -86,5 +95,8 @@ public class SprintPlanTask : IJiraExportTask
         double StoryPoints,
         string Status,
         string Type,
-        string? ParentEpic = null);
+        string? ParentEpic = null)
+    {
+            public string? PmPlan { get; set; }
+    }
 }
