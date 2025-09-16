@@ -82,6 +82,7 @@ public class ExportPmPlanStories : IJiraExportTask
             JiraFields.EstimationStatus.Parse<string?>(pmPlan),
             JiraFields.PmPlanHighLevelEstimate.Parse<double>(pmPlan),
             JiraFields.Created.Parse<DateTimeOffset>(i),
+            JiraFields.Summary.Parse<string>(pmPlan),
             JiraFields.ParentKey.Parse<string?>(i));
         return typedIssue;
     }
@@ -97,5 +98,6 @@ public class ExportPmPlanStories : IJiraExportTask
         string? EstimationStatus,
         double PmPlanHighLevelEstimate,
         DateTimeOffset CreatedDateTime,
+        string PmPlanSummary,
         string? ParentEpic = null);
 }

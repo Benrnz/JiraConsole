@@ -38,12 +38,7 @@ public class SprintPlanTask : IJiraExportTask
 
         // Get and group the data by Team and by Sprint.
         var result = await this.runner.SearchJiraIssuesWithJqlAsync(query, Fields);
-        var issues = result.Select(CreateJiraIssue)
-            .OrderBy(i => i.Team)
-            .ThenBy(i => i.SprintStartDate)
-            .ThenBy(i => i.Sprint)
-            .ThenBy(i => i.PmPlan)
-            .ToList();
+        var issues = result.Select(CreateJiraIssue);
 
         // Find PMPLAN for each issue if it exists.
         var pmPlanStories = await new ExportPmPlanStories().RetrieveAllStoriesMappingToPmPlan();
@@ -52,7 +47,13 @@ public class SprintPlanTask : IJiraExportTask
             .ForEach(x =>
             {
                 x.Issue.PmPlan = x.PmPlan.PmPlan;
+                x.Issue.PmPlanSummary = x.PmPlan.PmPlanSummary;
             });
+
+        issues = issues.OrderBy(i => i.Team)
+            .ThenBy(i => i.SprintStartDate)
+            .ThenBy(i => i.Sprint)
+            .ThenBy(i => i.PmPlan);
 
         // temp save to CSV
         var file = this.exporter.Export(issues);
@@ -101,6 +102,7 @@ public class SprintPlanTask : IJiraExportTask
         string Type,
         string? ParentEpic = null)
     {
-            public string? PmPlan { get; set; }
+        public string? PmPlan { get; set; }
+        public string? PmPlanSummary { get; set; }
     }
 }
