@@ -38,7 +38,7 @@ public class SprintPlanTask : IJiraExportTask
 
         // Get and group the data by Team and by Sprint.
         var result = await this.runner.SearchJiraIssuesWithJqlAsync(query, Fields);
-        var issues = result.Select(CreateJiraIssue);
+        var issues = result.Select(CreateJiraIssue).ToList();
 
         // Find PMPLAN for each issue if it exists.
         var pmPlanStories = await new ExportPmPlanStories().RetrieveAllStoriesMappingToPmPlan();
@@ -53,15 +53,15 @@ public class SprintPlanTask : IJiraExportTask
         issues = issues.OrderBy(i => i.Team)
             .ThenBy(i => i.SprintStartDate)
             .ThenBy(i => i.Sprint)
-            .ThenBy(i => i.PmPlan);
+            .ThenBy(i => i.PmPlan)
+            .ToList();
 
         // temp save to CSV
         var file = this.exporter.Export(issues);
 
         // Export to Google Sheets.
         this.sheetUpdater.CsvFilePathAndName = file;
-        await this.sheetUpdater.DeleteSheet("Data");
-        await this.sheetUpdater.AddSheet("Data");
+        await this.sheetUpdater.ClearSheet("Data");
         await this.sheetUpdater.EditGoogleSheet("'Data'!A1");
     }
 

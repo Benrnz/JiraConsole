@@ -174,6 +174,23 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
         }
     }
 
+    public async Task ClearSheet(string sheetName)
+    {
+        if (!await Authenticate())
+        {
+            return;
+        }
+
+        // Create the Google Sheets service client.
+        this.service = CreateSheetsService();
+
+        var range = $"'{sheetName}'!A1:Z10000";  // Adjust range as needed
+        var requestBody = new ClearValuesRequest();
+
+        var request = this.service.Spreadsheets.Values.Clear(requestBody, this.googleSheetId, range);
+        await request.ExecuteAsync();
+    }
+
     private async Task<bool> Authenticate()
     {
         if (this.credential is not null)
