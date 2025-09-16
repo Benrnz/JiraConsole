@@ -65,10 +65,16 @@ public class SprintPlanTask : IJiraExportTask
 
     private JiraIssue CreateJiraIssue(dynamic i)
     {
-        var sprintField = JiraFields.Sprint.Parse<string?>(i) ?? "No Sprint";
-        var sprintDates = JiraFields.SprintStartDate.Parse<string?>(i);
+        string? sprintField = JiraFields.Sprint.Parse<string?>(i) ?? "No Sprint";
+        // Sprint could have multiple sprint names for example "Sprint 15,Sprint 16".  Choose the last one for this report.
+        if (sprintField.Contains(','))
+        {
+            sprintField = sprintField.Split(',').Last();
+        }
+        // SprintStartDate could be multiple for example "2025-08-09T01:01:01.000+00:00,2025-08-23T01:01:01.000+00:00"
+        string? sprintDates = JiraFields.SprintStartDate.Parse<string?>(i);
         var sprintDateParsed = DateTimeOffset.MaxValue; 
-        if (!sprintDates is null)
+        if (sprintDates is not null)
         {
             var sprintDate = sprintDates.Split(',').LastOrDefault() ?? string.Empty;
             if (!DateTimeOffset.TryParse(sprintDate, out sprintDateParsed))
