@@ -25,7 +25,7 @@ public static class JiraFields
     public static readonly FieldMapping Resolved = new() { Field = "resolutiondate", Alias = "Resolved" };
     public static readonly FieldMapping Severity = new() { Field = "customfield_11899", Alias = "Severity", FlattenField = "value" };
     public static readonly FieldMapping Sprint = new() { Field = "customfield_10007", Alias = "Sprint", FlattenField = "name" };
-    public static readonly FieldMapping SprintStartDate = new() { Field = "customfield_10007", FlattenField = "startDate" };
+    public static readonly FieldMapping SprintStartDate = new() { Field = "customfield_10007", Alias = "SprintStartDate", FlattenField = "startDate" };
     public static readonly FieldMapping Status = new() { Field = "status", Alias = "Status", FlattenField = "name" };
     public static readonly FieldMapping StoryPoints = new() { Field = "customfield_10004", Alias = "StoryPoints" };
     public static readonly FieldMapping Summary = new() { Field = "summary", Alias = "Summary" };

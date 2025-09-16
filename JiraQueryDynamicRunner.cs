@@ -5,7 +5,7 @@ namespace BensJiraConsole;
 
 public class JiraQueryDynamicRunner : IJiraQueryRunner
 {
-    private SortedList<string, FieldMapping> fieldAliases = new();
+    private SortedList<string, FieldMapping[]> fieldAliases = new();
 
     private string[] IgnoreFields => ["avatarId", "hierarchyLevel", "iconUrl", "id", "expand", "self", "subtask"];
 
@@ -15,11 +15,24 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         var isLastPage = false;
         var client = new JiraApiClient();
         var results = new List<dynamic>();
+
+        this.fieldAliases = new SortedList<string, FieldMapping[]>();
+        // There might be more than one mapping per field.  This is because we might be flattening an object with many fields into a multiple top level properties.
+        foreach (var field in fields)
+        {
+            if (this.fieldAliases.ContainsKey(field.Field))
+            {
+                this.fieldAliases[field.Field] = this.fieldAliases[field.Field].Append(field).ToArray();
+            }
+            else
+            {
+                this.fieldAliases.Add(field.Field, [field]);
+            }
+        }
+        
         do
         {
             var responseJson = await client.PostSearchJqlAsync(jql, fields.Select(x => x.Field).ToArray(), nextPageToken);
-
-            this.fieldAliases = new SortedList<string, FieldMapping>(fields.DistinctBy(f => f.Field).ToDictionary(x => x.Field, x => x));
 
             using var doc = JsonDocument.Parse(responseJson);
             var issues = doc.RootElement.GetProperty("issues");
@@ -37,7 +50,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         return results;
     }
 
-    private dynamic DeserialiseDynamicArray(JsonElement element, string propertyName)
+    private dynamic DeserialiseDynamicArray(JsonElement element, string propertyName, string childField)
     {
         var list = new List<object>();
         foreach (var item in element.EnumerateArray())
@@ -45,16 +58,11 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             list.Add(DeserializeToDynamic(item, propertyName));
         }
 
-        if (PropertyShouldBeFlattened(propertyName, out var childField))
-        {
-            var flattened = list
-                .OfType<IDictionary<string, object>>()
-                .Select(obj => obj.TryGetValue(childField, out var value) ? value : null)
-                .Where(x => x != null);
-            return string.Join(",", flattened);
-        }
-
-        return list;
+        var flattened = list
+            .OfType<IDictionary<string, object>>()
+            .Select(obj => obj.TryGetValue(childField, out var value) ? value : null)
+            .Where(x => x != null);
+        return string.Join(",", flattened);
     }
 
     private IDictionary<string, object> DeserialiseDynamicObject(JsonElement element)
@@ -70,18 +78,31 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
                 {
                     if (fieldProp.Value.ValueKind == JsonValueKind.Object)
                     {
-                        if (PropertyShouldBeFlattened(fieldProp.Name, out var childField))
+                        if (PropertyShouldBeFlattened(fieldProp.Name, out var childFields1))
                         {
-                            // Extract the childField property from the issueType object
-                            if (fieldProp.Value.TryGetProperty(childField, out var childFieldValue) && childFieldValue.ValueKind == JsonValueKind.String)
+                            foreach (var childField in childFields1)
                             {
-                                expando[FieldName(fieldProp.Name)] = childFieldValue.GetString();
-                                continue;
+                                // Extract the childField property from the issueType object
+                                if (fieldProp.Value.TryGetProperty(childField, out var childFieldValue) && childFieldValue.ValueKind == JsonValueKind.String)
+                                {
+                                    expando[FieldName(fieldProp.Name, childField)] = childFieldValue.GetString();
+                                }
                             }
+                            continue;
                         }
                     }
 
-                    expando[FieldName(fieldProp.Name)] = DeserializeToDynamic(fieldProp.Value, fieldProp.Name);
+                    if (PropertyShouldBeFlattened(fieldProp.Name, out var childFields2))
+                    {
+                        foreach (var childField in childFields2)
+                        {
+                            expando[FieldName(fieldProp.Name, childField)] = DeserializeToDynamic(fieldProp.Value, fieldProp.Name, childField);
+                        }
+                    }
+                    else
+                    {
+                        expando[FieldName(fieldProp.Name)] = DeserializeToDynamic(fieldProp.Value, fieldProp.Name);    
+                    }
                 }
 
                 continue;
@@ -98,7 +119,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         return expando;
     }
 
-    private dynamic DeserializeToDynamic(JsonElement element, string propertyName)
+    private dynamic DeserializeToDynamic(JsonElement element, string propertyName, string childField = "")
     {
         switch (element.ValueKind)
         {
@@ -106,7 +127,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
                 return DeserialiseDynamicObject(element);
 
             case JsonValueKind.Array:
-                return DeserialiseDynamicArray(element, propertyName);
+                return DeserialiseDynamicArray(element, propertyName, childField);
 
             case JsonValueKind.String:
                 var elementString = element.GetString();
@@ -143,25 +164,30 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         }
     }
 
-    private string FieldName(string field)
+    private string FieldName(string field, string childField = "")
     {
-        if (this.fieldAliases.TryGetValue(field, out var mapping))
+        if (this.fieldAliases.TryGetValue(field, out var mappings))
         {
+            var mapping = mappings.FirstOrDefault(m => m.FlattenField == childField);
+            if (mapping is null)
+            {
+                mapping = mappings.First();
+            }
             return string.IsNullOrEmpty(mapping.Alias) ? field : mapping.Alias;
         }
 
         return field;
     }
 
-    private bool PropertyShouldBeFlattened(string field, out string childField)
+    private bool PropertyShouldBeFlattened(string field, out IEnumerable<string> childFields)
     {
         if (this.fieldAliases.TryGetValue(field, out var mapping))
         {
-            childField = mapping.FlattenField;
-            return !string.IsNullOrEmpty(mapping.FlattenField);
+            childFields = mapping.Select(m => m.FlattenField).Where(f => !string.IsNullOrEmpty(f));
+            return childFields.Any();
         }
 
-        childField = string.Empty;
+        childFields = Array.Empty<string>();
         return false;
     }
 }

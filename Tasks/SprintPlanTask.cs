@@ -46,9 +46,9 @@ public class SprintPlanTask : IJiraExportTask
 
         // Find PMPLAN for each issue if it exists.
         var pmPlanStories = await new ExportPmPlanStories().RetrieveAllStoriesMappingToPmPlan();
-        var temp = issues.Join(pmPlanStories, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlan: p))
-            .ToList();
-        temp.ForEach(x =>
+        issues.Join(pmPlanStories, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlan: p))
+            .ToList()
+            .ForEach(x =>
             {
                 x.Issue.PmPlan = x.PmPlan.PmPlan;
             });
@@ -58,6 +58,8 @@ public class SprintPlanTask : IJiraExportTask
 
         // Export to Google Sheets.
         this.sheetUpdater.CsvFilePathAndName = file;
+        await this.sheetUpdater.DeleteSheet("Data");
+        await this.sheetUpdater.AddSheet("Data");
         await this.sheetUpdater.EditGoogleSheet("'Data'!A1");
     }
 
