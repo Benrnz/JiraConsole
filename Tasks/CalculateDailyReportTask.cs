@@ -154,7 +154,7 @@ public class CalculateDailyReportTask : IJiraExportTask
         var updater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = pathAndFileName };
         await updater.DeleteSheet($"{teamName}");
         await updater.AddSheet($"{teamName}");
-        await updater.EditGoogleSheet($"'{teamName}'!A1");
+        await updater.EditSheet($"'{teamName}'!A1");
         Console.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
     }
 

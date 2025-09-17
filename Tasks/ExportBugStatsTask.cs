@@ -121,7 +121,7 @@ public class ExportBugStatsTask : IJiraExportTask
         var fileName = exporter.Export(bugCounts, $"{Key}-Categories");
 
         var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
-        await googleSheetUpdater.EditGoogleSheet("'ProductCategories'!A1");
+        await googleSheetUpdater.EditSheet("'ProductCategories'!A1");
     }
 
     private async Task ExportBugStatsCodeAreas(List<JiraIssue> jiras)
@@ -146,7 +146,7 @@ public class ExportBugStatsTask : IJiraExportTask
         var fileName = exporter.Export(bugCounts, $"{Key}-Areas");
 
         var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
-        await googleSheetUpdater.EditGoogleSheet("'CodeAreas'!A1");
+        await googleSheetUpdater.EditSheet("'CodeAreas'!A1");
     }
 
     private async Task ExportBugStatsEnvestSeverities(List<JiraIssue> jiras, List<BarChartData> severityTotals)
@@ -170,7 +170,7 @@ public class ExportBugStatsTask : IJiraExportTask
         var fileName = exporter.Export(chartData, $"{Key}-SeveritiesEnvest");
 
         var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
-        await googleSheetUpdater.EditGoogleSheet("'Envest'!A1");
+        await googleSheetUpdater.EditSheet("'Envest'!A1");
     }
 
     private async Task ExportBugStatsRecentDevelopment(List<JiraIssue> jiras)
@@ -195,7 +195,7 @@ public class ExportBugStatsTask : IJiraExportTask
         var fileName = exporter.Export(bugCounts, $"{Key}-RecentDev");
 
         var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
-        await googleSheetUpdater.EditGoogleSheet("'RecentDev'!A1");
+        await googleSheetUpdater.EditSheet("'RecentDev'!A1");
     }
 
     private async Task<List<BarChartData>> ExportBugStatsSeverities(List<JiraIssue> jiras, string? customerFilter = null)
@@ -226,7 +226,7 @@ public class ExportBugStatsTask : IJiraExportTask
             };
             var fileName = exporter.Export(bugCounts, $"{Key}-Severities");
             var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
-            await googleSheetUpdater.EditGoogleSheet("'Severities'!A1");
+            await googleSheetUpdater.EditSheet("'Severities'!A1");
         }
 
         return bugCounts;

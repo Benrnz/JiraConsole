@@ -104,7 +104,7 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
         }
     }
 
-    public async Task EditGoogleSheet(string sheetAndRange)
+    public async Task EditSheet(string sheetAndRange)
     {
         if (!await Authenticate())
         {
@@ -160,7 +160,9 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
         {
             // Create the update request.
             var updateRequest = this.service.Spreadsheets.Values.Update(valueRange, this.googleSheetId, sheetAndRange);
-            updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.RAW;
+            updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+            // The above could be set to SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED for Google Sheets to parse this as user entered input.
+            // Doesnt preserve formatting sadly.
 
             // Execute the request to update the Google Sheet.
             var response = await updateRequest.ExecuteAsync();
@@ -184,11 +186,75 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
         // Create the Google Sheets service client.
         this.service = CreateSheetsService();
 
-        var range = $"'{sheetName}'!A1:Z10000";  // Adjust range as needed
+        var range = $"'{sheetName}'!A1:Z10000"; // Adjust range as needed
         var requestBody = new ClearValuesRequest();
 
         var request = this.service.Spreadsheets.Values.Clear(requestBody, this.googleSheetId, range);
         await request.ExecuteAsync();
+    }
+
+    public async Task ApplyDateFormat(string sheetName, int column, string format)
+    {
+        if (!await Authenticate())
+        {
+            return;
+        }
+
+        this.service = CreateSheetsService();
+
+        try
+        {
+            // First, get the spreadsheet to find the sheet ID
+            var spreadsheet = await this.service.Spreadsheets.Get(this.googleSheetId).ExecuteAsync();
+            var sheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == sheetName);
+
+            if (sheet == null)
+            {
+                throw new Exception($"Sheet '{sheetName}' not found");
+            }
+
+            // Create the request to format the cells.
+            var repeatCellRequest = new Request
+            {
+                RepeatCell = new RepeatCellRequest
+                {
+                    // Define the range to apply the format to.
+                    // This example targets all of Column A on the first sheet (sheetId: 0).
+                    Range = new GridRange
+                    {
+                        SheetId = sheet.Properties.SheetId, // 0 is the ID of the very first sheet
+                        StartColumnIndex = column, // 0 is Column A
+                        EndColumnIndex = column + 1 // The range is exclusive, so this stops before Column B
+                    },
+                    // Define the format to apply.
+                    Cell = new CellData
+                    {
+                        UserEnteredFormat = new CellFormat
+                        {
+                            NumberFormat = new NumberFormat
+                            {
+                                Type = "DATE",
+                                Pattern = format // Your desired custom date format
+                            }
+                        }
+                    },
+                    // Specify that we are only updating the number format.
+                    Fields = "userEnteredFormat.numberFormat"
+                }
+            };
+
+            var batchUpdateRequest = new BatchUpdateSpreadsheetRequest
+            {
+                Requests = new List<Request> { repeatCellRequest }
+            };
+
+            await this.service.Spreadsheets.BatchUpdate(batchUpdateRequest, this.googleSheetId).ExecuteAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred while editing the sheet. Message: {ex.Message}");
+            throw;
+        }
     }
 
     private async Task<bool> Authenticate()

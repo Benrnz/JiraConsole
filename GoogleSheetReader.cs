@@ -5,46 +5,28 @@ using Google.Apis.Util.Store;
 
 namespace BensJiraConsole;
 
-public class GoogleSheetReader(string googleSheetId)
+public class GoogleSheetReader(string googleSheetId) : IWorkSheetReader
 {
-    private readonly string googleSheetId = googleSheetId ?? throw new ArgumentNullException(nameof(googleSheetId));
-    private static readonly string[] Scopes = [SheetsService.Scope.Spreadsheets];
     private const string ClientSecretsFile = "client_secret_apps.googleusercontent.com.json";
+    private static readonly string[] Scopes = [SheetsService.Scope.Spreadsheets];
+    private readonly string googleSheetId = googleSheetId ?? throw new ArgumentNullException(nameof(googleSheetId));
+
+    private UserCredential? credential;
+
+    private SheetsService? service;
 
     public async Task<List<List<object>>> ReadData(string sheetAndRange)
     {
-        UserCredential credential;
+        if (!await Authenticate())
+        {
+            return new List<List<object>>();
+        }
+
+        this.service = CreateSheetsService();
 
         try
         {
-            await using var stream = new FileStream(ClientSecretsFile, FileMode.Open, FileAccess.Read);
-            credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
-                (await GoogleClientSecrets.FromStreamAsync(stream)).Secrets,
-                Scopes,
-                "user",
-                CancellationToken.None,
-                new FileDataStore("Sheets.Api.Store"));
-        }
-        catch (FileNotFoundException)
-        {
-            Console.WriteLine($"Error: The required file '{ClientSecretsFile}' was not found.");
-            throw;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred during authentication: {ex.Message}");
-            throw;
-        }
-
-        var service = new SheetsService(new BaseClientService.Initializer()
-        {
-            HttpClientInitializer = credential,
-            ApplicationName = Constants.ApplicationName
-        });
-
-        try
-        {
-            var request = service.Spreadsheets.Values.Get(this.googleSheetId, sheetAndRange);
+            var request = this.service.Spreadsheets.Values.Get(this.googleSheetId, sheetAndRange);
             var response = await request.ExecuteAsync();
             var values = response.Values ?? new List<IList<object>>();
 
@@ -57,5 +39,72 @@ public class GoogleSheetReader(string googleSheetId)
             Console.WriteLine($"An error occurred while reading the Google Sheet: {ex.Message}");
             throw;
         }
+    }
+
+    public async Task<IEnumerable<string>> GetSheetNames()
+    {
+        if (!await Authenticate())
+        {
+            return new List<string>();
+        }
+
+        this.service = CreateSheetsService();
+
+        // Create the request to get spreadsheet metadata.
+        var request = this.service.Spreadsheets.Get(this.googleSheetId);
+
+        // Use the "fields" parameter to ask for only the sheet properties.
+        request.Fields = "sheets.properties.title,sheets.properties.sheetId";
+
+        var spreadsheet = await request.ExecuteAsync();
+
+        return spreadsheet.Sheets.Select(s => s.Properties.Title).ToList();
+    }
+
+    private async Task<bool> Authenticate()
+    {
+        if (this.credential is not null)
+        {
+            return true;
+        }
+
+        try
+        {
+            // Load the client secrets file for authentication.
+            await using var stream = new FileStream(ClientSecretsFile, FileMode.Open, FileAccess.Read);
+            // The DataStore stores your authentication token securely.
+            this.credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
+                (await GoogleClientSecrets.FromStreamAsync(stream)).Secrets,
+                Scopes,
+                "user",
+                CancellationToken.None,
+                new FileDataStore("Sheets.Api.Store"));
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
+            Console.WriteLine($"Error: The required file '{ClientSecretsFile}' was not found.");
+            Console.WriteLine("Please download it from the Google Cloud Console and place it next to the application executable.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred during authentication: {ex.Message}");
+        }
+
+        return false;
+    }
+
+    private SheetsService CreateSheetsService()
+    {
+        if (this.service is not null)
+        {
+            return this.service;
+        }
+
+        return this.service = new SheetsService(new BaseClientService.Initializer
+        {
+            HttpClientInitializer = this.credential,
+            ApplicationName = Constants.ApplicationName
+        });
     }
 }

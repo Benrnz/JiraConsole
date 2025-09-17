@@ -62,7 +62,7 @@ public class SprintPlanTask : IJiraExportTask
         // Export to Google Sheets.
         this.sheetUpdater.CsvFilePathAndName = file;
         await this.sheetUpdater.ClearSheet("Data");
-        await this.sheetUpdater.EditGoogleSheet("'Data'!A1");
+        await this.sheetUpdater.EditSheet("'Data'!A1");
     }
 
     private JiraIssue CreateJiraIssue(dynamic i)
