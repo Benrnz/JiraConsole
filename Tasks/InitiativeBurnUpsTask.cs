@@ -54,6 +54,7 @@ public class InitiativeBurnUpsTask : IJiraExportTask
         var allInitiativeData = new Dictionary<string, IEnumerable<BurnUpChartData>>();
         foreach (var initiative in initiativeKeys)
         {
+            Console.WriteLine($"* Finding all work for {initiative}");
             var pmPlans = await this.runner.SearchJiraIssuesWithJqlAsync(string.Format(pmPlanJql, initiative), PmPlanFields);
 
             var allIssues = new List<JiraIssue>();
@@ -77,7 +78,8 @@ public class InitiativeBurnUpsTask : IJiraExportTask
         {
             var fileName = this.exporter.Export(allInitiativeData[initiative], initiative);
             this.sheetUpdater.CsvFilePathAndName = fileName;
-            await this.sheetUpdater.EditGoogleSheet($"'{initiative}'!A3");
+            await this.sheetUpdater.EditSheet($"'{initiative}'!A3");
+            await this.sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
         }
     }
 
@@ -118,6 +120,8 @@ public class InitiativeBurnUpsTask : IJiraExportTask
 
     private IEnumerable<BurnUpChartData> ParseChartData(string initiative, IEnumerable<JiraIssue> rawData)
     {
+        const int dataPointPeriod = 7; // days / 1 week
+
         var children = rawData.ToList();
         var chartData = new List<BurnUpChartData>();
 
@@ -144,7 +148,20 @@ public class InitiativeBurnUpsTask : IJiraExportTask
                 chartData.Add(dataPoint);
             }
 
-            date = date.AddDays(7);
+            date = date.AddDays(dataPointPeriod);
+        }
+
+        // Add four more periods to leave some forecasting space on the right of the chart.
+        var maxDate = chartData.Max(c => c.Date);
+        for (var i = 0; i < 4; i++)
+        {
+            maxDate = maxDate.AddDays(dataPointPeriod);
+            chartData.Add(new BurnUpChartData
+            {
+                Date = maxDate,
+                TotalDaysEffort = null, //Must be null to stop the line from crashing to x-axis.
+                WorkCompleted = null
+            });
         }
 
         return chartData;
