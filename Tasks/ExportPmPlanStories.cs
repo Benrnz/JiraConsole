@@ -3,7 +3,7 @@
 // ReSharper disable once UnusedType.Global
 public class ExportPmPlanStories : IJiraExportTask
 {
-    private static readonly FieldMapping[] Fields =
+    private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
         JiraFields.Status,
@@ -14,10 +14,10 @@ public class ExportPmPlanStories : IJiraExportTask
         JiraFields.IssueType,
         JiraFields.ReporterDisplay,
         JiraFields.ParentKey,
-        JiraFields.Created,
+        JiraFields.Created
     ];
 
-    private static readonly FieldMapping[] PmPlanFields =
+    private static readonly IFieldMapping[] PmPlanFields =
     [
         JiraFields.Summary,
         JiraFields.Status,
@@ -69,21 +69,21 @@ public class ExportPmPlanStories : IJiraExportTask
 
     private JiraIssueWithPmPlan CreateJiraIssueWithPmPlan(dynamic i, dynamic pmPlan)
     {
-        var storyPointsField = JiraFields.StoryPoints.Parse<double?>(i) ?? 0.0;
+        var storyPointsField = JiraFields.StoryPoints.Parse(i) ?? 0.0;
 
         var typedIssue = new JiraIssueWithPmPlan(
             pmPlan.key,
-            JiraFields.Key.Parse<string>(i),
-            JiraFields.Summary.Parse<string>(i),
-            JiraFields.Status.Parse<string>(i),
-            JiraFields.IssueType.Parse<string>(i),
+            JiraFields.Key.Parse(i),
+            JiraFields.Summary.Parse(i),
+            JiraFields.Status.Parse(i),
+            JiraFields.IssueType.Parse(i),
             storyPointsField,
-            JiraFields.IsReqdForGoLive.Parse<bool>(pmPlan),
-            JiraFields.EstimationStatus.Parse<string?>(pmPlan),
-            JiraFields.PmPlanHighLevelEstimate.Parse<double>(pmPlan),
-            JiraFields.Created.Parse<DateTimeOffset>(i),
-            JiraFields.Summary.Parse<string>(pmPlan),
-            JiraFields.ParentKey.Parse<string?>(i));
+            JiraFields.IsReqdForGoLive.Parse(pmPlan),
+            JiraFields.EstimationStatus.Parse(pmPlan),
+            JiraFields.PmPlanHighLevelEstimate.Parse(pmPlan),
+            JiraFields.Created.Parse(i),
+            JiraFields.Summary.Parse(pmPlan),
+            JiraFields.ParentKey.Parse(i));
         return typedIssue;
     }
 

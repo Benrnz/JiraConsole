@@ -6,7 +6,7 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
     private const int LinearTrendWeeks = 4;
     private static readonly DateTime ForecastCeilingDate = new(2026, 3, 31);
 
-    private static readonly FieldMapping[] IssueFields =
+    private static readonly IFieldMapping[] IssueFields =
     [
         JiraFields.Summary,
         JiraFields.Status,
@@ -17,7 +17,7 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         JiraFields.Resolved
     ];
 
-    private static readonly FieldMapping[] PmPlanFields =
+    private static readonly IFieldMapping[] PmPlanFields =
     [
         JiraFields.Summary,
         JiraFields.Status,
@@ -46,12 +46,12 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
             List<dynamic> children = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), IssueFields);
             Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
             var range = children.Select(c => new JiraIssue(
-                JiraFields.Key.Parse<string>(c),
-                JiraFields.Created.Parse<DateTimeOffset>(c),
-                JiraFields.Resolved.Parse<DateTimeOffset?>(c),
-                JiraFields.Status.Parse<string>(c),
-                JiraFields.StoryPoints.Parse<double?>(c),
-                JiraFields.Key.Parse<string>(pmPlan)));
+                JiraFields.Key.Parse(c),
+                JiraFields.Created.Parse(c),
+                JiraFields.Resolved.Parse(c),
+                JiraFields.Status.Parse(c),
+                JiraFields.StoryPoints.Parse(c),
+                JiraFields.Key.Parse(pmPlan)));
             allIssues.AddRange(range);
         }
 
@@ -129,9 +129,10 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
     private Dictionary<string, IEnumerable<BurnUpChartData>> ParseChartData(IEnumerable<string> pmPlans, IEnumerable<JiraIssue> rawData)
     {
         var results = new Dictionary<string, IEnumerable<BurnUpChartData>>();
+        var rawDataCopy = rawData.ToList();
         foreach (var pmPlan in pmPlans)
         {
-            var children = rawData.Where(i => i.PmPlan == pmPlan).ToList();
+            var children = rawDataCopy.Where(i => i.PmPlan == pmPlan).ToList();
             if (!children.Any())
             {
                 continue;

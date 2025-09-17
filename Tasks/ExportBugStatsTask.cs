@@ -7,7 +7,7 @@ public class ExportBugStatsTask : IJiraExportTask
     // JAVPM Bug Analysis
     private const string GoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
 
-    private static readonly FieldMapping[] Fields =
+    private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
         JiraFields.Created,
@@ -78,21 +78,21 @@ public class ExportBugStatsTask : IJiraExportTask
         //Console.Write(this.dynamicIndex++);
         //Console.Write(" ");
         var typedIssue = new JiraIssue(
-            JiraFields.Key.Parse<string>(i),
-            JiraFields.Summary.Parse<string>(i),
-            JiraFields.Created.Parse<DateTimeOffset>(i),
-            JiraFields.Resolved.Parse<DateTimeOffset?>(i),
-            JiraFields.Status.Parse<string>(i),
-            JiraFields.Category.Parse<string?>(i),
-            JiraFields.Severity.Parse<string?>(i),
-            JiraFields.Team.Parse<string?>(i),
-            JiraFields.BugType.Parse<string>(i),
-            JiraFields.StoryPoints.Parse<double?>(i),
-            JiraFields.DevTimeSpent.Parse<string?>(i),
-            JiraFields.Resolution.Parse<string?>(i),
-            JiraFields.CodeAreaParent.Parse<string?>(i),
-            JiraFields.CodeArea.Parse<string?>(i),
-            JiraFields.CustomersMultiSelect.Parse<string?>(i) ?? string.Empty);
+            JiraFields.Key.Parse(i),
+            JiraFields.Summary.Parse(i),
+            JiraFields.Created.Parse(i),
+            JiraFields.Resolved.Parse(i),
+            JiraFields.Status.Parse(i),
+            JiraFields.Category.Parse(i),
+            JiraFields.Severity.Parse(i),
+            JiraFields.Team.Parse(i),
+            JiraFields.BugType.Parse(i),
+            JiraFields.StoryPoints.Parse(i),
+            JiraFields.DevTimeSpent.Parse(i),
+            JiraFields.Resolution.Parse(i),
+            JiraFields.CodeAreaParent.Parse(i),
+            JiraFields.CodeArea.Parse(i),
+            JiraFields.CustomersMultiSelect.Parse(i) ?? string.Empty);
         return typedIssue;
     }
 
@@ -246,7 +246,7 @@ public class ExportBugStatsTask : IJiraExportTask
 
         if (string.IsNullOrWhiteSpace(codeAreaParent))
         {
-            return codeArea!;
+            return codeArea;
         }
 
         var myCodeArea = string.IsNullOrWhiteSpace(codeArea) ? Constants.Unknown : codeArea.Trim();

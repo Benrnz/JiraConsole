@@ -5,7 +5,7 @@ public class SprintPlanTask : IJiraExportTask
     private const string GoogleSheetId = "1iS6iB3EA38SHJgDu8rpMFcouGlu1Az8cntKA52U07xU";
     private const string TaskKey = "SPRINT_PLAN";
 
-    private static readonly FieldMapping[] Fields =
+    private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
         JiraFields.Status,
@@ -67,27 +67,27 @@ public class SprintPlanTask : IJiraExportTask
 
     private JiraIssue CreateJiraIssue(dynamic i)
     {
-        string? sprintField = JiraFields.Sprint.Parse<string?>(i) ?? "No Sprint";
+        string sprintField = JiraFields.Sprint.Parse(i) ?? "No Sprint";
         // Sprint could have multiple sprint names for example "Sprint 15,Sprint 16".  Choose the last one for this report.
         if (sprintField.Contains(','))
         {
             sprintField = sprintField.Split(',').Last();
         }
 
-        var sprintDate = JiraFields.SprintStartDate.Parse<DateTimeOffset>(i);
-        var teamField = JiraFields.Team.Parse<string?>(i) ?? "No Team";
-        var storyPointsField = JiraFields.StoryPoints.Parse<double?>(i) ?? 0.0;
+        var sprintDate = JiraFields.SprintStartDate.Parse(i);
+        var teamField = JiraFields.Team.Parse(i) ?? "No Team";
+        var storyPointsField = JiraFields.StoryPoints.Parse(i) ?? 0.0;
 
         var typedIssue = new JiraIssue(
             teamField,
             sprintField,
             sprintDate,
-            JiraFields.Key.Parse<string>(i),
-            JiraFields.Summary.Parse<string>(i),
+            JiraFields.Key.Parse(i),
+            JiraFields.Summary.Parse(i),
             storyPointsField,
-            JiraFields.Status.Parse<string>(i),
-            JiraFields.IssueType.Parse<string>(i),
-            JiraFields.ParentKey.Parse<string?>(i));
+            JiraFields.Status.Parse(i),
+            JiraFields.IssueType.Parse(i),
+            JiraFields.ParentKey.Parse(i));
         return typedIssue;
     }
 
