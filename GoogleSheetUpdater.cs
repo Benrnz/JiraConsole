@@ -104,7 +104,7 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
         }
     }
 
-    public async Task EditSheet(string sheetAndRange)
+    public async Task EditSheet(string sheetAndRange, bool userMode = false)
     {
         if (!await Authenticate())
         {
@@ -160,9 +160,8 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
         {
             // Create the update request.
             var updateRequest = this.service.Spreadsheets.Values.Update(valueRange, this.googleSheetId, sheetAndRange);
-            updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
-            // The above could be set to SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED for Google Sheets to parse this as user entered input.
-            // Doesnt preserve formatting sadly.
+            updateRequest.ValueInputOption =
+                userMode ? SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED : SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.RAW;
 
             // Execute the request to update the Google Sheet.
             var response = await updateRequest.ExecuteAsync();

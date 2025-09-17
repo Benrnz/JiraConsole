@@ -78,7 +78,7 @@ public class InitiativeBurnUpsTask : IJiraExportTask
         {
             var fileName = this.exporter.Export(allInitiativeData[initiative], initiative);
             this.sheetUpdater.CsvFilePathAndName = fileName;
-            await this.sheetUpdater.EditSheet($"'{initiative}'!A3");
+            await this.sheetUpdater.EditSheet($"'{initiative}'!A3", true);
             await this.sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
         }
     }
