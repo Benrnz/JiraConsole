@@ -5,18 +5,18 @@ namespace BensJiraConsole;
 
 public class JiraQueryDynamicRunner : IJiraQueryRunner
 {
-    private SortedList<string, FieldMapping[]> fieldAliases = new();
+    private SortedList<string, IFieldMapping[]> fieldAliases = new();
 
     private string[] IgnoreFields => ["avatarId", "hierarchyLevel", "iconUrl", "id", "expand", "self", "subtask"];
 
-    public async Task<IReadOnlyList<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, FieldMapping[] fields)
+    public async Task<IReadOnlyList<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, IFieldMapping[] fields)
     {
         string? nextPageToken = null;
-        var isLastPage = false;
+        bool isLastPage;
         var client = new JiraApiClient();
         var results = new List<dynamic>();
 
-        this.fieldAliases = new SortedList<string, FieldMapping[]>();
+        this.fieldAliases = new SortedList<string, IFieldMapping[]>();
         // There might be more than one mapping per field.  This is because we might be flattening an object with many fields into a multiple top level properties.
         foreach (var field in fields)
         {
@@ -29,7 +29,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
                 this.fieldAliases.Add(field.Field, [field]);
             }
         }
-        
+
         do
         {
             var responseJson = await client.PostSearchJqlAsync(jql, fields.Select(x => x.Field).ToArray(), nextPageToken);
@@ -85,9 +85,10 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
                                 // Extract the childField property from the issueType object
                                 if (fieldProp.Value.TryGetProperty(childField, out var childFieldValue) && childFieldValue.ValueKind == JsonValueKind.String)
                                 {
-                                    expando[FieldName(fieldProp.Name, childField)] = childFieldValue.GetString();
+                                    expando[FieldName(fieldProp.Name, childField)] = childFieldValue.GetString()!;
                                 }
                             }
+
                             continue;
                         }
                     }
@@ -101,7 +102,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
                     }
                     else
                     {
-                        expando[FieldName(fieldProp.Name)] = DeserializeToDynamic(fieldProp.Value, fieldProp.Name);    
+                        expando[FieldName(fieldProp.Name)] = DeserializeToDynamic(fieldProp.Value, fieldProp.Name);
                     }
                 }
 
@@ -157,7 +158,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
 
             case JsonValueKind.Null:
             case JsonValueKind.Undefined:
-                return null;
+                return null!;
 
             default:
                 return element.GetRawText();
@@ -173,6 +174,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             {
                 mapping = mappings.First();
             }
+
             return string.IsNullOrEmpty(mapping.Alias) ? field : mapping.Alias;
         }
 

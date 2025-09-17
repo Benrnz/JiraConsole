@@ -4,7 +4,7 @@ public class CalculateDailyReportTask : IJiraExportTask
 {
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
 
-    private static readonly FieldMapping[] Fields =
+    private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
         JiraFields.Status,
@@ -71,12 +71,12 @@ public class CalculateDailyReportTask : IJiraExportTask
     private JiraIssue CreateJiraIssue(dynamic ticket)
     {
         return new JiraIssue(
-            JiraFields.Key.Parse<string>(ticket),
-            JiraFields.Status.Parse<string>(ticket),
-            JiraFields.StoryPoints.Parse<double>(ticket) ?? 0,
-            JiraFields.Team.Parse<string>(ticket),
-            JiraFields.AssigneeDisplay.Parse<string?>(ticket),
-            JiraFields.FlagCount.Parse<int>(ticket)
+            JiraFields.Key.Parse(ticket),
+            JiraFields.Status.Parse(ticket),
+            JiraFields.StoryPoints.Parse(ticket) ?? 0,
+            JiraFields.Team.Parse(ticket),
+            JiraFields.AssigneeDisplay.Parse(ticket),
+            JiraFields.FlagCount.Parse(ticket)
         );
     }
 

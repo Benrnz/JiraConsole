@@ -3,7 +3,7 @@
 public class ExportAllRecentJavPms : IJiraExportTask
 {
     /// <summary> Fields to include in the export: </summary>
-    private static readonly FieldMapping[] Fields =
+    private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
         JiraFields.Status,

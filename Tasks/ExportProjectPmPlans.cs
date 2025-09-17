@@ -3,7 +3,7 @@
 // ReSharper disable once UnusedType.Global
 public class ExportProjectPmPlans : IJiraExportTask
 {
-    private static readonly FieldMapping[] Fields =
+    private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
         JiraFields.Status,
@@ -24,9 +24,6 @@ public class ExportProjectPmPlans : IJiraExportTask
         var runner = new JiraQueryDynamicRunner();
         var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);
         var exporter = new SimpleCsvExporter(Key) { Mode = FileNameMode.ExactName };
-        var fileName = exporter.Export(pmPlans, Key);
-
-        //var googleUploader = new GoogleDriveUploader();
-        //await googleUploader.UploadCsvAsync(fileName, $"{Key}.csv");
+        exporter.Export(pmPlans, Key);
     }
 }

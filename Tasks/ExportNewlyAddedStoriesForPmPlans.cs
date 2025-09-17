@@ -30,7 +30,7 @@ public class ExportNewlyAddedStoriesForPmPlans : IJiraExportTask
 
     private DateTime GetDateFromUser(string dateDescription)
     {
-        string input;
+        string? input;
         do
         {
             Console.WriteLine($"Enter a {dateDescription} (dd-MM-yyyy):");

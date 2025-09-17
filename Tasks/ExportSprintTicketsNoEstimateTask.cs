@@ -3,7 +3,7 @@
 // ReSharper disable once UnusedType.Global
 public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
 {
-    private static readonly FieldMapping[] Fields =
+    private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
         JiraFields.Status,

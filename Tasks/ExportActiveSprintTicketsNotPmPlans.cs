@@ -3,7 +3,7 @@
 // ReSharper disable once UnusedType.Global
 public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
 {
-    private static readonly FieldMapping[] Fields =
+    private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
         JiraFields.Status,
@@ -13,7 +13,7 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
         JiraFields.Created
     ];
 
-    private static readonly FieldMapping[] PmPlanFields =
+    private static readonly IFieldMapping[] PmPlanFields =
     [
         JiraFields.Summary,
         JiraFields.Status,

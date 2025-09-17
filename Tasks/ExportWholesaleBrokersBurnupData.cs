@@ -1,12 +1,12 @@
 ﻿// namespace BensJiraConsole.Tasks;
 
-// Commented out 8-Sep-25 - no longer needed. Go-live is imminent and work is done. 
+// Commented out 8-Sep-25 - no longer needed. Go-live is imminent and work is done.
 // public class ExportWholesaleBrokersBurnupData : IJiraExportTask
 // {
 //     private const int LinerTrendWeeks = 4;
 //     private static readonly DateTime ForecastCeilingDate = new(2026, 3, 31);
 
-//     private static readonly FieldMapping[] EpicFields =
+//     private static readonly IFieldMapping[] EpicFields =
 //     [
 //         JiraFields.IssueType,
 //         JiraFields.Status,
@@ -16,7 +16,7 @@
 //         JiraFields.Resolved
 //     ];
 
-//     private static readonly FieldMapping[] IssueFields =
+//     private static readonly IFieldMapping[] IssueFields =
 //     [
 //         JiraFields.Summary,
 //         JiraFields.Status,
@@ -256,3 +256,5 @@
 
 //     private record JiraIssue(string Key, DateTimeOffset CreatedDateTime, DateTimeOffset? ResolvedDateTime, string Status, double? StoryPoints, string Source);
 // }
+
+

@@ -72,7 +72,7 @@ public class SimpleCsvExporter(string taskKey) : ICsvExporter
         {
             if (issue is ExpandoObject expando)
             {
-                foreach (var kvp in (IDictionary<string, object>)expando)
+                foreach (var kvp in (IDictionary<string, object>)expando!)
                 {
                     propertyNames.Add(kvp.Key);
                 }
@@ -123,7 +123,7 @@ public class SimpleCsvExporter(string taskKey) : ICsvExporter
         var sb = new StringBuilder();
         foreach (var propertyName in propertyNames)
         {
-            if (issue is ExpandoObject expando && ((IDictionary<string, object>)expando).TryGetValue(propertyName, out var value))
+            if (issue is ExpandoObject expando && ((IDictionary<string, object>)expando!).TryGetValue(propertyName, out var value))
             {
                 if (value is ExpandoObject nestedExpando)
                 {

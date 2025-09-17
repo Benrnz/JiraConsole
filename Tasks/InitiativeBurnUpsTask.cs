@@ -6,7 +6,7 @@ public class InitiativeBurnUpsTask : IJiraExportTask
     private const string TaskKey = "INIT_BURNUPS";
     private const string ProductInitiativePrefix = "PMPLAN-";
 
-    private static readonly FieldMapping[] IssueFields =
+    private static readonly IFieldMapping[] IssueFields =
     [
         JiraFields.Summary,
         JiraFields.Status,
@@ -17,7 +17,7 @@ public class InitiativeBurnUpsTask : IJiraExportTask
         JiraFields.Resolved
     ];
 
-    private static readonly FieldMapping[] PmPlanFields =
+    private static readonly IFieldMapping[] PmPlanFields =
     [
         JiraFields.Summary,
         JiraFields.Status,
@@ -67,7 +67,7 @@ public class InitiativeBurnUpsTask : IJiraExportTask
             }
 
             Console.WriteLine($"Found {allIssues.Count} unique stories");
-            var chart = ParseChartData(initiative, allIssues
+            var chart = ParseChartData(allIssues
                 .OrderBy(i => i.PmPlan)
                 .ThenBy(i => i.ResolvedDateTime)
                 .ThenBy(i => i.CreatedDateTime));
@@ -78,18 +78,18 @@ public class InitiativeBurnUpsTask : IJiraExportTask
         {
             var fileName = this.exporter.Export(allInitiativeData[initiative], initiative);
             this.sheetUpdater.CsvFilePathAndName = fileName;
-            await this.sheetUpdater.EditSheet($"'{initiative}'!A3");
+            await this.sheetUpdater.EditSheet($"'{initiative}'!A3", true);
             await this.sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
         }
     }
 
     private JiraIssue CreateJiraIssue(string initiative, dynamic issue)
     {
-        var storyPoints = JiraFields.StoryPoints.Parse<double?>(issue);
+        var storyPoints = JiraFields.StoryPoints.Parse(issue);
         if (storyPoints is null)
         {
             // If no story points, try to estimate from original estimate (in seconds)
-            var originalEstimate = JiraFields.OriginalEstimate.Parse<long?>(issue);
+            var originalEstimate = JiraFields.OriginalEstimate.Parse(issue);
             if (originalEstimate is not null)
             {
                 storyPoints = Math.Round((double)originalEstimate / 3600 / 8, 1);
@@ -97,10 +97,10 @@ public class InitiativeBurnUpsTask : IJiraExportTask
         }
 
         return new JiraIssue(
-            JiraFields.Key.Parse<string>(issue)!,
-            JiraFields.Created.Parse<DateTimeOffset>(issue),
-            JiraFields.Resolved.Parse<DateTimeOffset?>(issue),
-            JiraFields.Status.Parse<string>(issue) ?? Constants.Unknown,
+            JiraFields.Key.Parse(issue)!,
+            JiraFields.Created.Parse(issue),
+            JiraFields.Resolved.Parse(issue),
+            JiraFields.Status.Parse(issue) ?? Constants.Unknown,
             storyPoints ?? 0.0,
             initiative);
     }
@@ -118,7 +118,7 @@ public class InitiativeBurnUpsTask : IJiraExportTask
         return initiatives;
     }
 
-    private IEnumerable<BurnUpChartData> ParseChartData(string initiative, IEnumerable<JiraIssue> rawData)
+    private IEnumerable<BurnUpChartData> ParseChartData(IEnumerable<JiraIssue> rawData)
     {
         const int dataPointPeriod = 7; // days / 1 week
 
