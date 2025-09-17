@@ -12,7 +12,9 @@ public class ExportPmPlanStories : IJiraExportTask
         JiraFields.OriginalEstimate,
         JiraFields.Created,
         JiraFields.IssueType,
-        JiraFields.ReporterDisplay
+        JiraFields.ReporterDisplay,
+        JiraFields.ParentKey,
+        JiraFields.Created,
     ];
 
     private static readonly FieldMapping[] PmPlanFields =
@@ -22,6 +24,7 @@ public class ExportPmPlanStories : IJiraExportTask
         JiraFields.IssueType,
         JiraFields.PmPlanHighLevelEstimate,
         JiraFields.EstimationStatus,
+        JiraFields.StoryPoints,
         JiraFields.IsReqdForGoLive
     ];
 
@@ -34,12 +37,12 @@ public class ExportPmPlanStories : IJiraExportTask
     {
         Console.WriteLine(Description);
         var allIssues = await RetrieveAllStoriesMappingToPmPlan();
-        Console.WriteLine($"Found {allIssues.Values.Count} unique stories");
+        Console.WriteLine($"Found {allIssues.Count} unique stories");
         var exporter = new SimpleCsvExporter(Key);
-        exporter.Export(allIssues.Values);
+        exporter.Export(allIssues);
     }
 
-    public async Task<IDictionary<string, dynamic>> RetrieveAllStoriesMappingToPmPlan(string? additionalCriteria = null)
+    public async Task<IReadOnlyList<JiraIssueWithPmPlan>> RetrieveAllStoriesMappingToPmPlan(string? additionalCriteria = null)
     {
         additionalCriteria = additionalCriteria ?? string.Empty;
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
@@ -49,21 +52,52 @@ public class ExportPmPlanStories : IJiraExportTask
         var dynamicRunner = new JiraQueryDynamicRunner();
         PmPlans = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
 
-        var allIssues = new Dictionary<string, dynamic>(); // Ensure the final list of JAVPMs is unique NO DUPLICATES
+        var allIssues = new Dictionary<string, JiraIssueWithPmPlan>(); // Ensure the final list of JAVPMs is unique NO DUPLICATES
         foreach (var pmPlan in PmPlans)
         {
             var children = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
             Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
             foreach (var child in children)
             {
-                child.PmPlan = pmPlan.key;
-                child.IsReqdForGoLive = pmPlan.IsReqdForGoLive;
-                child.EstimationStatus = pmPlan.EstimationStatus;
-                child.PmPlanHighLevelEstimate = pmPlan.PmPlanHighLevelEstimate;
-                allIssues.TryAdd(child.key, child);
+                JiraIssueWithPmPlan issue = CreateJiraIssueWithPmPlan(child, pmPlan);
+                allIssues.TryAdd(issue.Key, issue);
             }
         }
 
-        return allIssues;
+        return allIssues.Values.ToList();
     }
+
+    private JiraIssueWithPmPlan CreateJiraIssueWithPmPlan(dynamic i, dynamic pmPlan)
+    {
+        var storyPointsField = JiraFields.StoryPoints.Parse<double?>(i) ?? 0.0;
+
+        var typedIssue = new JiraIssueWithPmPlan(
+            pmPlan.key,
+            JiraFields.Key.Parse<string>(i),
+            JiraFields.Summary.Parse<string>(i),
+            JiraFields.Status.Parse<string>(i),
+            JiraFields.IssueType.Parse<string>(i),
+            storyPointsField,
+            JiraFields.IsReqdForGoLive.Parse<bool>(pmPlan),
+            JiraFields.EstimationStatus.Parse<string?>(pmPlan),
+            JiraFields.PmPlanHighLevelEstimate.Parse<double>(pmPlan),
+            JiraFields.Created.Parse<DateTimeOffset>(i),
+            JiraFields.Summary.Parse<string>(pmPlan),
+            JiraFields.ParentKey.Parse<string?>(i));
+        return typedIssue;
+    }
+
+    public record JiraIssueWithPmPlan(
+        string PmPlan,
+        string Key,
+        string Summary,
+        string Status,
+        string Type,
+        double StoryPoints,
+        bool IsReqdForGoLive,
+        string? EstimationStatus,
+        double PmPlanHighLevelEstimate,
+        DateTimeOffset CreatedDateTime,
+        string PmPlanSummary,
+        string? ParentEpic = null);
 }

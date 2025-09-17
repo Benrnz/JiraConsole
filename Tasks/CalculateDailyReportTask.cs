@@ -147,11 +147,11 @@ public class CalculateDailyReportTask : IJiraExportTask
         var fileName = $"{Key}_{teamName}";
         var exporter = new SimpleCsvExporter(Key)
         {
-            Mode = SimpleCsvExporter.FileNameMode.ExactName,
+            Mode = FileNameMode.ExactName,
             OverrideSerialiseHeader = () => $"Key,Status,StoryPoints,Team,Assignee,FlagCount,{sprintStart:yyyy-MM-dd}"
         };
         var pathAndFileName = exporter.Export(tickets, fileName);
-        var updater = new GoogleSheetUpdater(pathAndFileName, GoogleSheetId);
+        var updater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = pathAndFileName };
         await updater.DeleteSheet($"{teamName}");
         await updater.AddSheet($"{teamName}");
         await updater.EditGoogleSheet($"'{teamName}'!A1");

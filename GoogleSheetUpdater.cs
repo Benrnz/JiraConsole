@@ -1,4 +1,5 @@
-﻿using Google.Apis.Auth.OAuth2;
+﻿using System.Text.RegularExpressions;
+using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
@@ -7,19 +8,21 @@ using File = System.IO.File;
 
 namespace BensJiraConsole;
 
-public class GoogleSheetUpdater(string sourceCsvData, string googleSheetId)
+public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
 {
     private const string ClientSecretsFile = "client_secret_apps.googleusercontent.com.json";
 
     // The scopes required to access and modify Google Sheets.
     private static readonly string[] Scopes = [SheetsService.Scope.Spreadsheets];
-    private readonly string csvFilePathAndName = sourceCsvData ?? throw new ArgumentNullException(nameof(sourceCsvData));
+    private static readonly Regex CsvParser = new(@",(?=(?:[^""]*""[^""]*"")*(?![^""]*""))");
 
     private readonly string googleSheetId = googleSheetId ?? throw new ArgumentNullException(nameof(googleSheetId));
 
     private UserCredential? credential;
 
     private SheetsService? service;
+
+    public string? CsvFilePathAndName { get; set; }
 
     public bool QuoteStrings { get; set; } = false;
 
@@ -66,12 +69,12 @@ public class GoogleSheetUpdater(string sourceCsvData, string googleSheetId)
             return;
         }
 
-        var service = CreateSheetsService();
+        this.service = CreateSheetsService();
 
         try
         {
             // First, get the spreadsheet to find the sheet ID
-            var spreadsheet = await service.Spreadsheets.Get(this.googleSheetId).ExecuteAsync();
+            var spreadsheet = await this.service.Spreadsheets.Get(this.googleSheetId).ExecuteAsync();
             var sheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == sheetName);
 
             if (sheet == null)
@@ -92,7 +95,7 @@ public class GoogleSheetUpdater(string sourceCsvData, string googleSheetId)
                 Requests = new List<Request> { deleteRequest }
             };
 
-            await service.Spreadsheets.BatchUpdate(batchUpdateRequest, this.googleSheetId).ExecuteAsync();
+            await this.service.Spreadsheets.BatchUpdate(batchUpdateRequest, this.googleSheetId).ExecuteAsync();
         }
         catch (Exception ex)
         {
@@ -111,16 +114,21 @@ public class GoogleSheetUpdater(string sourceCsvData, string googleSheetId)
         // Create the Google Sheets service client.
         this.service = CreateSheetsService();
 
+        if (CsvFilePathAndName is null)
+        {
+            throw new ArgumentException("CsvFilePathAndName has not been supplied to source data from.");
+        }
+
         // Read the CSV data from the local file.
         IList<IList<object>> values = new List<IList<object>>();
         try
         {
             // Read all lines from the CSV file.
-            var lines = await File.ReadAllLinesAsync(this.csvFilePathAndName);
+            var lines = await File.ReadAllLinesAsync(CsvFilePathAndName);
             foreach (var line in lines)
             {
-                // Split each line by comma and add to the list of values.
-                var parts = line.Split(',');
+                // Split preserving quoted strings with commas
+                var parts = CsvParser.Split(line);
                 var row = new List<object>();
                 foreach (var part in parts)
                 {
@@ -132,7 +140,7 @@ public class GoogleSheetUpdater(string sourceCsvData, string googleSheetId)
         }
         catch (FileNotFoundException)
         {
-            Console.WriteLine($"Error: The CSV file '{this.csvFilePathAndName}' was not found.");
+            Console.WriteLine($"Error: The CSV file '{CsvFilePathAndName}' was not found.");
             return;
         }
         catch (Exception ex)
@@ -164,6 +172,23 @@ public class GoogleSheetUpdater(string sourceCsvData, string googleSheetId)
         {
             Console.WriteLine($"An error occurred during the API call: {ex.Message}");
         }
+    }
+
+    public async Task ClearSheet(string sheetName)
+    {
+        if (!await Authenticate())
+        {
+            return;
+        }
+
+        // Create the Google Sheets service client.
+        this.service = CreateSheetsService();
+
+        var range = $"'{sheetName}'!A1:Z10000";  // Adjust range as needed
+        var requestBody = new ClearValuesRequest();
+
+        var request = this.service.Spreadsheets.Values.Clear(requestBody, this.googleSheetId, range);
+        await request.ExecuteAsync();
     }
 
     private async Task<bool> Authenticate()
