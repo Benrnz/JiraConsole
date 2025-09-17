@@ -1,9 +1,8 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace BensJiraConsole;
+﻿namespace BensJiraConsole;
 
 public static class JiraFields
 {
+    // TODO It'd be nice if these mappings also contained the type needed to be used when parsing rather than relying on Parse<T>
     //  JIRA Field Name,          Friendly Alias,                    Flatten object field name
     public static readonly FieldMapping AssigneeDisplay = new() { Field = "assignee", Alias = "Assignee", FlattenField = "displayName" };
     public static readonly FieldMapping BugType = new() { Field = "customfield_11903", Alias = "BugType", FlattenField = "value" };
@@ -27,7 +26,10 @@ public static class JiraFields
     public static readonly FieldMapping Resolved = new() { Field = "resolutiondate", Alias = "Resolved" };
     public static readonly FieldMapping Severity = new() { Field = "customfield_11899", Alias = "Severity", FlattenField = "value" };
     public static readonly FieldMapping Sprint = new() { Field = "customfield_10007", Alias = "Sprint", FlattenField = "name" };
-    public static readonly FieldMapping SprintStartDate = new FieldMappingWithParser<DateTimeOffset> { Field = "customfield_10007", Alias = "SprintStartDate", FlattenField = "startDate", Parser = ParseSprintStartDate };
+
+    public static readonly FieldMapping SprintStartDate = new FieldMappingWithParser<DateTimeOffset>
+        { Field = "customfield_10007", Alias = "SprintStartDate", FlattenField = "startDate", Parser = ParseSprintStartDate };
+
     public static readonly FieldMapping Status = new() { Field = "status", Alias = "Status", FlattenField = "name" };
     public static readonly FieldMapping StoryPoints = new() { Field = "customfield_10004", Alias = "StoryPoints" };
     public static readonly FieldMapping Summary = new() { Field = "summary", Alias = "Summary" };

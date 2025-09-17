@@ -1,6 +1,4 @@
-﻿using System.Reflection.Metadata;
-
-namespace BensJiraConsole.Tasks;
+﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
 public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
@@ -20,12 +18,13 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
         var totalWork = CalculateTotalWorkToBeDone(javPms, task.PmPlans);
         var workCompleted = CalculateCompletedWork(javPms);
         var highLevelEstimates = task.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus != Constants.HasDevTeamEstimate && p.PmPlanHighLevelEstimate > 0);
-        var noEstimates = task.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus != Constants.HasDevTeamEstimate && (p.PmPlanHighLevelEstimate is null || p.PmPlanHighLevelEstimate == 0));
+        var noEstimates = task.PmPlans.Count(p =>
+            p.IsReqdForGoLive > 0.01 && p.EstimationStatus != Constants.HasDevTeamEstimate && (p.PmPlanHighLevelEstimate is null || p.PmPlanHighLevelEstimate == 0));
         var specedAndEstimated = task.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus == Constants.HasDevTeamEstimate);
-        var storiesWithNoEstimate = javPms.Count(i => i.IsReqdForGoLive && i.Status != Constants.DoneStatus && (i.StoryPoints == 0));
+        var storiesWithNoEstimate = javPms.Count(i => i.IsReqdForGoLive && i.Status != Constants.DoneStatus && i.StoryPoints == 0);
         var avgVelocity = javPms.Where(i => i.Status == Constants.DoneStatus && i.CreatedDateTime >= DateTimeOffset.Now.AddDays(-42))
-            .Sum(i => i.StoryPoints)
-            / 3.0; // 6 weeks or 3 sprints.
+                              .Sum(i => i.StoryPoints)
+                          / 3.0; // 6 weeks or 3 sprints.
 
         Console.WriteLine($"As at {DateTime.Today:d}");
         Console.WriteLine($"Total work to be done: {totalWork}");
