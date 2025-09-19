@@ -28,5 +28,5 @@ public interface IWorkSheetUpdater
     /// <param name="sheetAndRange">'Sheet1!A1'</param>
     /// <param name="sourceData">data to be inserted into the sheet</param>
     /// <param name="userMode">Defaults to false.  If true, data is entered and interpreted by the workbook as if entered by the user.</param>
-    Task EditSheet(string sheetAndRange, IList<IList<object>> sourceData, bool userMode = false);
+    Task EditSheet(string sheetAndRange, IList<IList<object?>> sourceData, bool userMode = false);
 }

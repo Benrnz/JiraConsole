@@ -152,7 +152,7 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
         await EditSheet(sheetAndRange, values, userMode);
     }
 
-    public async Task EditSheet(string sheetAndRange, IList<IList<object>> sourceData, bool userMode = false)
+    public async Task EditSheet(string sheetAndRange, IList<IList<object?>> sourceData, bool userMode = false)
     {
         if (!await Authenticate())
         {

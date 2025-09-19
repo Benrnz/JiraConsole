@@ -23,7 +23,8 @@ public class InitiativeProgressTableTask : IJiraExportTask
         JiraFields.Status,
         JiraFields.IssueType,
         JiraFields.PmPlanHighLevelEstimate,
-        JiraFields.EstimationStatus
+        JiraFields.EstimationStatus,
+        JiraFields.ProjectTarget
     ];
 
     private readonly ICsvExporter exporter = new SimpleCsvExporter(TaskKey) { Mode = FileNameMode.ExactName };
@@ -65,12 +66,12 @@ public class InitiativeProgressTableTask : IJiraExportTask
         await ExtractAllInitiativeData(initiativeKeys);
     }
 
-    private static IList<IList<object>> BuildReportArray(IList<JiraInitiative> allInitiativeData)
+    private static IList<IList<object?>> BuildReportArray(IList<JiraInitiative> allInitiativeData)
     {
-        IList<IList<object>> reportArray = new List<IList<object>>();
+        IList<IList<object?>> reportArray = new List<IList<object?>>();
         foreach (var initiative in allInitiativeData)
         {
-            var row = new List<object>();
+            var row = new List<object?>();
             row.Add(initiative.Description);
             row.Add(initiative.InitiativeKey);
             row.Add(initiative.Progress.Total);
@@ -78,10 +79,11 @@ public class InitiativeProgressTableTask : IJiraExportTask
             row.Add(initiative.Progress.Remaining);
             row.Add(initiative.Progress.PercentDone);
             row.Add(initiative.Status);
+            row.Add(initiative.Target?.ToString("d MMM yy"));
             reportArray.Add(row);
             foreach (var childPmPlan in initiative.PmPlans)
             {
-                var childRow = new List<object>();
+                var childRow = new List<object?>();
                 childRow.Add(childPmPlan.Description);
                 childRow.Add(childPmPlan.PmPlanKey);
                 childRow.Add(childPmPlan.Progress.Total);
@@ -89,11 +91,12 @@ public class InitiativeProgressTableTask : IJiraExportTask
                 childRow.Add(childPmPlan.Progress.Remaining);
                 childRow.Add(childPmPlan.Progress.PercentDone);
                 childRow.Add(childPmPlan.Status);
+                childRow.Add(childPmPlan.Target?.ToString("d MMM yy"));
                 reportArray.Add(childRow);
             }
 
             // Spacer empty row
-            reportArray.Add(new List<object>());
+            reportArray.Add(new List<object?>());
         }
 
         return reportArray;
@@ -140,7 +143,8 @@ public class InitiativeProgressTableTask : IJiraExportTask
                 string pmPlanKey = JiraFields.Key.Parse(pmPlan);
                 string summary = JiraFields.Summary.Parse(pmPlan) ?? string.Empty;
                 string status = JiraFields.Status.Parse(pmPlan) ?? Constants.Unknown;
-                var pmPlanData = new JiraPmPlan(pmPlanKey, summary, new StatLine(), status);
+                DateTimeOffset? target = JiraFields.ProjectTarget.Parse(pmPlan);
+                var pmPlanData = new JiraPmPlan(pmPlanKey, summary, new StatLine(), status, target);
                 var children = await this.runner.SearchJiraIssuesWithJqlAsync(string.Format(javPmKeyql, pmPlanKey), IssueFields);
                 Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
                 var range = children.Select<dynamic, JiraIssue>(i => CreateJiraIssue(initiative, i)).ToList();
@@ -162,10 +166,12 @@ public class InitiativeProgressTableTask : IJiraExportTask
 
     private async Task<JiraInitiative> GetInitiativeDetails(string initiativeKey)
     {
-        var result = await this.runner.SearchJiraIssuesWithJqlAsync($"key={initiativeKey}", [JiraFields.Summary, JiraFields.Status]);
-        string summary = JiraFields.Summary.Parse(result.Single()) ?? string.Empty;
-        string status = JiraFields.Status.Parse(result.Single()) ?? Constants.Unknown;
-        return new JiraInitiative(initiativeKey, summary, new List<JiraPmPlan>(), new StatLine(), status);
+        var result = await this.runner.SearchJiraIssuesWithJqlAsync($"key={initiativeKey}", [JiraFields.Summary, JiraFields.Status, JiraFields.ProjectTarget]);
+        var single = result.Single();
+        string summary = JiraFields.Summary.Parse(single) ?? string.Empty;
+        string status = JiraFields.Status.Parse(single) ?? Constants.Unknown;
+        DateTimeOffset? target = JiraFields.ProjectTarget.Parse(single);
+        return new JiraInitiative(initiativeKey, summary, new List<JiraPmPlan>(), new StatLine(), status, target);
     }
 
     private async Task<IReadOnlyList<string>> GetInitiativesForReport()
@@ -181,9 +187,9 @@ public class InitiativeProgressTableTask : IJiraExportTask
         return initiatives;
     }
 
-    public record JiraInitiative(string InitiativeKey, string Description, IList<JiraPmPlan> PmPlans, StatLine Progress, string Status);
+    public record JiraInitiative(string InitiativeKey, string Description, IList<JiraPmPlan> PmPlans, StatLine Progress, string Status, DateTimeOffset? Target = null);
 
-    public record JiraPmPlan(string PmPlanKey, string Description, StatLine Progress, string Status);
+    public record JiraPmPlan(string PmPlanKey, string Description, StatLine Progress, string Status, DateTimeOffset? Target = null);
 
     public record StatLine
     {

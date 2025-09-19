@@ -20,6 +20,10 @@ public static class JiraFields
     public static readonly FieldMapping<string> ParentKey = new() { Field = "parent", Alias = "Parent", FlattenField = "key" };
     public static readonly FieldMapping<double> PmPlanHighLevelEstimate = new() { Field = "customfield_12038", Alias = "PmPlanHighLevelEstimate" };
     public static readonly FieldMapping<string> Priority = new() { Field = "priority", Alias = "Priority", FlattenField = "name" };
+
+    public static readonly FieldMapping<DateTimeOffset?> ProjectTarget = new FieldMappingWithParser<DateTimeOffset?>
+        { Field = "customfield_11975", Alias = "ProjectTarget", Parser = ParseProjectTarget };
+
     public static readonly FieldMapping<string> ReporterDisplay = new() { Field = "reporter", Alias = "Reporter", FlattenField = "displayName" };
     public static readonly FieldMapping<string> Resolution = new() { Field = "resolution", Alias = "Resolution", FlattenField = "name" };
     public static readonly FieldMapping<DateTimeOffset> Resolved = new() { Field = "resolutiondate", Alias = "Resolved" };
@@ -114,6 +118,25 @@ public static class JiraFields
         }
 
         throw new NotSupportedException("Key is not found in the returned results - likely bug in app.");
+    }
+
+    private static DateTimeOffset? ParseProjectTarget(dynamic d)
+    {
+        // Comes thru as a string: {"start":"2025-09-05","end":"2025-09-05"}
+        var value = d.ProjectTarget;
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (value is string stringValue)
+        {
+            var start = stringValue.IndexOf(":\"", StringComparison.Ordinal);
+            var dateCandidate = stringValue.Substring(start + 2, 10);
+            return DateTimeOffset.Parse(dateCandidate);
+        }
+
+        return null;
     }
 
     private static DateTimeOffset ParseSprintStartDate(dynamic d)
