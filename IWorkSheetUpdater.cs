@@ -11,7 +11,7 @@ public interface IWorkSheetUpdater
     /// <summary>
     ///     Clear the sheet / range values.
     /// </summary>
-    Task ClearSheet(string sheetName, string range);
+    Task ClearSheet(string sheetName, string range = "A1:Z10000");
 
     Task DeleteSheet(string sheetName);
 
