@@ -23,6 +23,7 @@ public static class Program
             foreach (var taskType in TaskTypes())
             {
                 services.AddSingleton(typeof(IJiraExportTask), taskType);
+                services.AddSingleton(taskType);
             }
         });
 

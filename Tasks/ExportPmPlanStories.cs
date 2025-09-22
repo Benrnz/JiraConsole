@@ -1,7 +1,7 @@
 ﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportPmPlanStories : IJiraExportTask
+public class ExportPmPlanStories(IJiraQueryRunner runner, ICsvExporter exporter) : IJiraExportTask
 {
     private const string KeyString = "PMPLAN_STORIES";
 
@@ -30,9 +30,6 @@ public class ExportPmPlanStories : IJiraExportTask
         JiraFields.IsReqdForGoLive
     ];
 
-    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
-    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
-
     public IEnumerable<dynamic> PmPlans { get; private set; } = [];
 
     public string Key => KeyString;
@@ -43,22 +40,24 @@ public class ExportPmPlanStories : IJiraExportTask
         Console.WriteLine(Description);
         var allIssues = await RetrieveAllStoriesMappingToPmPlan();
         Console.WriteLine($"Found {allIssues.Count} unique stories");
-        this.exporter.Export(allIssues);
+        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        exporter.Export(allIssues);
     }
 
     public async Task<IReadOnlyList<JiraIssueWithPmPlan>> RetrieveAllStoriesMappingToPmPlan(string? additionalCriteria = null)
     {
+        // Cache this output
         additionalCriteria ??= string.Empty;
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
         Console.WriteLine(jqlPmPlans);
         var childrenJql = $"project=JAVPM AND (issue in (linkedIssues(\"{{0}}\")) OR parent in (linkedIssues(\"{{0}}\"))) {additionalCriteria} ORDER BY key";
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
-        PmPlans = await this.runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
+        PmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
 
         var allIssues = new Dictionary<string, JiraIssueWithPmPlan>(); // Ensure the final list of JAVPMs is unique NO DUPLICATES
         foreach (var pmPlan in PmPlans)
         {
-            var children = await this.runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
+            var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
             Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
             foreach (var child in children)
             {

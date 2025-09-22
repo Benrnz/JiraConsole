@@ -3,11 +3,9 @@ using System.Globalization;
 namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportNewlyAddedStoriesForPmPlans : IJiraExportTask
+public class ExportNewlyAddedStoriesForPmPlans(ICloudUploader uploader, ICsvExporter exporter, ExportPmPlanStories pmPlanStoriesTask) : IJiraExportTask
 {
     private const string KeyString = "PMPLAN_NEW";
-    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
-    private readonly ICloudUploader uploader = new GoogleDriveUploader();
 
     public string Key => KeyString;
     public string Description => "Export all _newly_ added stories for a time period that map to PMPLANs";
@@ -15,10 +13,10 @@ public class ExportNewlyAddedStoriesForPmPlans : IJiraExportTask
     public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
-        var parentTask = new ExportPmPlanStories();
+
         var startDate = GetDateFromUser("start date (inclusive)");
         var endDate = GetDateFromUser("end date (exclusive)");
-        var issues = await parentTask.RetrieveAllStoriesMappingToPmPlan($"AND created >= {startDate:yyyy-MM-dd} AND Created < {endDate:yyyy-MM-dd}");
+        var issues = await pmPlanStoriesTask.RetrieveAllStoriesMappingToPmPlan($"AND created >= {startDate:yyyy-MM-dd} AND Created < {endDate:yyyy-MM-dd}");
 
         Console.WriteLine($"Found {issues.Count} unique stories");
         if (issues.Count < 20)
@@ -26,8 +24,9 @@ public class ExportNewlyAddedStoriesForPmPlans : IJiraExportTask
             issues.ToList().ForEach(i => Console.WriteLine($"{i.Key}"));
         }
 
-        var filename = this.exporter.Export(issues);
-        await this.uploader.UploadCsvAsync(filename, Path.GetFileName(filename));
+        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        var filename = exporter.Export(issues);
+        await uploader.UploadCsvAsync(filename, Path.GetFileName(filename));
     }
 
     private DateTime GetDateFromUser(string dateDescription)

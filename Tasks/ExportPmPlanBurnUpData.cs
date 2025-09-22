@@ -1,7 +1,7 @@
 ﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportPmPlanBurnUpData : IJiraExportTask
+public class ExportPmPlanBurnUpData(IJiraQueryRunner runner, ICsvExporter exporter) : IJiraExportTask
 {
     private const int LinearTrendWeeks = 4;
     private const string KeyString = "PMPLAN_BURNUPS";
@@ -27,8 +27,6 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         JiraFields.EstimationStatus
     ];
 
-    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
-    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
     public string Key => KeyString;
     public string Description => "Export PM Plan data for drawing a release _burn-up_charts_";
 
@@ -40,12 +38,12 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         Console.WriteLine(jqlPmPlans);
         var childrenJql = "project=JAVPM AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
-        var pmPlans = await this.runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
+        var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
 
         var allIssues = new List<JiraIssue>();
         foreach (var pmPlan in pmPlans)
         {
-            List<dynamic> children = await this.runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), IssueFields);
+            List<dynamic> children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), IssueFields);
             Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
             var range = children.Select(c => new JiraIssue(
                 JiraFields.Key.Parse(c),
@@ -121,10 +119,10 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
 
     private void ExportToCsv(IDictionary<string, IEnumerable<BurnUpChartData>> charts)
     {
-        this.exporter.Mode = FileNameMode.ExactName;
         foreach (var pmPlan in charts.Keys)
         {
-            this.exporter.Export(charts[pmPlan], pmPlan);
+            exporter.SetFileNameMode(FileNameMode.ExactName, pmPlan);
+            exporter.Export(charts[pmPlan]);
         }
     }
 

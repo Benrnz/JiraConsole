@@ -1,7 +1,7 @@
 ﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportJqlQueryTask : IJiraExportTask
+public class ExportJqlQueryTask(IJiraQueryRunner runner, ICsvExporter exporter) : IJiraExportTask
 {
     private const string KeyString = "JQL";
 
@@ -28,13 +28,9 @@ public class ExportJqlQueryTask : IJiraExportTask
         JiraFields.Team
     ];
 
-    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
-    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
-
     public string Key => KeyString;
 
     public string Description => "Export issues matching a _JQL_ query";
-
 
     public async Task ExecuteAsync(string[] args)
     {
@@ -46,9 +42,9 @@ public class ExportJqlQueryTask : IJiraExportTask
             return;
         }
 
-        var issues = await this.runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
+        var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
         Console.WriteLine($"{issues.Count} issues fetched.");
-
-        this.exporter.Export(issues);
+        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        exporter.Export(issues);
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace BensJiraConsole.Tasks;
 
-public class InitiativeProgressTableTask : IJiraExportTask
+public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
 {
     private const string GoogleSheetId = "1OVUx08nBaD8uH-klNAzAtxFSKTOvAAk5Vnm11ALN0Zo";
     private const string TaskKey = "INIT_TABLE";
@@ -27,12 +27,6 @@ public class InitiativeProgressTableTask : IJiraExportTask
         JiraFields.ProjectTarget
     ];
 
-    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
-
-    private readonly IWorkSheetReader sheetReader = new GoogleSheetReader(GoogleSheetId);
-
-    private readonly IWorkSheetUpdater sheetUpdater = new GoogleSheetUpdater(GoogleSheetId);
-
     public IList<JiraInitiative> AllInitiativesData { get; private set; } = new List<JiraInitiative>();
 
     public IDictionary<string, IReadOnlyList<JiraIssue>> AllIssuesData { get; private set; } = new Dictionary<string, IReadOnlyList<JiraIssue>>();
@@ -46,20 +40,23 @@ public class InitiativeProgressTableTask : IJiraExportTask
         Console.WriteLine(Description);
 
         await LoadData();
+        await sheetUpdater.Open(GoogleSheetId);
+        await sheetReader.Open(GoogleSheetId);
 
         // Update the Summary Tab
         var summaryReportArray = BuildSummaryReportArray(AllInitiativesData);
-        await this.sheetUpdater.ClearSheet("Summary", "A2:Z10000");
-        await this.sheetUpdater.EditSheet("'Summary'!A2", summaryReportArray, true);
+        await sheetUpdater.ClearSheet("Summary", "A2:Z10000");
+        await sheetUpdater.EditSheet("'Summary'!A2", summaryReportArray, true);
 
         // Update the OverviewGraph tab
         var overviewReportArray = BuildOverviewReportArray(AllInitiativesData);
-        await this.sheetUpdater.ClearSheet("OverviewGraphs", "A2:Z10000");
-        await this.sheetUpdater.EditSheet("'OverviewGraphs'!A2", overviewReportArray, true);
+        await sheetUpdater.ClearSheet("OverviewGraphs", "A2:Z10000");
+        await sheetUpdater.EditSheet("'OverviewGraphs'!A2", overviewReportArray, true);
     }
 
     public async Task LoadData()
     {
+        // Cache this output
         var initiativeKeys = await GetInitiativesForReport();
         if (!initiativeKeys.Any())
         {
@@ -156,7 +153,7 @@ public class InitiativeProgressTableTask : IJiraExportTask
         {
             Console.WriteLine($"* Finding all work for {initiative}");
             var jiraInitiative = await GetInitiativeDetails(initiative);
-            var pmPlans = await this.runner.SearchJiraIssuesWithJqlAsync(string.Format(pmPlanJql, initiative), PmPlanFields);
+            var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(string.Format(pmPlanJql, initiative), PmPlanFields);
 
             var allIssues = new List<JiraIssue>();
             foreach (var pmPlan in pmPlans)
@@ -166,7 +163,7 @@ public class InitiativeProgressTableTask : IJiraExportTask
                 string status = JiraFields.Status.Parse(pmPlan) ?? Constants.Unknown;
                 DateTimeOffset? target = JiraFields.ProjectTarget.Parse(pmPlan);
                 var pmPlanData = new JiraPmPlan(pmPlanKey, summary, new StatLine(), status, target);
-                var children = await this.runner.SearchJiraIssuesWithJqlAsync(string.Format(javPmKeyql, pmPlanKey), IssueFields);
+                var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(javPmKeyql, pmPlanKey), IssueFields);
                 Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
                 var range = children.Select<dynamic, JiraIssue>(i => CreateJiraIssue(initiative, i)).ToList();
                 pmPlanData.Progress.Total = range.Sum(i => i.StoryPoints);
@@ -187,7 +184,7 @@ public class InitiativeProgressTableTask : IJiraExportTask
 
     private async Task<JiraInitiative> GetInitiativeDetails(string initiativeKey)
     {
-        var result = await this.runner.SearchJiraIssuesWithJqlAsync($"key={initiativeKey}", [JiraFields.Summary, JiraFields.Status, JiraFields.ProjectTarget]);
+        var result = await runner.SearchJiraIssuesWithJqlAsync($"key={initiativeKey}", [JiraFields.Summary, JiraFields.Status, JiraFields.ProjectTarget]);
         var single = result.Single();
         string summary = JiraFields.Summary.Parse(single) ?? string.Empty;
         string status = JiraFields.Status.Parse(single) ?? Constants.Unknown;
@@ -197,7 +194,7 @@ public class InitiativeProgressTableTask : IJiraExportTask
 
     private async Task<IReadOnlyList<string>> GetInitiativesForReport()
     {
-        var list = await this.sheetReader.GetSheetNames();
+        var list = await sheetReader.GetSheetNames();
         var initiatives = list.Where(x => x.StartsWith(ProductInitiativePrefix)).ToList();
         Console.WriteLine("Updating burn-up charts for the following Product Iniiatives:");
         foreach (var initiative in initiatives)

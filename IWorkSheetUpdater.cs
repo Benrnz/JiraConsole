@@ -2,6 +2,8 @@
 
 public interface IWorkSheetUpdater
 {
+    Task Open(string sheetId);
+
     string? CsvFilePathAndName { get; set; }
     bool QuoteStrings { get; set; }
     Task AddSheet(string sheetName);

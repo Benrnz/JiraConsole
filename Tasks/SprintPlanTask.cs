@@ -1,6 +1,6 @@
 ﻿namespace BensJiraConsole.Tasks;
 
-public class SprintPlanTask : IJiraExportTask
+public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, ExportPmPlanStories pmPlanStoriesTask) : IJiraExportTask
 {
     private const string GoogleSheetId = "1iS6iB3EA38SHJgDu8rpMFcouGlu1Az8cntKA52U07xU";
     private const string TaskKey = "SPRINT_PLAN";
@@ -20,12 +20,6 @@ public class SprintPlanTask : IJiraExportTask
         JiraFields.ParentKey
     ];
 
-    private readonly ICsvExporter exporter = new SimpleCsvExporter(TaskKey);
-
-    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
-
-    private readonly IWorkSheetUpdater sheetUpdater = new GoogleSheetUpdater(GoogleSheetId);
-
     public string Description => "Export to a Google Sheet a over-arching plan of all future sprints for the two project teams.";
     public string Key => TaskKey;
 
@@ -37,11 +31,11 @@ public class SprintPlanTask : IJiraExportTask
         Console.WriteLine();
 
         // Get and group the data by Team and by Sprint.
-        var result = await this.runner.SearchJiraIssuesWithJqlAsync(query, Fields);
+        var result = await runner.SearchJiraIssuesWithJqlAsync(query, Fields);
         var issues = result.Select(CreateJiraIssue).ToList();
 
         // Find PMPLAN for each issue if it exists.
-        var pmPlanStories = await new ExportPmPlanStories().RetrieveAllStoriesMappingToPmPlan();
+        var pmPlanStories = await pmPlanStoriesTask.RetrieveAllStoriesMappingToPmPlan();
         issues.Join(pmPlanStories, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlan: p))
             .ToList()
             .ForEach(x =>
@@ -57,12 +51,14 @@ public class SprintPlanTask : IJiraExportTask
             .ToList();
 
         // temp save to CSV
-        var file = this.exporter.Export(issues);
+        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        var file = exporter.Export(issues);
 
         // Export to Google Sheets.
-        this.sheetUpdater.CsvFilePathAndName = file;
-        await this.sheetUpdater.ClearSheet("Data");
-        await this.sheetUpdater.EditSheet("'Data'!A1");
+        await sheetUpdater.Open(GoogleSheetId);
+        sheetUpdater.CsvFilePathAndName = file;
+        await sheetUpdater.ClearSheet("Data");
+        await sheetUpdater.EditSheet("'Data'!A1");
     }
 
     private JiraIssue CreateJiraIssue(dynamic i)
