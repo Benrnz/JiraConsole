@@ -17,7 +17,6 @@ public class CalculateDailyReportTask : IJiraExportTask
     ];
 
     private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
-
     private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
     private readonly IWorkSheetReader sheetReader = new GoogleSheetReader(GoogleSheetId);
     private readonly IWorkSheetUpdater sheetUpdater = new GoogleSheetUpdater(GoogleSheetId);

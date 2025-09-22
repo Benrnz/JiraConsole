@@ -5,12 +5,12 @@ using File = Google.Apis.Drive.v3.Data.File;
 
 namespace BensJiraConsole;
 
-public class GoogleDriveUploader
+public class GoogleDriveUploader : ICloudUploader
 {
     private static readonly string[] Scopes = { DriveService.Scope.DriveFile };
     private static readonly string ApplicationName = "Google Drive CSV Uploader";
 
-    public async Task UploadCsvAsync(string csvFilePath, string driveFileName, string? folderName = null)
+    public async Task UploadCsvAsync(string csvFilePath, string cloudFileName, string? folderName = null)
     {
         folderName ??= Constants.ApplicationName;
         UserCredential credential;
@@ -35,21 +35,64 @@ public class GoogleDriveUploader
         var parentFolderId = await GetOrCreateFolderIdAsync(service, folderName) ?? string.Empty;
 
         // Step 1: Search for an existing file with the same name
-        var fileId = await FindFileByName(service, driveFileName, parentFolderId);
+        var fileId = await FindFileByName(service, cloudFileName, parentFolderId);
 
         // Step 2: Decide whether to create or update
         if (!string.IsNullOrEmpty(fileId))
         {
             // File exists, perform an update
             await UpdateExistingFile(service, fileId, csvFilePath);
-            Console.WriteLine($"File '{driveFileName}' updated successfully.");
+            Console.WriteLine($"File '{cloudFileName}' updated successfully.");
         }
         else
         {
             // File does not exist, perform a create
-            await CreateNewFileInFolderAsync(service, csvFilePath, driveFileName, parentFolderId);
-            Console.WriteLine($"File '{driveFileName}' created successfully.");
+            await CreateNewFileInFolderAsync(service, csvFilePath, cloudFileName, parentFolderId);
+            Console.WriteLine($"File '{cloudFileName}' created successfully.");
         }
+    }
+
+    private async Task CreateNewFileInFolderAsync(DriveService service, string localFilePath, string driveFileName, string parentFolderId)
+    {
+        var fileMetadata = new File
+        {
+            Name = driveFileName,
+            MimeType = "text/csv"
+        };
+
+        // If a folder ID was found, add it to the Parents property
+        if (!string.IsNullOrEmpty(parentFolderId))
+        {
+            fileMetadata.Parents = new List<string> { parentFolderId };
+        }
+
+        await using var stream = new FileStream(localFilePath, FileMode.Open);
+        var request = service.Files.Create(fileMetadata, stream, "text/csv");
+        await request.UploadAsync();
+
+        var uploadedFile = request.ResponseBody;
+        if (uploadedFile != null)
+        {
+            Console.WriteLine($"File '{uploadedFile.Name}' uploaded successfully with ID: {uploadedFile.Id}");
+        }
+    }
+
+// Helper method to find a file's ID by name
+    private async Task<string?> FindFileByName(DriveService service, string fileName, string parentFolderId)
+    {
+        var listRequest = service.Files.List();
+
+        // The query string to search for the file.
+        // 'parentFolderId' is the ID of the folder to search in.
+        listRequest.Q = $"name = '{fileName}' and '{parentFolderId}' in parents";
+
+        listRequest.Spaces = "drive";
+        listRequest.Fields = "nextPageToken, files(id)";
+
+        var result = await listRequest.ExecuteAsync();
+
+        // Return the ID of the first file found, or null if no file is found.
+        return result.Files?.FirstOrDefault()?.Id;
     }
 
     private async Task<string?> GetOrCreateFolderIdAsync(DriveService service, string folderName)
@@ -93,24 +136,6 @@ public class GoogleDriveUploader
         return null;
     }
 
-// Helper method to find a file's ID by name
-    private async Task<string?> FindFileByName(DriveService service, string fileName, string parentFolderId)
-    {
-        var listRequest = service.Files.List();
-
-        // The query string to search for the file.
-        // 'parentFolderId' is the ID of the folder to search in.
-        listRequest.Q = $"name = '{fileName}' and '{parentFolderId}' in parents";
-
-        listRequest.Spaces = "drive";
-        listRequest.Fields = "nextPageToken, files(id)";
-
-        var result = await listRequest.ExecuteAsync();
-
-        // Return the ID of the first file found, or null if no file is found.
-        return result.Files?.FirstOrDefault()?.Id;
-    }
-
 // Helper method to update an existing file
     private async Task UpdateExistingFile(DriveService service, string fileId, string localFilePath)
     {
@@ -118,31 +143,6 @@ public class GoogleDriveUploader
         var updateRequest = service.Files.Update(new File(), fileId, stream, "text/csv");
         await updateRequest.UploadAsync();
         var uploadedFile = updateRequest.ResponseBody;
-        if (uploadedFile != null)
-        {
-            Console.WriteLine($"File '{uploadedFile.Name}' uploaded successfully with ID: {uploadedFile.Id}");
-        }
-    }
-
-    private async Task CreateNewFileInFolderAsync(DriveService service, string localFilePath, string driveFileName, string parentFolderId)
-    {
-        var fileMetadata = new File
-        {
-            Name = driveFileName,
-            MimeType = "text/csv"
-        };
-
-        // If a folder ID was found, add it to the Parents property
-        if (!string.IsNullOrEmpty(parentFolderId))
-        {
-            fileMetadata.Parents = new List<string> { parentFolderId };
-        }
-
-        await using var stream = new FileStream(localFilePath, FileMode.Open);
-        var request = service.Files.Create(fileMetadata, stream, "text/csv");
-        await request.UploadAsync();
-
-        var uploadedFile = request.ResponseBody;
         if (uploadedFile != null)
         {
             Console.WriteLine($"File '{uploadedFile.Name}' uploaded successfully with ID: {uploadedFile.Id}");

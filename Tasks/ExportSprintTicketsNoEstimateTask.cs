@@ -3,6 +3,8 @@
 // ReSharper disable once UnusedType.Global
 public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
 {
+    private const string KeyString = "NOESTIMATE";
+
     private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
@@ -26,7 +28,10 @@ public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
         JiraFields.Team
     ];
 
-    public string Key => "NOESTIMATE";
+    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
+    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
+
+    public string Key => KeyString;
 
     public string Description => "Export Active Sprint tickets with _No_Estimate_ (Superclass, Ruby Ducks, Spearhead only)";
 
@@ -34,11 +39,10 @@ public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
     public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
-        var runner = new JiraQueryDynamicRunner();
         var jql =
             "project=JAVPM AND type != Epic AND sprint IN openSprints() AND \"Story Points[Number]\" IN (EMPTY, 0) AND \"Team[Team]\" IN (f08f7fdc-cfab-4de7-8fdd-8da57b10adb6, 60412efa-7e2e-4285-bb4e-f329c3b6d417, 1a05d236-1562-4e58-ae88-1ffc6c5edb32)";
         Console.WriteLine(jql);
-        var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
+        var issues = await this.runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
         Console.WriteLine($"{issues.Count} issues fetched.");
 
         if (issues.Count < 20)
@@ -49,7 +53,6 @@ public class ExportSprintTicketsNoEstimateTask : IJiraExportTask
             }
         }
 
-        var exporter = new SimpleCsvExporter(Key);
-        exporter.Export(issues);
+        this.exporter.Export(issues);
     }
 }

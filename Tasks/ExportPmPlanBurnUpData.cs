@@ -4,6 +4,7 @@
 public class ExportPmPlanBurnUpData : IJiraExportTask
 {
     private const int LinearTrendWeeks = 4;
+    private const string KeyString = "PMPLAN_BURNUPS";
     private static readonly DateTime ForecastCeilingDate = new(2026, 3, 31);
 
     private static readonly IFieldMapping[] IssueFields =
@@ -26,7 +27,9 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         JiraFields.EstimationStatus
     ];
 
-    public string Key => "PMPLAN_BURNUPS";
+    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
+    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
+    public string Key => KeyString;
     public string Description => "Export PM Plan data for drawing a release _burn-up_charts_";
 
     public async Task ExecuteAsync(string[] args)
@@ -37,13 +40,12 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
         Console.WriteLine(jqlPmPlans);
         var childrenJql = "project=JAVPM AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
-        var dynamicRunner = new JiraQueryDynamicRunner();
-        var pmPlans = await dynamicRunner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
+        var pmPlans = await this.runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
 
         var allIssues = new List<JiraIssue>();
         foreach (var pmPlan in pmPlans)
         {
-            List<dynamic> children = await dynamicRunner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), IssueFields);
+            List<dynamic> children = await this.runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), IssueFields);
             Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
             var range = children.Select(c => new JiraIssue(
                 JiraFields.Key.Parse(c),
@@ -119,10 +121,10 @@ public class ExportPmPlanBurnUpData : IJiraExportTask
 
     private void ExportToCsv(IDictionary<string, IEnumerable<BurnUpChartData>> charts)
     {
+        this.exporter.Mode = FileNameMode.ExactName;
         foreach (var pmPlan in charts.Keys)
         {
-            var exporter = new SimpleCsvExporter(Key) { Mode = FileNameMode.ExactName };
-            exporter.Export(charts[pmPlan], pmPlan);
+            this.exporter.Export(charts[pmPlan], pmPlan);
         }
     }
 
