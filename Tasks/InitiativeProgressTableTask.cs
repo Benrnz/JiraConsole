@@ -27,8 +27,6 @@ public class InitiativeProgressTableTask : IJiraExportTask
         JiraFields.ProjectTarget
     ];
 
-    private readonly ICsvExporter exporter = new SimpleCsvExporter(TaskKey) { Mode = FileNameMode.ExactName };
-
     private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
 
     private readonly IWorkSheetReader sheetReader = new GoogleSheetReader(GoogleSheetId);
@@ -49,9 +47,15 @@ public class InitiativeProgressTableTask : IJiraExportTask
 
         await LoadData();
 
-        var reportArray = BuildReportArray(AllInitiativesData);
+        // Update the Summary Tab
+        var summaryReportArray = BuildSummaryReportArray(AllInitiativesData);
         await this.sheetUpdater.ClearSheet("Summary", "A2:Z10000");
-        await this.sheetUpdater.EditSheet("'Summary'!A2", reportArray, true);
+        await this.sheetUpdater.EditSheet("'Summary'!A2", summaryReportArray, true);
+
+        // Update the OverviewGraph tab
+        var overviewReportArray = BuildOverviewReportArray(AllInitiativesData);
+        await this.sheetUpdater.ClearSheet("OverviewGraphs", "A2:Z10000");
+        await this.sheetUpdater.EditSheet("'OverviewGraphs'!A2", overviewReportArray, true);
     }
 
     public async Task LoadData()
@@ -66,7 +70,24 @@ public class InitiativeProgressTableTask : IJiraExportTask
         await ExtractAllInitiativeData(initiativeKeys);
     }
 
-    private static IList<IList<object?>> BuildReportArray(IList<JiraInitiative> allInitiativeData)
+    private static IList<IList<object?>> BuildOverviewReportArray(IList<JiraInitiative> allInitiativeData)
+    {
+        // 4 columns: Name, Key, Done, Remaining
+        IList<IList<object?>> reportArray = new List<IList<object?>>();
+        foreach (var initiative in allInitiativeData)
+        {
+            var row = new List<object?>();
+            row.Add(initiative.Description);
+            row.Add(initiative.InitiativeKey);
+            row.Add(initiative.Progress.Done);
+            row.Add(initiative.Progress.Remaining);
+            reportArray.Add(row);
+        }
+
+        return reportArray;
+    }
+
+    private static IList<IList<object?>> BuildSummaryReportArray(IList<JiraInitiative> allInitiativeData)
     {
         IList<IList<object?>> reportArray = new List<IList<object?>>();
         foreach (var initiative in allInitiativeData)
