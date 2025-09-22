@@ -2,8 +2,7 @@
 
 public interface ICsvExporter
 {
-    FileNameMode Mode { get; set; }
-    Func<string>? OverrideSerialiseHeader { get; set; }
-    Func<object, string>? OverrideSerialiseRecord { get; set; }
-    string Export(IEnumerable<object> issues, string? fileNameHint = null);
+    void SetFileNameMode(FileNameMode mode, string fileNameHint);
+
+    string Export(IEnumerable<object> issues, Func<string>? overrideSerialiseHeader = null, Func<object, string>? overrideSerialiseRecord = null);
 }
