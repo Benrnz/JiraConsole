@@ -35,9 +35,9 @@ public class InitiativeProgressTableTask : IJiraExportTask
 
     private readonly IWorkSheetUpdater sheetUpdater = new GoogleSheetUpdater(GoogleSheetId);
 
-    public IList<JiraInitiative> AllInitiativesData { get; private set; }
+    public IList<JiraInitiative> AllInitiativesData { get; private set; } = new List<JiraInitiative>();
 
-    public IDictionary<string, IReadOnlyList<JiraIssue>> AllIssuesData { get; private set; }
+    public IDictionary<string, IReadOnlyList<JiraIssue>> AllIssuesData { get; private set; } = new Dictionary<string, IReadOnlyList<JiraIssue>>();
 
     public string Description => "Export and update Initiative level PMPLAN data for drawing feature-set release _burn-up_charts_";
 

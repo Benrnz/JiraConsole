@@ -112,7 +112,7 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
         }
 
         // Read the CSV data from the local file.
-        IList<IList<object>> values = new List<IList<object>>();
+        IList<IList<object?>> values = new List<IList<object?>>();
         try
         {
             // Read all lines from the CSV file.
@@ -121,7 +121,7 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
             {
                 // Split preserving quoted strings with commas
                 var parts = CsvParser.Split(line);
-                var row = new List<object>();
+                var row = new List<object?>();
                 foreach (var part in parts)
                 {
                     row.Add(SetType(part.Trim()));
