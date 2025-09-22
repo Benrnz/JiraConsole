@@ -10,29 +10,6 @@ public class App(IEnumerable<IJiraExportTask> tasks)
     private readonly IJiraExportTask[] allTasks = tasks.ToArray();
     private string[] commandLineArgs = [];
 
-    public static App Configure()
-    {
-        var builder = Host.CreateDefaultBuilder();
-        builder.ConfigureServices(services =>
-        {
-            services.AddSingleton<App>();
-            services.AddTransient<ICsvExporter, SimpleCsvExporter>();
-            services.AddTransient<IJiraQueryRunner, JiraQueryDynamicRunner>();
-            services.AddTransient<ICloudUploader, GoogleDriveUploader>();
-            services.AddTransient<IWorkSheetUpdater, GoogleSheetUpdater>();
-            services.AddTransient<IWorkSheetReader, GoogleSheetReader>();
-
-            // Find and Register all tasks
-            foreach (var taskType in TaskTypes())
-            {
-                services.AddSingleton(typeof(IJiraExportTask), taskType);
-            }
-        });
-
-        var host = builder.Build();
-        return host.Services.GetRequiredService<App>();
-    }
-
     public async Task Run(string[] args)
     {
         this.commandLineArgs = args;
@@ -68,11 +45,5 @@ public class App(IEnumerable<IJiraExportTask> tasks)
         }
 
         await selectedTask.ExecuteAsync(this.commandLineArgs);
-    }
-
-    private static IEnumerable<Type> TaskTypes()
-    {
-        var assembly = Assembly.GetExecutingAssembly();
-        return assembly.GetTypes().Where(type => typeof(IJiraExportTask).IsAssignableFrom(type) && type is { IsInterface: false, IsAbstract: false });
     }
 }
