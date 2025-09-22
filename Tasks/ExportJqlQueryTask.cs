@@ -3,6 +3,8 @@
 // ReSharper disable once UnusedType.Global
 public class ExportJqlQueryTask : IJiraExportTask
 {
+    private const string KeyString = "JQL";
+
     private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
@@ -26,7 +28,10 @@ public class ExportJqlQueryTask : IJiraExportTask
         JiraFields.Team
     ];
 
-    public string Key => "JQL";
+    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
+    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
+
+    public string Key => KeyString;
 
     public string Description => "Export issues matching a _JQL_ query";
 
@@ -41,11 +46,9 @@ public class ExportJqlQueryTask : IJiraExportTask
             return;
         }
 
-        var runner = new JiraQueryDynamicRunner();
-        var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
+        var issues = await this.runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
         Console.WriteLine($"{issues.Count} issues fetched.");
 
-        var exporter = new SimpleCsvExporter(Key);
-        exporter.Export(issues);
+        this.exporter.Export(issues);
     }
 }

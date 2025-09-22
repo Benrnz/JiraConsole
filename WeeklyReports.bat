@@ -8,8 +8,7 @@ BensJiraConsole.exe PMPLAN_BURNUPS
 BensJiraConsole.exe PMPLAN_RBURNUP
 BensJiraConsole.exe PMPLAN_STORIES
 BensJiraConsole.exe PMPLANS
-BensJiraConsole.exe INIT_BURNUPS
-BensJiraConsole.exe INIT_TABLE
+BensJiraConsole.exe INIT_ALL
 BensJiraConsole.exe SPRINT_PLAN
 
 ECHO Finish time: %date% %time%

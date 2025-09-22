@@ -6,6 +6,7 @@ public class ExportBugStatsTask : IJiraExportTask
 {
     // JAVPM Bug Analysis
     private const string GoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
+    private const string KeyString = "BUG_STATS";
 
     private static readonly IFieldMapping[] Fields =
     [
@@ -25,22 +26,26 @@ public class ExportBugStatsTask : IJiraExportTask
         JiraFields.CustomersMultiSelect
     ];
 
+    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
+
+    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
+    private readonly IWorkSheetUpdater sheetUpdater = new GoogleSheetUpdater(GoogleSheetId);
+
     private List<string> allCategories = new();
 
     private List<string> allCodeAreas = new();
     //private int dynamicIndex;
 
-    public string Key => "BUG_STATS";
+    public string Key => KeyString;
     public string Description => "Export a series of exports summarising _bug_stats_ for JAVPM.";
 
     public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
-        var dynamicRunner = new JiraQueryDynamicRunner();
         var jql = """project = JAVPM AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND created >= startOfMonth("-13M")""";
         Console.WriteLine(jql);
         Console.WriteLine();
-        var jiras = (await dynamicRunner.SearchJiraIssuesWithJqlAsync(jql, Fields))
+        var jiras = (await this.runner.SearchJiraIssuesWithJqlAsync(jql, Fields))
             .Select(CreateJiraIssue)
             .OrderBy(i => i.Created)
             .ToList();
@@ -116,12 +121,13 @@ public class ExportBugStatsTask : IJiraExportTask
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        var exporter = new SimpleCsvExporter(Key)
-            { Mode = FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseCatergoriesHeaderRow };
-        var fileName = exporter.Export(bugCounts, $"{Key}-Categories");
+        this.exporter.Mode = FileNameMode.ExactName;
+        this.exporter.OverrideSerialiseRecord = SerialiseToCsv;
+        this.exporter.OverrideSerialiseHeader = SerialiseCatergoriesHeaderRow;
+        var fileName = this.exporter.Export(bugCounts, $"{Key}-Categories");
 
-        var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
-        await googleSheetUpdater.EditSheet("'ProductCategories'!A1");
+        this.sheetUpdater.CsvFilePathAndName = fileName;
+        await this.sheetUpdater.EditSheet("'ProductCategories'!A1");
     }
 
     private async Task ExportBugStatsCodeAreas(List<JiraIssue> jiras)
@@ -142,11 +148,13 @@ public class ExportBugStatsTask : IJiraExportTask
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        var exporter = new SimpleCsvExporter(Key) { Mode = FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv, OverrideSerialiseHeader = SerialiseCodeAreasHeaderRow };
-        var fileName = exporter.Export(bugCounts, $"{Key}-Areas");
+        this.exporter.Mode = FileNameMode.ExactName;
+        this.exporter.OverrideSerialiseRecord = SerialiseToCsv;
+        this.exporter.OverrideSerialiseHeader = SerialiseCodeAreasHeaderRow;
+        var fileName = this.exporter.Export(bugCounts, $"{Key}-Areas");
 
-        var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
-        await googleSheetUpdater.EditSheet("'CodeAreas'!A1");
+        this.sheetUpdater.CsvFilePathAndName = fileName;
+        await this.sheetUpdater.EditSheet("'CodeAreas'!A1");
     }
 
     private async Task ExportBugStatsEnvestSeverities(List<JiraIssue> jiras, List<BarChartData> severityTotals)
@@ -161,16 +169,13 @@ public class ExportBugStatsTask : IJiraExportTask
             chartData.Add(row);
         }
 
-        var exporter = new SimpleCsvExporter(Key)
-        {
-            Mode = FileNameMode.ExactName,
-            OverrideSerialiseHeader = () => "Month,Totals,,,Envest Only\n,P1,P2,Other,EP1,EP2,EOther",
-            OverrideSerialiseRecord = SerialiseToCsv
-        };
-        var fileName = exporter.Export(chartData, $"{Key}-SeveritiesEnvest");
+        this.exporter.Mode = FileNameMode.ExactName;
+        this.exporter.OverrideSerialiseHeader = () => "Month,Totals,,,Envest Only\n,P1,P2,Other,EP1,EP2,EOther";
+        this.exporter.OverrideSerialiseRecord = SerialiseToCsv;
 
-        var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
-        await googleSheetUpdater.EditSheet("'Envest'!A1");
+        var fileName = this.exporter.Export(chartData, $"{Key}-SeveritiesEnvest");
+        this.sheetUpdater.CsvFilePathAndName = fileName;
+        await this.sheetUpdater.EditSheet("'Envest'!A1");
     }
 
     private async Task ExportBugStatsRecentDevelopment(List<JiraIssue> jiras)
@@ -191,11 +196,12 @@ public class ExportBugStatsTask : IJiraExportTask
             currentMonth = currentMonth.AddMonths(1);
         } while (currentMonth < DateTime.Today);
 
-        var exporter = new SimpleCsvExporter(Key) { Mode = FileNameMode.ExactName, OverrideSerialiseRecord = SerialiseToCsv };
-        var fileName = exporter.Export(bugCounts, $"{Key}-RecentDev");
-
-        var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
-        await googleSheetUpdater.EditSheet("'RecentDev'!A1");
+        this.exporter.Mode = FileNameMode.ExactName;
+        this.exporter.OverrideSerialiseRecord = SerialiseToCsv;
+        this.exporter.OverrideSerialiseHeader = null;
+        var fileName = this.exporter.Export(bugCounts, $"{Key}-RecentDev");
+        this.sheetUpdater.CsvFilePathAndName = fileName;
+        await this.sheetUpdater.EditSheet("'RecentDev'!A1");
     }
 
     private async Task<List<BarChartData>> ExportBugStatsSeverities(List<JiraIssue> jiras, string? customerFilter = null)
@@ -219,14 +225,12 @@ public class ExportBugStatsTask : IJiraExportTask
         if (customerFilter is null)
         {
             // Only update the master Severities total sheet if we're running without a specific customer filter.
-            var exporter = new SimpleCsvExporter(Key)
-            {
-                Mode = FileNameMode.ExactName,
-                OverrideSerialiseRecord = SerialiseToCsv
-            };
-            var fileName = exporter.Export(bugCounts, $"{Key}-Severities");
-            var googleSheetUpdater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = fileName };
-            await googleSheetUpdater.EditSheet("'Severities'!A1");
+            this.exporter.Mode = FileNameMode.ExactName;
+            this.exporter.OverrideSerialiseRecord = SerialiseToCsv;
+            this.exporter.OverrideSerialiseHeader = null;
+            var fileName = this.exporter.Export(bugCounts, $"{Key}-Severities");
+            this.sheetUpdater.CsvFilePathAndName = fileName;
+            await this.sheetUpdater.EditSheet("'Severities'!A1");
         }
 
         return bugCounts;

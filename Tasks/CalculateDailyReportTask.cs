@@ -3,6 +3,7 @@
 public class CalculateDailyReportTask : IJiraExportTask
 {
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
+    private const string KeyString = "DAILY";
 
     private static readonly IFieldMapping[] Fields =
     [
@@ -15,9 +16,13 @@ public class CalculateDailyReportTask : IJiraExportTask
         JiraFields.FlagCount
     ];
 
-    private readonly GoogleSheetReader reader = new(GoogleSheetId);
+    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
 
-    public string Key => "DAILY";
+    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
+    private readonly IWorkSheetReader sheetReader = new GoogleSheetReader(GoogleSheetId);
+    private readonly IWorkSheetUpdater sheetUpdater = new GoogleSheetUpdater(GoogleSheetId);
+
+    public string Key => KeyString;
     public string Description => "Calculate the _daily_ stats for the daily report for the two teams involved.";
 
     public async Task ExecuteAsync(string[] args)
@@ -29,22 +34,20 @@ public class CalculateDailyReportTask : IJiraExportTask
             Console.Write("Enter the start date of the sprint (dd-MM-yyyy):");
         } while (!DateTime.TryParse(Console.ReadLine(), out sprintStart));
 
-        var runner = new JiraQueryDynamicRunner();
-
         // Superclass team
         var jql = """Project = JAVPM AND "Team[Team]" = 1a05d236-1562-4e58-ae88-1ffc6c5edb32 AND Sprint IN openSprints()""";
-        await CalculateTeamStats(runner, jql, "Superclass", sprintStart);
+        await CalculateTeamStats(jql, "Superclass", sprintStart);
 
         // Ruby Ducks team
         jql = """Project = JAVPM AND "Team[Team]" = 60412efa-7e2e-4285-bb4e-f329c3b6d417 AND Sprint IN openSprints()""";
-        await CalculateTeamStats(runner, jql, "Ruby Ducks", sprintStart);
+        await CalculateTeamStats(jql, "Ruby Ducks", sprintStart);
     }
 
-    private async Task CalculateTeamStats(JiraQueryDynamicRunner runner, string jql, string teamName, DateTime sprintStart)
+    private async Task CalculateTeamStats(string jql, string teamName, DateTime sprintStart)
     {
         Console.WriteLine($"Calculating team stats for {teamName}");
         Console.WriteLine(jql);
-        var tickets = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
+        var tickets = (await this.runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         var totalTickets = tickets.Count();
         var totalStoryPoints = tickets.Sum(t => t.StoryPoints);
         var remainingTickets = tickets.Count(t => t.Status != Constants.DoneStatus);
@@ -94,7 +97,7 @@ public class CalculateDailyReportTask : IJiraExportTask
 
     private async Task ProcessNormalSprintDay(string teamName, DateTime sprintStart, List<JiraIssue> tickets)
     {
-        var sheetData = await this.reader.ReadData($"'{teamName}'!A1:G1000");
+        var sheetData = await this.sheetReader.ReadData($"'{teamName}'!A1:G1000");
         var headerRow = sheetData.FirstOrDefault();
         if (headerRow is null || headerRow.Count < 7 || !DateTime.TryParse(headerRow[6].ToString(), out var sheetStart))
         {
@@ -145,16 +148,14 @@ public class CalculateDailyReportTask : IJiraExportTask
         // Save the list of tickets to Google Drive
         Console.WriteLine("Today is the start of the new sprint.  Recording the list of tickets to Google Drive...");
         var fileName = $"{Key}_{teamName}";
-        var exporter = new SimpleCsvExporter(Key)
-        {
-            Mode = FileNameMode.ExactName,
-            OverrideSerialiseHeader = () => $"Key,Status,StoryPoints,Team,Assignee,FlagCount,{sprintStart:yyyy-MM-dd}"
-        };
-        var pathAndFileName = exporter.Export(tickets, fileName);
-        var updater = new GoogleSheetUpdater(GoogleSheetId) { CsvFilePathAndName = pathAndFileName };
-        await updater.DeleteSheet($"{teamName}");
-        await updater.AddSheet($"{teamName}");
-        await updater.EditSheet($"'{teamName}'!A1");
+        this.exporter.Mode = FileNameMode.ExactName;
+        this.exporter.OverrideSerialiseHeader = () => $"Key,Status,StoryPoints,Team,Assignee,FlagCount,{sprintStart:yyyy-MM-dd}";
+
+        var pathAndFileName = this.exporter.Export(tickets, fileName);
+        this.sheetUpdater.CsvFilePathAndName = pathAndFileName;
+        await this.sheetUpdater.DeleteSheet($"{teamName}");
+        await this.sheetUpdater.AddSheet($"{teamName}");
+        await this.sheetUpdater.EditSheet($"'{teamName}'!A1");
         Console.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
     }
 

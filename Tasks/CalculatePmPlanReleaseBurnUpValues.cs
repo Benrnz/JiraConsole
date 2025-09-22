@@ -3,7 +3,10 @@
 // ReSharper disable once UnusedType.Global
 public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
 {
-    public string Key => "PMPLAN_RBURNUP";
+    private const string KeyString = "PMPLAN_RBURNUP";
+    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
+
+    public string Key => KeyString;
     public string Description => "Calculate Overall _PMPlan_Release_Burn_Up_";
 
     public async Task ExecuteAsync(string[] args)
@@ -12,8 +15,7 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
 
         var task = new ExportPmPlanStories();
         var javPms = (await task.RetrieveAllStoriesMappingToPmPlan()).ToList();
-        var exporter = new SimpleCsvExporter(Key);
-        exporter.Export(javPms);
+        this.exporter.Export(javPms);
 
         var totalWork = CalculateTotalWorkToBeDone(javPms, task.PmPlans);
         var workCompleted = CalculateCompletedWork(javPms);

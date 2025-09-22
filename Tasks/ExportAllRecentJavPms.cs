@@ -2,6 +2,8 @@
 
 public class ExportAllRecentJavPms : IJiraExportTask
 {
+    private const string KeyString = "ALLJAVPM";
+
     /// <summary> Fields to include in the export: </summary>
     private static readonly IFieldMapping[] Fields =
     [
@@ -26,7 +28,10 @@ public class ExportAllRecentJavPms : IJiraExportTask
         JiraFields.Team
     ];
 
-    public string Key => "ALLJAVPM";
+    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
+    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
+
+    public string Key => KeyString;
     public string Description => "Export _all_JAVPM_ tickets from the last 18 months.";
 
     public async Task ExecuteAsync(string[] args)
@@ -34,11 +39,9 @@ public class ExportAllRecentJavPms : IJiraExportTask
         Console.WriteLine(Description);
         var jql = "project=JAVPM AND created > -540d ORDER BY created"; //540 days = 18 months
         Console.WriteLine(jql);
-        var runner = new JiraQueryDynamicRunner();
-        var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
+        var issues = await this.runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
         Console.WriteLine($"{issues.Count} issues fetched.");
 
-        var exporter = new SimpleCsvExporter(Key);
-        exporter.Export(issues);
+        this.exporter.Export(issues);
     }
 }

@@ -40,21 +40,32 @@ public class InitiativeBurnUpsTask : IJiraExportTask
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine(Description);
-
         var task = new InitiativeProgressTableTask();
         await task.LoadData();
+        await ExecuteAsync(task, args);
+    }
 
-        var initiativeKeys = task.AllIssuesData.Keys;
+    public async Task ExecuteAsync(InitiativeProgressTableTask mainTask, string[] args)
+    {
+        Console.WriteLine(Description);
+
+        var initiativeKeys = mainTask.AllIssuesData.Keys;
         foreach (var initiative in initiativeKeys)
         {
-            var issues = task.AllIssuesData[initiative];
+            var issues = mainTask.AllIssuesData[initiative];
             var chart = ParseChartData(issues
                 .OrderBy(i => i.PmPlan)
                 .ThenBy(i => i.ResolvedDateTime)
                 .ThenBy(i => i.CreatedDateTime));
             var fileName = this.exporter.Export(chart, initiative);
             this.sheetUpdater.CsvFilePathAndName = fileName;
+
+            // Update Header
+            var initiativeRecord = mainTask.AllInitiativesData.Single(i => i.InitiativeKey == initiative);
+            await this.sheetUpdater.EditSheet($"'{initiative}'!A1", new List<IList<object?>>([[$"{initiativeRecord.InitiativeKey} {initiativeRecord.Description}"]]));
+            Thread.Sleep(3000); // Getting around Google quota limit per minute
+
+            // Update data table
             await this.sheetUpdater.EditSheet($"'{initiative}'!A3", true);
             await this.sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
         }
@@ -94,7 +105,7 @@ public class InitiativeBurnUpsTask : IJiraExportTask
         }
 
         // Add four more periods to leave some forecasting space on the right of the chart.
-        var maxDate = chartData.Max(c => c.Date);
+        var maxDate = chartData.Any() ? chartData.Max(c => c.Date) : DateTime.Today;
         for (var i = 0; i < 4; i++)
         {
             maxDate = maxDate.AddDays(dataPointPeriod);
