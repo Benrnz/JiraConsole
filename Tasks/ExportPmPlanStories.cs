@@ -30,6 +30,8 @@ public class ExportPmPlanStories(IJiraQueryRunner runner, ICsvExporter exporter)
         JiraFields.IsReqdForGoLive
     ];
 
+    private IReadOnlyList<JiraIssueWithPmPlan> cachedIssues = [];
+
     public IEnumerable<dynamic> PmPlans { get; private set; } = [];
 
     public string Key => KeyString;
@@ -46,7 +48,11 @@ public class ExportPmPlanStories(IJiraQueryRunner runner, ICsvExporter exporter)
 
     public async Task<IReadOnlyList<JiraIssueWithPmPlan>> RetrieveAllStoriesMappingToPmPlan(string? additionalCriteria = null)
     {
-        // Cache this output
+        if (this.cachedIssues.Any())
+        {
+            return this.cachedIssues;
+        }
+
         additionalCriteria ??= string.Empty;
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
         Console.WriteLine(jqlPmPlans);
@@ -66,7 +72,7 @@ public class ExportPmPlanStories(IJiraQueryRunner runner, ICsvExporter exporter)
             }
         }
 
-        return allIssues.Values.ToList();
+        return this.cachedIssues = allIssues.Values.ToList();
     }
 
     private JiraIssueWithPmPlan CreateJiraIssueWithPmPlan(dynamic i, dynamic pmPlan)

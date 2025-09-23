@@ -31,6 +31,8 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
 
     public IDictionary<string, IReadOnlyList<JiraIssue>> AllIssuesData { get; private set; } = new Dictionary<string, IReadOnlyList<JiraIssue>>();
 
+    public Guid Id => Guid.NewGuid();
+
     public string Description => "Export and update Initiative level PMPLAN data for drawing feature-set release _burn-up_charts_";
 
     public string Key => TaskKey;
@@ -41,7 +43,6 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
 
         await LoadData();
         await sheetUpdater.Open(GoogleSheetId);
-        await sheetReader.Open(GoogleSheetId);
 
         // Update the Summary Tab
         var summaryReportArray = BuildSummaryReportArray(AllInitiativesData);
@@ -56,7 +57,13 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
 
     public async Task LoadData()
     {
-        // Cache this output
+        if (AllInitiativesData.Any())
+        {
+            // Data already loaded
+            return;
+        }
+
+        await sheetReader.Open(GoogleSheetId);
         var initiativeKeys = await GetInitiativesForReport();
         if (!initiativeKeys.Any())
         {

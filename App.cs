@@ -1,7 +1,4 @@
-﻿using System.Reflection;
-using System.Text;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+﻿using System.Text;
 
 namespace BensJiraConsole;
 

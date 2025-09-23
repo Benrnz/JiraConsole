@@ -22,8 +22,8 @@ public static class Program
             // Find and Register all tasks
             foreach (var taskType in TaskTypes())
             {
-                services.AddSingleton(typeof(IJiraExportTask), taskType);
                 services.AddSingleton(taskType);
+                services.AddSingleton<IJiraExportTask>(sp => (IJiraExportTask)sp.GetRequiredService(taskType));
             }
         });
 
