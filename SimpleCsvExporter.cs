@@ -4,47 +4,50 @@ using System.Text;
 
 namespace BensJiraConsole;
 
-public class SimpleCsvExporter(string taskKey) : ICsvExporter
+public class SimpleCsvExporter : ICsvExporter
 {
     private const string DefaultFolder = "C:\\Downloads\\JiraExports";
 
-    private readonly string taskKey = taskKey ?? throw new ArgumentNullException(nameof(taskKey));
+    private string? nameHint;
 
-    public FileNameMode Mode { get; set; } = FileNameMode.Auto;
+    private FileNameMode fileNameMode = FileNameMode.Auto;
 
-    public string Export(IEnumerable<object> issues, string? fileNameHint = null)
+    public void SetFileNameMode(FileNameMode mode, string fileNameHint)
     {
-        if (!issues.Any())
+        this.fileNameMode = mode;
+        this.nameHint = fileNameHint;
+    }
+
+    public string Export(IEnumerable<object> issues, Func<string>? overrideSerialiseHeader = null, Func<object, string>? overrideSerialiseRecord = null)
+    {
+        var data = issues.ToList();
+        if (!data.Any())
         {
             Console.WriteLine("No data to export.");
             return string.Empty;
         }
 
         string fileName;
-        switch (Mode)
+        switch (this.fileNameMode)
         {
             case FileNameMode.ExactName:
-                fileName = fileNameHint ?? throw new ArgumentNullException(nameof(fileNameHint));
+                fileName = this.nameHint ?? throw new ArgumentNullException(nameof(this.nameHint));
                 break;
             case FileNameMode.Hint:
-                fileName = $"{fileNameHint ?? "BensJiraConsole"}-{DateTime.Now:yyyyMMddHHmmss}";
+                fileName = $"{this.nameHint ?? "BensJiraConsole"}-{DateTime.Now:yyyyMMddHHmmss}";
                 break;
             default:
-                fileName = $"{this.taskKey}-{DateTime.Now:yyyyMMddHHmmss}";
+                fileName = $"{this.nameHint}-{DateTime.Now:yyyyMMddHHmmss}";
                 break;
         }
 
         var pathAndFileName = $"{DefaultFolder}\\{fileName}.csv";
-        WriteCsv(pathAndFileName, issues);
+        WriteCsv(pathAndFileName, data, overrideSerialiseHeader, overrideSerialiseRecord);
         Console.WriteLine(Path.GetFullPath(pathAndFileName));
         return pathAndFileName;
     }
 
-    public Func<object, string>? OverrideSerialiseRecord { get; set; } = null;
-
-    public Func<string>? OverrideSerialiseHeader { get; set; } = null;
-
-    private HashSet<string> GetAllPropertyNames(IEnumerable<object> issues, out bool isDynamic)
+    private HashSet<string> GetAllPropertyNames(IList<object> issues, out bool isDynamic)
     {
         var first = issues.First();
         if (first is ExpandoObject)
@@ -158,7 +161,7 @@ public class SimpleCsvExporter(string taskKey) : ICsvExporter
         return sb.ToString().TrimEnd(',');
     }
 
-    private string SanitiseString(string rawString)
+    private string SanitiseString(string? rawString)
     {
         if (rawString is null)
         {
@@ -168,7 +171,7 @@ public class SimpleCsvExporter(string taskKey) : ICsvExporter
         return rawString.Replace('"', '\'').Replace(',', ';');
     }
 
-    private void WriteCsv(string path, IEnumerable<object> issues)
+    private void WriteCsv(string path, IList<object> issues, Func<string>? overrideSerialiseHeader, Func<object, string>? overrideSerialiseRecord)
     {
         if (!Path.Exists(path))
         {
@@ -180,25 +183,25 @@ public class SimpleCsvExporter(string taskKey) : ICsvExporter
         var propertyNames = GetAllPropertyNames(issues, out var isDynamic);
 
         // Write Header names
-        if (OverrideSerialiseHeader == null)
+        if (overrideSerialiseHeader == null)
         {
             writer.WriteLine(string.Join(',', propertyNames));
         }
         else
         {
-            writer.WriteLine(OverrideSerialiseHeader());
+            writer.WriteLine(overrideSerialiseHeader());
         }
 
         for (var i = 0; i < issues.Count(); i++)
         {
             string record;
-            if (OverrideSerialiseRecord == null)
+            if (overrideSerialiseRecord == null)
             {
                 record = isDynamic ? ReadAllValuesDynamic(issues.ElementAt(i), propertyNames) : ReadAllValues(issues.ElementAt(i), propertyNames);
             }
             else
             {
-                record = OverrideSerialiseRecord(issues.ElementAt(i));
+                record = overrideSerialiseRecord(issues.ElementAt(i));
             }
 
             writer.WriteLine(record);

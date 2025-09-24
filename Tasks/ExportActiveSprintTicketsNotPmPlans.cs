@@ -1,7 +1,7 @@
 ﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
+public class ExportActiveSprintTicketsNotPmPlans(IJiraQueryRunner runner, ICsvExporter exporter) : IJiraExportTask
 {
     private const string KeyString = "SPRINT";
 
@@ -25,9 +25,6 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
         JiraFields.IsReqdForGoLive
     ];
 
-    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
-    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
-
     public string Key => KeyString;
     public string Description => "Export Any _Sprint_ ticket that does not map up to a PMPLAN (Superclass and Ruby Ducks only)";
 
@@ -39,18 +36,18 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
         var childrenJql = "project=JAVPM AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
 
-        var pmPlans = await this.runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
+        var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
 
         var allIssues = new List<dynamic>();
         foreach (var pmPlan in pmPlans)
         {
-            var children = await this.runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
+            var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
             Console.WriteLine($"Fetched {children.Count} stories for {pmPlan.key}");
             allIssues.AddRange(children);
         }
 
         jqlPmPlans = "project = \"JAVPM\" AND sprint IN openSprints() AND \"Team[Team]\" IN (1a05d236-1562-4e58-ae88-1ffc6c5edb32, 60412efa-7e2e-4285-bb4e-f329c3b6d417) ORDER BY key";
-        var sprintWork = await this.runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);
+        var sprintWork = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);
         var nonEnvestWork = new List<dynamic>();
         foreach (var sprintTicket in sprintWork)
         {
@@ -64,6 +61,7 @@ public class ExportActiveSprintTicketsNotPmPlans : IJiraExportTask
 
         Console.WriteLine($"{nonEnvestWork.Count} tickets found in open sprints that are not Envest work.");
 
-        this.exporter.Export(nonEnvestWork);
+        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        exporter.Export(nonEnvestWork);
     }
 }

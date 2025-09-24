@@ -8,7 +8,7 @@ using File = System.IO.File;
 
 namespace BensJiraConsole;
 
-public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
+public class GoogleSheetUpdater : IWorkSheetUpdater
 {
     private const string ClientSecretsFile = "client_secret_apps.googleusercontent.com.json";
 
@@ -16,11 +16,22 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
     private static readonly string[] Scopes = [SheetsService.Scope.Spreadsheets];
     private static readonly Regex CsvParser = new(@",(?=(?:[^""]*""[^""]*"")*(?![^""]*""))");
 
-    private readonly string googleSheetId = googleSheetId ?? throw new ArgumentNullException(nameof(googleSheetId));
+    private string? googleSheetId;
 
     private UserCredential? credential;
 
     private SheetsService? service;
+
+    public async Task Open(string sheetId)
+    {
+        this.googleSheetId = sheetId;
+        if (!await Authenticate())
+        {
+            return;
+        }
+
+        this.service = CreateSheetsService();
+    }
 
     public string? CsvFilePathAndName { get; set; }
 
@@ -28,12 +39,7 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
 
     public async Task AddSheet(string sheetName)
     {
-        if (!await Authenticate())
-        {
-            return;
-        }
-
-        this.service = CreateSheetsService();
+        ArgumentNullException.ThrowIfNull(this.service);
 
         try
         {
@@ -64,12 +70,7 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
 
     public async Task DeleteSheet(string sheetName)
     {
-        if (!await Authenticate())
-        {
-            return;
-        }
-
-        this.service = CreateSheetsService();
+        ArgumentNullException.ThrowIfNull(this.service);
 
         try
         {
@@ -106,6 +107,8 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
 
     public async Task EditSheet(string sheetAndRange, bool userMode = false)
     {
+        ArgumentNullException.ThrowIfNull(this.service);
+
         if (CsvFilePathAndName is null)
         {
             throw new ArgumentException("CsvFilePathAndName has not been supplied to source data from.");
@@ -140,14 +143,6 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
             Console.WriteLine($"An error occurred while reading the CSV file: {ex.Message}");
             return;
         }
-
-        if (!await Authenticate())
-        {
-            return;
-        }
-
-        // Create the Google Sheets service client.
-        this.service = CreateSheetsService();
 
         await EditSheet(sheetAndRange, values, userMode);
     }
@@ -190,13 +185,7 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
 
     public async Task ClearSheet(string sheetName, string range = "A1:Z10000")
     {
-        if (!await Authenticate())
-        {
-            return;
-        }
-
-        // Create the Google Sheets service client.
-        this.service = CreateSheetsService();
+        ArgumentNullException.ThrowIfNull(this.service);
 
         var sheetAndrange = $"'{sheetName}'!{range}"; // Adjust range as needed
         var requestBody = new ClearValuesRequest();
@@ -207,12 +196,7 @@ public class GoogleSheetUpdater(string googleSheetId) : IWorkSheetUpdater
 
     public async Task ApplyDateFormat(string sheetName, int column, string format)
     {
-        if (!await Authenticate())
-        {
-            return;
-        }
-
-        this.service = CreateSheetsService();
+        ArgumentNullException.ThrowIfNull(this.service);
 
         try
         {

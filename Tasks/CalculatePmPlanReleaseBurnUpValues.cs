@@ -1,10 +1,9 @@
 ﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
+public class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, ExportPmPlanStories pmPlanStoriesTask) : IJiraExportTask
 {
     private const string KeyString = "PMPLAN_RBURNUP";
-    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
 
     public string Key => KeyString;
     public string Description => "Calculate Overall _PMPlan_Release_Burn_Up_";
@@ -13,16 +12,16 @@ public class CalculatePmPlanReleaseBurnUpValues : IJiraExportTask
     {
         Console.WriteLine(Description);
 
-        var task = new ExportPmPlanStories();
-        var javPms = (await task.RetrieveAllStoriesMappingToPmPlan()).ToList();
-        this.exporter.Export(javPms);
+        var javPms = (await pmPlanStoriesTask.RetrieveAllStoriesMappingToPmPlan()).ToList();
+        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        exporter.Export(javPms);
 
-        var totalWork = CalculateTotalWorkToBeDone(javPms, task.PmPlans);
+        var totalWork = CalculateTotalWorkToBeDone(javPms, pmPlanStoriesTask.PmPlans);
         var workCompleted = CalculateCompletedWork(javPms);
-        var highLevelEstimates = task.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus != Constants.HasDevTeamEstimate && p.PmPlanHighLevelEstimate > 0);
-        var noEstimates = task.PmPlans.Count(p =>
+        var highLevelEstimates = pmPlanStoriesTask.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus != Constants.HasDevTeamEstimate && p.PmPlanHighLevelEstimate > 0);
+        var noEstimates = pmPlanStoriesTask.PmPlans.Count(p =>
             p.IsReqdForGoLive > 0.01 && p.EstimationStatus != Constants.HasDevTeamEstimate && (p.PmPlanHighLevelEstimate is null || p.PmPlanHighLevelEstimate == 0));
-        var specedAndEstimated = task.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus == Constants.HasDevTeamEstimate);
+        var specedAndEstimated = pmPlanStoriesTask.PmPlans.Count(p => p.IsReqdForGoLive > 0.01 && p.EstimationStatus == Constants.HasDevTeamEstimate);
         var storiesWithNoEstimate = javPms.Count(i => i.IsReqdForGoLive && i.Status != Constants.DoneStatus && i.StoryPoints == 0);
         var avgVelocity = javPms.Where(i => i.Status == Constants.DoneStatus && i.CreatedDateTime >= DateTimeOffset.Now.AddDays(-42))
                               .Sum(i => i.StoryPoints)

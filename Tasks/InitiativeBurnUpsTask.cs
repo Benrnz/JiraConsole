@@ -1,38 +1,9 @@
 ﻿namespace BensJiraConsole.Tasks;
 
-public class InitiativeBurnUpsTask : IJiraExportTask
+public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, InitiativeProgressTableTask tableTask) : IJiraExportTask
 {
     private const string GoogleSheetId = "1OVUx08nBaD8uH-klNAzAtxFSKTOvAAk5Vnm11ALN0Zo";
     private const string TaskKey = "INIT_BURNUPS";
-    private const string ProductInitiativePrefix = "PMPLAN-";
-
-    private static readonly IFieldMapping[] IssueFields =
-    [
-        JiraFields.Summary,
-        JiraFields.Status,
-        JiraFields.ParentKey,
-        JiraFields.StoryPoints,
-        JiraFields.OriginalEstimate,
-        JiraFields.Created,
-        JiraFields.Resolved
-    ];
-
-    private static readonly IFieldMapping[] PmPlanFields =
-    [
-        JiraFields.Summary,
-        JiraFields.Status,
-        JiraFields.IssueType,
-        JiraFields.PmPlanHighLevelEstimate,
-        JiraFields.EstimationStatus
-    ];
-
-    private readonly ICsvExporter exporter = new SimpleCsvExporter(TaskKey) { Mode = FileNameMode.ExactName };
-
-    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
-
-    private readonly IWorkSheetReader sheetReader = new GoogleSheetReader(GoogleSheetId);
-
-    private readonly IWorkSheetUpdater sheetUpdater = new GoogleSheetUpdater(GoogleSheetId);
 
     public string Description => "Export and update Initiative level PMPLAN data for drawing feature-set release _burn-up_charts_";
 
@@ -40,15 +11,15 @@ public class InitiativeBurnUpsTask : IJiraExportTask
 
     public async Task ExecuteAsync(string[] args)
     {
-        var task = new InitiativeProgressTableTask();
-        await task.LoadData();
-        await ExecuteAsync(task, args);
+        await tableTask.LoadData();
+        await ExecuteAsync(tableTask, args);
     }
 
     public async Task ExecuteAsync(InitiativeProgressTableTask mainTask, string[] args)
     {
         Console.WriteLine(Description);
 
+        await sheetUpdater.Open(GoogleSheetId);
         var initiativeKeys = mainTask.AllIssuesData.Keys;
         foreach (var initiative in initiativeKeys)
         {
@@ -57,17 +28,18 @@ public class InitiativeBurnUpsTask : IJiraExportTask
                 .OrderBy(i => i.PmPlan)
                 .ThenBy(i => i.ResolvedDateTime)
                 .ThenBy(i => i.CreatedDateTime));
-            var fileName = this.exporter.Export(chart, initiative);
-            this.sheetUpdater.CsvFilePathAndName = fileName;
+            exporter.SetFileNameMode(FileNameMode.ExactName, initiative);
+            var fileName = exporter.Export(chart);
+            sheetUpdater.CsvFilePathAndName = fileName;
 
             // Update Header
             var initiativeRecord = mainTask.AllInitiativesData.Single(i => i.InitiativeKey == initiative);
-            await this.sheetUpdater.EditSheet($"'{initiative}'!A1", new List<IList<object?>>([[$"{initiativeRecord.InitiativeKey} {initiativeRecord.Description}"]]));
+            await sheetUpdater.EditSheet($"'{initiative}'!A1", new List<IList<object?>>([[$"{initiativeRecord.InitiativeKey} {initiativeRecord.Description}"]]));
             Thread.Sleep(3000); // Getting around Google quota limit per minute
 
             // Update data table
-            await this.sheetUpdater.EditSheet($"'{initiative}'!A3", true);
-            await this.sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
+            await sheetUpdater.EditSheet($"'{initiative}'!A3", true);
+            await sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
         }
     }
 

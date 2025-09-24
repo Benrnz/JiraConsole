@@ -1,6 +1,6 @@
 ﻿namespace BensJiraConsole.Tasks;
 
-public class ExportAllRecentJavPms : IJiraExportTask
+public class ExportAllRecentJavPms(IJiraQueryRunner runner, ICsvExporter exporter) : IJiraExportTask
 {
     private const string KeyString = "ALLJAVPM";
 
@@ -28,9 +28,6 @@ public class ExportAllRecentJavPms : IJiraExportTask
         JiraFields.Team
     ];
 
-    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
-    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
-
     public string Key => KeyString;
     public string Description => "Export _all_JAVPM_ tickets from the last 18 months.";
 
@@ -39,9 +36,10 @@ public class ExportAllRecentJavPms : IJiraExportTask
         Console.WriteLine(Description);
         var jql = "project=JAVPM AND created > -540d ORDER BY created"; //540 days = 18 months
         Console.WriteLine(jql);
-        var issues = await this.runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
+        var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
         Console.WriteLine($"{issues.Count} issues fetched.");
 
-        this.exporter.Export(issues);
+        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        exporter.Export(issues);
     }
 }

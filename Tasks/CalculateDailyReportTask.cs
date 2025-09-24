@@ -1,6 +1,6 @@
 ﻿namespace BensJiraConsole.Tasks;
 
-public class CalculateDailyReportTask : IJiraExportTask
+public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
 {
     private const string GoogleSheetId = "1PCZ6APxgEF4WDJaMqLvXDztM47VILEy2RdGDgYiXguQ";
     private const string KeyString = "DAILY";
@@ -16,17 +16,13 @@ public class CalculateDailyReportTask : IJiraExportTask
         JiraFields.FlagCount
     ];
 
-    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
-    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
-    private readonly IWorkSheetReader sheetReader = new GoogleSheetReader(GoogleSheetId);
-    private readonly IWorkSheetUpdater sheetUpdater = new GoogleSheetUpdater(GoogleSheetId);
-
     public string Key => KeyString;
     public string Description => "Calculate the _daily_ stats for the daily report for the two teams involved.";
 
     public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
+        await sheetReader.Open(GoogleSheetId);
         DateTime sprintStart;
         do
         {
@@ -46,7 +42,7 @@ public class CalculateDailyReportTask : IJiraExportTask
     {
         Console.WriteLine($"Calculating team stats for {teamName}");
         Console.WriteLine(jql);
-        var tickets = (await this.runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
+        var tickets = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         var totalTickets = tickets.Count();
         var totalStoryPoints = tickets.Sum(t => t.StoryPoints);
         var remainingTickets = tickets.Count(t => t.Status != Constants.DoneStatus);
@@ -96,7 +92,7 @@ public class CalculateDailyReportTask : IJiraExportTask
 
     private async Task ProcessNormalSprintDay(string teamName, DateTime sprintStart, List<JiraIssue> tickets)
     {
-        var sheetData = await this.sheetReader.ReadData($"'{teamName}'!A1:G1000");
+        var sheetData = await sheetReader.ReadData($"'{teamName}'!A1:G1000");
         var headerRow = sheetData.FirstOrDefault();
         if (headerRow is null || headerRow.Count < 7 || !DateTime.TryParse(headerRow[6].ToString(), out var sheetStart))
         {
@@ -147,14 +143,13 @@ public class CalculateDailyReportTask : IJiraExportTask
         // Save the list of tickets to Google Drive
         Console.WriteLine("Today is the start of the new sprint.  Recording the list of tickets to Google Drive...");
         var fileName = $"{Key}_{teamName}";
-        this.exporter.Mode = FileNameMode.ExactName;
-        this.exporter.OverrideSerialiseHeader = () => $"Key,Status,StoryPoints,Team,Assignee,FlagCount,{sprintStart:yyyy-MM-dd}";
-
-        var pathAndFileName = this.exporter.Export(tickets, fileName);
-        this.sheetUpdater.CsvFilePathAndName = pathAndFileName;
-        await this.sheetUpdater.DeleteSheet($"{teamName}");
-        await this.sheetUpdater.AddSheet($"{teamName}");
-        await this.sheetUpdater.EditSheet($"'{teamName}'!A1");
+        exporter.SetFileNameMode(FileNameMode.ExactName, fileName);
+        var pathAndFileName = exporter.Export(tickets, () => $"Key,Status,StoryPoints,Team,Assignee,FlagCount,{sprintStart:yyyy-MM-dd}");
+        sheetUpdater.CsvFilePathAndName = pathAndFileName;
+        await sheetUpdater.Open(GoogleSheetId);
+        await sheetUpdater.DeleteSheet($"{teamName}");
+        await sheetUpdater.AddSheet($"{teamName}");
+        await sheetUpdater.EditSheet($"'{teamName}'!A1");
         Console.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
     }
 

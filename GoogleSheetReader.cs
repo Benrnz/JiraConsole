@@ -5,11 +5,11 @@ using Google.Apis.Util.Store;
 
 namespace BensJiraConsole;
 
-public class GoogleSheetReader(string googleSheetId) : IWorkSheetReader
+public class GoogleSheetReader : IWorkSheetReader
 {
     private const string ClientSecretsFile = "client_secret_apps.googleusercontent.com.json";
     private static readonly string[] Scopes = [SheetsService.Scope.Spreadsheets];
-    private readonly string googleSheetId = googleSheetId ?? throw new ArgumentNullException(nameof(googleSheetId));
+    private string? googleSheetId;
 
     private UserCredential? credential;
 
@@ -17,12 +17,7 @@ public class GoogleSheetReader(string googleSheetId) : IWorkSheetReader
 
     public async Task<List<List<object>>> ReadData(string sheetAndRange)
     {
-        if (!await Authenticate())
-        {
-            return new List<List<object>>();
-        }
-
-        this.service = CreateSheetsService();
+        ArgumentNullException.ThrowIfNull(this.service);
 
         try
         {
@@ -41,14 +36,20 @@ public class GoogleSheetReader(string googleSheetId) : IWorkSheetReader
         }
     }
 
-    public async Task<IEnumerable<string>> GetSheetNames()
+    public async Task Open(string sheetId)
     {
+        this.googleSheetId = sheetId ?? throw new ArgumentNullException(nameof(sheetId));
         if (!await Authenticate())
         {
-            return new List<string>();
+            throw new ApplicationException("Authentication failed.");
         }
 
         this.service = CreateSheetsService();
+    }
+
+    public async Task<IEnumerable<string>> GetSheetNames()
+    {
+        ArgumentNullException.ThrowIfNull(this.service);
 
         // Create the request to get spreadsheet metadata.
         var request = this.service.Spreadsheets.Get(this.googleSheetId);

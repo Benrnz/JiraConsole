@@ -1,7 +1,7 @@
 ﻿namespace BensJiraConsole.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportProjectPmPlans : IJiraExportTask
+public class ExportProjectPmPlans(IJiraQueryRunner runner, ICsvExporter exporter) : IJiraExportTask
 {
     private const string KeyString = "PMPLANS";
 
@@ -15,9 +15,6 @@ public class ExportProjectPmPlans : IJiraExportTask
         JiraFields.IsReqdForGoLive
     ];
 
-    private readonly ICsvExporter exporter = new SimpleCsvExporter(KeyString);
-    private readonly IJiraQueryRunner runner = new JiraQueryDynamicRunner();
-
     public string Key => KeyString;
     public string Description => "Export _PMPlans_ for Envest";
 
@@ -26,8 +23,8 @@ public class ExportProjectPmPlans : IJiraExportTask
         Console.WriteLine(Description);
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
         Console.WriteLine(jqlPmPlans);
-        var pmPlans = await this.runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);
-        this.exporter.Mode = FileNameMode.ExactName;
-        this.exporter.Export(pmPlans, Key);
+        var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);
+        exporter.SetFileNameMode(FileNameMode.ExactName, Key);
+        exporter.Export(pmPlans);
     }
 }
