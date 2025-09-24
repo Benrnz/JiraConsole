@@ -203,7 +203,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
     {
         var list = await sheetReader.GetSheetNames();
         var initiatives = list.Where(x => x.StartsWith(ProductInitiativePrefix)).ToList();
-        Console.WriteLine("Updating burn-up charts for the following Product Iniiatives:");
+        Console.WriteLine("Updating burn-up charts for the following Product Initiatives:");
         foreach (var initiative in initiatives)
         {
             Console.WriteLine($"*   {initiative}");
