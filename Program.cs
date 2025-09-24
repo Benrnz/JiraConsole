@@ -30,9 +30,18 @@ public static class Program
         var host = builder.Build();
         var app = host.Services.GetRequiredService<App>();
 
-        Console.WriteLine("Jira Console Exporter tool.  Select a task to execute, or 'exit' to quit.");
+        if (!args.Any())
+        {
+            // If no arguments passed then its running in user-interactive mode.
+            Console.WriteLine("Jira Console Exporter tool.  Select a task to execute, or 'exit' to quit.");
+        }
+
         await app.Run(args);
-        Console.WriteLine("Exiting.");
+
+        if (!args.Any())
+        {
+            Console.WriteLine("Exiting.");
+        }
     }
 
     private static IEnumerable<Type> TaskTypes()
