@@ -51,8 +51,8 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         var ticketsInDev = tickets.Count(t => t.Status == Constants.InDevStatus);
         var ticketsFlagged = tickets.Sum(t => t.FlagCount);
         Console.WriteLine($"{teamName} Team Stats:");
-        Console.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
-        Console.WriteLine($"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
+        Console.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets-remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
+        Console.WriteLine($"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints-remainingStoryPoints} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
         Console.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
         Console.WriteLine($"     - Number of Flags raised: {ticketsFlagged}");
 
