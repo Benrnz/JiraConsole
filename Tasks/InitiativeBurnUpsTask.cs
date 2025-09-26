@@ -1,4 +1,6 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿using Google.Apis.Sheets.v4.Data;
+
+namespace BensJiraConsole.Tasks;
 
 public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, InitiativeProgressTableTask tableTask) : IJiraExportTask
 {
@@ -27,7 +29,8 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
             var chart = ParseChartData(issues
                 .OrderBy(i => i.PmPlan)
                 .ThenBy(i => i.ResolvedDateTime)
-                .ThenBy(i => i.CreatedDateTime));
+                .ThenBy(i => i.CreatedDateTime))
+                .ToList();
             exporter.SetFileNameMode(FileNameMode.ExactName, initiative);
             var fileName = exporter.Export(chart);
             sheetUpdater.CsvFilePathAndName = fileName;
@@ -35,11 +38,14 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
             // Update Header
             var initiativeRecord = mainTask.AllInitiativesData.Single(i => i.InitiativeKey == initiative);
             await sheetUpdater.EditSheet($"'{initiative}'!A1", new List<IList<object?>>([[$"{initiativeRecord.InitiativeKey} {initiativeRecord.Description}"]]));
-            Thread.Sleep(3000); // Getting around Google quota limit per minute
 
             // Update data table
-            await sheetUpdater.EditSheet($"'{initiative}'!A3", true);
-            await sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
+            if (chart.Any())
+            {
+                await Task.Delay(2000); // Getting around Google quota limit per minute
+                await sheetUpdater.EditSheet($"'{initiative}'!A3", true);
+                await sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
+            }
         }
     }
 
