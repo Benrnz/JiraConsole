@@ -129,6 +129,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
 
     private JiraIssue CreateJiraIssue(string initiative, dynamic issue)
     {
+        var status = JiraFields.Status.Parse(issue) ?? Constants.Unknown;
         var storyPoints = JiraFields.StoryPoints.Parse(issue);
         if (storyPoints is null)
         {
@@ -144,7 +145,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
             JiraFields.Key.Parse(issue)!,
             JiraFields.Created.Parse(issue),
             JiraFields.Resolved.Parse(issue),
-            JiraFields.Status.Parse(issue) ?? Constants.Unknown,
+            status,
             storyPoints ?? 0.0,
             initiative);
     }
