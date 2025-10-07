@@ -103,7 +103,9 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
 
         if (sheetStart != sprintStart)
         {
-            Console.WriteLine($"You have entered a start date for the sprint of {sprintStart:d} but this doesn't match the date in the sheet of {sheetStart:d}.  Please check and try again.");
+            Console.WriteLine($"You have entered a start date for the sprint of {sprintStart:d} but this doesn't match the date in the sheet of {sheetStart:d}.");
+            Console.WriteLine("Assuming start of sprint is the date provided...");
+            await ProcessStartOfSprint(teamName, sprintStart, tickets);
             return;
         }
 
