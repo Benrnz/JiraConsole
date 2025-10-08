@@ -22,16 +22,16 @@ public static class JiraFields
     public static readonly FieldMapping<string> Priority = new() { Field = "priority", Alias = "Priority", FlattenField = "name" };
 
     public static readonly FieldMapping<DateTimeOffset?> ProjectTarget = new FieldMappingWithParser<DateTimeOffset?>
-        { Field = "customfield_11975", Alias = "ProjectTarget", Parser = ParseProjectTarget };
+    { Field = "customfield_11975", Alias = "ProjectTarget", Parser = ParseProjectTarget };
 
     public static readonly FieldMapping<string> ReporterDisplay = new() { Field = "reporter", Alias = "Reporter", FlattenField = "displayName" };
     public static readonly FieldMapping<string> Resolution = new() { Field = "resolution", Alias = "Resolution", FlattenField = "name" };
     public static readonly FieldMapping<DateTimeOffset> Resolved = new() { Field = "resolutiondate", Alias = "Resolved" };
     public static readonly FieldMapping<string> Severity = new() { Field = "customfield_11899", Alias = "Severity", FlattenField = "value" };
-    public static readonly FieldMapping<string> Sprint = new() { Field = "customfield_10007", Alias = "Sprint", FlattenField = "name" };
+    public static readonly FieldMapping<string> Sprint = new FieldMappingWithParser<string> { Field = "customfield_10007", Alias = "Sprint", FlattenField = "name", Parser = ParseSprintName };
 
     public static readonly FieldMapping<DateTimeOffset> SprintStartDate = new FieldMappingWithParser<DateTimeOffset>
-        { Field = "customfield_10007", Alias = "SprintStartDate", FlattenField = "startDate", Parser = ParseSprintStartDate };
+    { Field = "customfield_10007", Alias = "SprintStartDate", FlattenField = "startDate", Parser = ParseSprintStartDate };
 
     public static readonly FieldMapping<string> Status = new() { Field = "status", Alias = "Status", FlattenField = "name" };
     public static readonly FieldMapping<double> StoryPoints = new() { Field = "customfield_10004", Alias = "StoryPoints" };
@@ -149,17 +149,61 @@ public static class JiraFields
             return DateTimeOffset.MaxValue;
         }
 
-        if (d.SprintStartDate is string sprintDates)
+        var lastSprint = LatestSprint(d);
+        if (lastSprint.Item1 is null)
         {
-            var sprintDate = sprintDates.Split(',').LastOrDefault() ?? string.Empty;
-            if (!DateTimeOffset.TryParse(sprintDate, out var sprintDateParsed))
-            {
-                sprintDateParsed = DateTimeOffset.MaxValue;
-            }
-
-            return sprintDateParsed;
+            return DateTimeOffset.MaxValue;
         }
 
-        throw new NotSupportedException($"SprintStartDate data type {d.SprintStartDate.GetType().Name} is not supported");
+        return lastSprint.Item1!;
+    }
+
+    private static string ParseSprintName(dynamic d)
+    {
+        if (d.Sprint is null)
+        {
+            return string.Empty;
+        }
+
+        var lastSprint = LatestSprint(d);
+        if (lastSprint.Item1 is null)
+        {
+            return lastSprint.Item2;
+        }
+
+        return lastSprint.Item2;
+    }
+
+    private static (DateTimeOffset?, string) LatestSprint(dynamic d)
+    {
+        string sprintNames = d.Sprint ?? string.Empty;
+        string sprintDates = d.SprintStartDate ?? string.Empty;
+
+        if (!sprintNames.Contains(',') || !sprintDates.Contains(','))
+        {
+            // Data does not contain multiple sprints.
+            return (null, sprintNames);
+        }
+
+        var sprintNameList = sprintNames.Split(',');
+        var sprintDateList = sprintDates.Split(',');
+        List<Tuple<DateTimeOffset?, string>> sprintDateAndName = new();
+        for (var i = 0; i < sprintNameList.Length; i++)
+        {
+            if (i < sprintDateList.Length)
+            {
+                if (DateTimeOffset.TryParse(sprintDateList[i], out var sprintDateParsed))
+                {
+                    sprintDateAndName.Add(new Tuple<DateTimeOffset?, string>(sprintDateParsed, sprintNameList[i]));
+                }
+            }
+            else
+            {
+                sprintDateAndName.Add(new Tuple<DateTimeOffset?, string>(DateTimeOffset.MaxValue, sprintNameList[i]));
+            }
+        }
+
+        var latestSprint = sprintDateAndName.OrderByDescending(t => t.Item1).First();
+        return (latestSprint.Item1, latestSprint.Item2);
     }
 }

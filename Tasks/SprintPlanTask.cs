@@ -63,13 +63,8 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
     private JiraIssue CreateJiraIssue(dynamic i)
     {
+        string key = JiraFields.Key.Parse(i);
         string sprintField = JiraFields.Sprint.Parse(i) ?? "No Sprint";
-        // Sprint could have multiple sprint names for example "Sprint 15,Sprint 16".  Choose the last one for this report.
-        if (sprintField.Contains(','))
-        {
-            sprintField = sprintField.Split(',').Last();
-        }
-
         var sprintDate = JiraFields.SprintStartDate.Parse(i);
         var teamField = JiraFields.Team.Parse(i) ?? "No Team";
         var storyPointsField = JiraFields.StoryPoints.Parse(i) ?? 0.0;
@@ -78,7 +73,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             teamField,
             sprintField,
             sprintDate,
-            JiraFields.Key.Parse(i),
+            key,
             JiraFields.Summary.Parse(i),
             storyPointsField,
             JiraFields.Status.Parse(i),

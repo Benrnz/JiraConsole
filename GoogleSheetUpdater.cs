@@ -175,7 +175,7 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
             var response = await updateRequest.ExecuteAsync();
 
             Console.WriteLine($"\nSuccessfully updated {response.UpdatedCells} cells in https://docs.google.com/spreadsheets/d/{this.googleSheetId}/");
-            Console.WriteLine("Import complete. Press any key to exit.");
+            Console.WriteLine("Import complete.");
         }
         catch (Exception ex)
         {

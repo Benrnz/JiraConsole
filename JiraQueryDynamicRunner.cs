@@ -134,7 +134,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
                 var elementString = element.GetString();
                 if (DateTimeOffset.TryParse(elementString, out var dto))
                 {
-                    return dto;
+                    return dto.ToLocalTime(); // Dates coming thru as UTC, convert to local time (is reversible and keeps timezone info)
                 }
 
                 return elementString!;
