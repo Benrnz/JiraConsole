@@ -12,4 +12,4 @@ BensJiraConsole.exe INIT_ALL
 BensJiraConsole.exe SPRINT_PLAN
 
 ECHO Finish time: %date% %time%
-pause
+
