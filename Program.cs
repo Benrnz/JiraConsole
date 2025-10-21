@@ -5,8 +5,6 @@ using Microsoft.Extensions.Hosting;
 
 public static class Program
 {
-    private static string[] CommandLineArgs = [];
-
     public static async Task Main(string[] args)
     {
         var builder = Host.CreateDefaultBuilder();
