@@ -1,6 +1,4 @@
-﻿using System.Management;
-
-namespace BensJiraConsole.Tasks;
+﻿namespace BensJiraConsole.Tasks;
 
 public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, ExportPmPlanStories pmPlanStoriesTask) : IJiraExportTask
 {
@@ -28,6 +26,34 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
+        var issues = await ExtractAllSprintsAndTickets();
+
+        await SprintPmPlan(issues);
+    }
+
+    private JiraIssue CreateJiraIssue(dynamic i)
+    {
+        string key = JiraFields.Key.Parse(i);
+        string sprintField = JiraFields.Sprint.Parse(i) ?? "No Sprint";
+        var sprintDate = JiraFields.SprintStartDate.Parse(i);
+        var teamField = JiraFields.Team.Parse(i) ?? "No Team";
+        var storyPointsField = JiraFields.StoryPoints.Parse(i) ?? 0.0;
+
+        var typedIssue = new JiraIssue(
+            teamField,
+            sprintField,
+            sprintDate,
+            key,
+            JiraFields.Summary.Parse(i),
+            storyPointsField,
+            JiraFields.Status.Parse(i),
+            JiraFields.IssueType.Parse(i),
+            JiraFields.ParentKey.Parse(i));
+        return typedIssue;
+    }
+
+    private async Task<List<JiraIssue>> ExtractAllSprintsAndTickets()
+    {
         var query = """project = "JAVPM" AND "Team[Team]" IN (60412efa-7e2e-4285-bb4e-f329c3b6d417, 1a05d236-1562-4e58-ae88-1ffc6c5edb32) AND (Sprint IN openSprints() OR Sprint IN futureSprints())""";
         Console.WriteLine(query);
         Console.WriteLine();
@@ -59,10 +85,9 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         // Export to Google Sheets.
         await sheetUpdater.Open(GoogleSheetId);
         sheetUpdater.CsvFilePathAndName = file;
-        await sheetUpdater.ClearSheet("Data");
+        await sheetUpdater.ClearRange("Data");
         await sheetUpdater.ImportFile("'Data'!A1");
-
-        await SprintPmPlan(issues);
+        return issues;
     }
 
     private async Task SprintPmPlan(List<JiraIssue> issues)
@@ -74,7 +99,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             .ThenBy(g => g.Key.Sprint)
             .Select(g => new
             {
-                Team = g.Key.Team,
+                g.Key.Team,
                 StartDate = g.Key.SprintStartDate,
                 SprintName = g.Key.Sprint,
                 PMPLAN = g.Key.PmPlan,
@@ -84,7 +109,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             })
             .ToList();
 
-        var sheetData = new List<IList<object?>> { new List<object?> { "Team", "Sprint Name", "Start Date", "PMPLAN", "Summary", "Tickets", "Story Points" } };
+        var sheetData = new List<IList<object?>>();
         var teamSprint = string.Empty;
         foreach (var row in groupBySprint.OrderBy(g => g.StartDate).ThenBy(g => g.Team).ThenBy(g => g.SprintName))
         {
@@ -98,7 +123,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                     null,
                     null,
                     groupBySprint.Where(g => g.StartDate == row.StartDate && g.SprintName == row.SprintName && g.Team == row.Team).Sum(g => g.Tickets),
-                    groupBySprint.Where(g => g.StartDate == row.StartDate && g.SprintName == row.SprintName && g.Team == row.Team).Sum(g => g.StoryPoints),
+                    groupBySprint.Where(g => g.StartDate == row.StartDate && g.SprintName == row.SprintName && g.Team == row.Team).Sum(g => g.StoryPoints)
                 };
                 sheetData.Add(rowData1);
             }
@@ -118,30 +143,9 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         }
 
         await sheetUpdater.Open(GoogleSheetId);
-        await sheetUpdater.ClearSheet("Sprints-PMPlans");
-        await sheetUpdater.EditSheet("Sprints-PMPlans!A1", sheetData);
+        await sheetUpdater.ClearRange("Sprints-PMPlans", "A2:Z10000");
+        await sheetUpdater.EditSheet("Sprints-PMPlans!A2", sheetData);
         //await sheetUpdater.ApplyDateFormat("Sprints-PMPlans", 2, "d mmm yy");
-    }
-
-    private JiraIssue CreateJiraIssue(dynamic i)
-    {
-        string key = JiraFields.Key.Parse(i);
-        string sprintField = JiraFields.Sprint.Parse(i) ?? "No Sprint";
-        var sprintDate = JiraFields.SprintStartDate.Parse(i);
-        var teamField = JiraFields.Team.Parse(i) ?? "No Team";
-        var storyPointsField = JiraFields.StoryPoints.Parse(i) ?? 0.0;
-
-        var typedIssue = new JiraIssue(
-            teamField,
-            sprintField,
-            sprintDate,
-            key,
-            JiraFields.Summary.Parse(i),
-            storyPointsField,
-            JiraFields.Status.Parse(i),
-            JiraFields.IssueType.Parse(i),
-            JiraFields.ParentKey.Parse(i));
-        return typedIssue;
     }
 
     private record JiraIssue(

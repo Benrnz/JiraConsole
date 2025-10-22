@@ -16,9 +16,9 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
     private static readonly string[] Scopes = [SheetsService.Scope.Spreadsheets];
     private static readonly Regex CsvParser = new(@",(?=(?:[^""]*""[^""]*"")*(?![^""]*""))");
 
-    private string? googleSheetId;
-
     private UserCredential? credential;
+
+    private string? googleSheetId;
 
     private SheetsService? service;
 
@@ -183,7 +183,7 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         }
     }
 
-    public async Task ClearSheet(string sheetName, string range = "A1:Z10000")
+    public async Task ClearRange(string sheetName, string range = "A1:Z10000")
     {
         ArgumentNullException.ThrowIfNull(this.service);
 
