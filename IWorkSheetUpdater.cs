@@ -22,7 +22,7 @@ public interface IWorkSheetUpdater
     /// </summary>
     /// <param name="sheetAndRange">'Sheet1!A1'</param>
     /// <param name="userMode">Defaults to false.  If true, data is entered and interpreted by the workbook as if entered by the user.</param>
-    Task EditSheet(string sheetAndRange, bool userMode = false);
+    Task ImportFile(string sheetAndRange, bool userMode = false);
 
     /// <summary>
     ///     Edit a sheet and insert data provided by <paramref name="sourceData" />.

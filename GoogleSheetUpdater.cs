@@ -105,7 +105,7 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         }
     }
 
-    public async Task EditSheet(string sheetAndRange, bool userMode = false)
+    public async Task ImportFile(string sheetAndRange, bool userMode = false)
     {
         ArgumentNullException.ThrowIfNull(this.service);
 
