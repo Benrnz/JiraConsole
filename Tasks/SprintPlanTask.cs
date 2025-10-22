@@ -51,7 +51,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             .ToList();
 
         // temp save to CSV
-        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        exporter.SetFileNameMode(FileNameMode.Auto, Key + "_FullData");
         var file = exporter.Export(issues);
 
         // Export to Google Sheets.
@@ -59,6 +59,30 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         sheetUpdater.CsvFilePathAndName = file;
         await sheetUpdater.ClearSheet("Data");
         await sheetUpdater.EditSheet("'Data'!A1");
+
+        var groupBySprint = issues
+            .GroupBy(i => (i.Team, i.SprintStartDate, i.Sprint, i.PmPlan, i.PmPlanSummary))
+            .OrderBy(g => g.Key.Team)
+            .ThenBy(g => g.Key.SprintStartDate)
+            .ThenBy(g => g.Key.Sprint)
+            .Select(g => new
+            {
+                Team = g.Key.Team,
+                StartDate = g.Key.SprintStartDate,
+                SprintName = g.Key.Sprint,
+                PMPLAN = g.Key.PmPlan,
+                Summary = g.Key.PmPlanSummary,
+                StoryPoints = g.Sum(x => x.StoryPoints),
+                Tickets = g.Count()
+            })
+            .ToList();
+
+        exporter.SetFileNameMode(FileNameMode.Auto, Key + "_SprintPlan");
+        file = exporter.Export(groupBySprint);
+        await sheetUpdater.Open(GoogleSheetId);
+        sheetUpdater.CsvFilePathAndName = file;
+        await sheetUpdater.ClearSheet("Sprints-PMPlans");
+        await sheetUpdater.EditSheet("'Sprints-PMPlans'!A1");
     }
 
     private JiraIssue CreateJiraIssue(dynamic i)

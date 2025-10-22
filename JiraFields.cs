@@ -182,7 +182,11 @@ public static class JiraFields
         if (!sprintNames.Contains(',') || !sprintDates.Contains(','))
         {
             // Data does not contain multiple sprints.
-            return (null, sprintNames);
+            if (!DateTimeOffset.TryParse(d.SprintStartDate, out DateTimeOffset startDate))
+            {
+                startDate = DateTimeOffset.MaxValue;
+            }
+            return (startDate, sprintNames);
         }
 
         var sprintNameList = sprintNames.Split(',');
