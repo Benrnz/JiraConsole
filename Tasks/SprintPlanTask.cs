@@ -93,7 +93,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     {
         // Get all PMPLAN tickets
         Console.WriteLine("Extracting PMPLAN tickets...");
-        var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
+        var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest AND status NOT IN (\"Feature delivered\", Cancelled) ORDER BY Key";
         Console.WriteLine(jqlPmPlans);
         this.pmPlans = (await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields)).Select(i => new PmPlanIssue(i)).ToList();
 
@@ -105,7 +105,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             pmPlan.ChildrenStories = (await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields)).Select(i => new JiraIssue(i)).ToList();
             Console.WriteLine($"Fetched {pmPlan.ChildrenStories.Count} children for {pmPlan.Key}");
             pmPlan.TotalStoryPoints = pmPlan.ChildrenStories.Sum(issue => issue.StoryPoints);
-            pmPlan.TotalStoryPointsRemaining = pmPlan.TotalStoryPoints - pmPlan.ChildrenStories.Where(issue => issue.Status == Constants.DoneStatus).Sum(issue => issue.StoryPoints);
+            pmPlan.TotalWorkDone = pmPlan.ChildrenStories.Where(issue => issue.Status == Constants.DoneStatus).Sum(issue => issue.StoryPoints);
         }
 
         // Get all tickets in open and future sprints for the teams.
@@ -155,12 +155,8 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
             // Sprint child Data row
             var pmPlanRecord = this.pmPlans.SingleOrDefault(p => p.Key == row.PmPlan);
-            var percentCompleteStartOfSprint = (pmPlanRecord?.TotalStoryPoints - pmPlanRecord?.TotalStoryPointsRemaining) / pmPlanRecord?.TotalStoryPoints <= 0
-                ? 1
-                : pmPlanRecord?.TotalStoryPointsRemaining;
-            var percentCompleteEndOfSprint = (pmPlanRecord?.TotalStoryPoints - pmPlanRecord?.TotalStoryPointsRemaining + row.StoryPoints) / pmPlanRecord?.TotalStoryPoints <= 0
-                ? 1
-                : pmPlanRecord?.TotalStoryPointsRemaining;
+            var percentCompleteStartOfSprint = pmPlanRecord?.TotalWorkDone / (pmPlanRecord?.TotalStoryPoints <= 0  ? 1 : pmPlanRecord?.TotalStoryPoints);
+            var percentCompleteEndOfSprint = (pmPlanRecord?.TotalWorkDone + row.StoryPoints) / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
             var rowData = new List<object?>
             {
                 null,
@@ -170,7 +166,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                 row.Summary,
                 row.Tickets,
                 row.StoryPoints,
-                pmPlanRecord?.TotalStoryPointsRemaining,
+                pmPlanRecord?.TotalWorkDone,
                 percentCompleteStartOfSprint,
                 percentCompleteEndOfSprint
             };
@@ -196,7 +192,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         public string Summary { get; }
         public List<JiraIssue> ChildrenStories { get; set; } = new();
         public double TotalStoryPoints { get; set; }
-        public double TotalStoryPointsRemaining { get; set; }
+        public double TotalWorkDone { get; set; }
     }
 
     private record JiraIssue
