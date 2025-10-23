@@ -50,28 +50,21 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
     private void PopulatePmPlansOnSprintTickets()
     {
-        // For each sprint ticket, find its PMPLAN from its parent or linked issues.
-        foreach (var ticket in this.sprintTickets)
-        {
-            var pmPlan = this.pmPlans.FirstOrDefault(p => p.ChildrenStories.Any(c => c.Key == ticket.Key));
-            if (pmPlan != null)
-            {
-                ticket.PmPlan = pmPlan.Key;
-                ticket.PmPlanSummary = pmPlan.Summary;
-            }
-        }
-    }
-    private async Task ExportAllSprintTickets()
-    {
-        // Find PMPLAN for each issue if it exists.
-        this.sprintTickets.Join(this.pmPlans, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlan: p))
+        var flattenPmPlanTickets = this.pmPlans.SelectMany(x => x.ChildrenStories);
+        this.sprintTickets.Join(flattenPmPlanTickets, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlanIssue: p))
             .ToList()
             .ForEach(x =>
             {
-                x.Issue.PmPlan = x.PmPlan.Key;
-                x.Issue.PmPlanSummary = x.PmPlan.Summary;
+                x.Issue.PmPlan = x.PmPlanIssue.PmPlan;
+                x.Issue.PmPlanSummary = x.PmPlanIssue.PmPlanSummary;
             });
 
+        var types = this.sprintTickets.Select(x => x.Type).Distinct();
+    }
+
+    private async Task ExportAllSprintTickets()
+    {
+        // Find PMPLAN for each issue if it exists.
         this.sprintTickets = this.sprintTickets.OrderBy(i => i.Team)
             .ThenBy(i => i.SprintStartDate)
             .ThenBy(i => i.Sprint)
@@ -85,8 +78,8 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         // Export to Google Sheets.
         await sheetUpdater.Open(GoogleSheetId);
         sheetUpdater.CsvFilePathAndName = file;
-        await sheetUpdater.ClearRange("Data");
-        await sheetUpdater.ImportFile("'Data'!A1");
+        await sheetUpdater.ClearRange("SprintTickets");
+        await sheetUpdater.ImportFile("'SprintTickets'!A1");
     }
 
     private async Task RetrieveAllData()
@@ -98,11 +91,11 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         this.pmPlans = (await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields)).Select(i => new PmPlanIssue(i)).ToList();
 
         // Get all children of each PMPLAN
-        var childrenJql = "type IN (Story, Improvement, Bug, Epic) AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
+        var childrenJql = "type IN (Story, Improvement, Bug, Epic, \"Table Definition\", \"Schema Task\") AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
         foreach (var pmPlan in this.pmPlans)
         {
-            pmPlan.ChildrenStories = (await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields)).Select(i => new JiraIssue(i)).ToList();
+            pmPlan.ChildrenStories = (await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields)).Select(i => new JiraIssue(i).AddPmPlanDetails(pmPlan)).ToList();
             Console.WriteLine($"Fetched {pmPlan.ChildrenStories.Count} children for {pmPlan.Key}");
             pmPlan.TotalStoryPoints = pmPlan.ChildrenStories.Sum(issue => issue.StoryPoints);
             pmPlan.RunningTotalWorkDone = pmPlan.TotalWorkDone = pmPlan.ChildrenStories.Where(issue => issue.Status == Constants.DoneStatus).Sum(issue => issue.StoryPoints);
@@ -213,6 +206,13 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             StoryPoints = JiraFields.StoryPoints.Parse(issue) ?? 0.0;
             Status = JiraFields.Status.Parse(issue);
             Type = JiraFields.IssueType.Parse(issue);
+        }
+
+        public JiraIssue AddPmPlanDetails(PmPlanIssue pmPlan)
+        {
+            PmPlan = pmPlan.Key;
+            PmPlanSummary = pmPlan.Summary;
+            return this;
         }
 
         public string Key { get; }
