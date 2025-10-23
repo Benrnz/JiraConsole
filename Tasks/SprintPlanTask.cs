@@ -137,7 +137,6 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         var teamSprint = string.Empty;
         foreach (var row in groupBySprint.OrderBy(g => g.StartDate).ThenBy(g => g.Team).ThenBy(g => g.SprintName))
         {
-            var pmPlanRecord = this.pmPlans.SingleOrDefault(p => p.Key == row.PmPlan);
             if (row.Team + row.SprintName != teamSprint)
             {
                 // Sprint header row
@@ -155,12 +154,13 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             }
 
             // Sprint child Data row
-            var percentCompleteStartOfSprint = (pmPlanRecord.TotalStoryPoints - pmPlanRecord.TotalStoryPointsRemaining) / pmPlanRecord.TotalStoryPoints <= 0
+            var pmPlanRecord = this.pmPlans.SingleOrDefault(p => p.Key == row.PmPlan);
+            var percentCompleteStartOfSprint = (pmPlanRecord?.TotalStoryPoints - pmPlanRecord?.TotalStoryPointsRemaining) / pmPlanRecord?.TotalStoryPoints <= 0
                 ? 1
-                : pmPlanRecord.TotalStoryPointsRemaining;
-            var percentCompleteEndOfSprint = (pmPlanRecord.TotalStoryPoints - pmPlanRecord.TotalStoryPointsRemaining + row.StoryPoints) / pmPlanRecord.TotalStoryPoints <= 0
+                : pmPlanRecord?.TotalStoryPointsRemaining;
+            var percentCompleteEndOfSprint = (pmPlanRecord?.TotalStoryPoints - pmPlanRecord?.TotalStoryPointsRemaining + row.StoryPoints) / pmPlanRecord?.TotalStoryPoints <= 0
                 ? 1
-                : pmPlanRecord.TotalStoryPointsRemaining;
+                : pmPlanRecord?.TotalStoryPointsRemaining;
             var rowData = new List<object?>
             {
                 null,
@@ -170,7 +170,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                 row.Summary,
                 row.Tickets,
                 row.StoryPoints,
-                pmPlanRecord.TotalStoryPointsRemaining,
+                pmPlanRecord?.TotalStoryPointsRemaining,
                 percentCompleteStartOfSprint,
                 percentCompleteEndOfSprint
             };
@@ -197,7 +197,6 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         public List<JiraIssue> ChildrenStories { get; set; } = new();
         public double TotalStoryPoints { get; set; }
         public double TotalStoryPointsRemaining { get; set; }
-        public double StoryPointsCompleted => TotalStoryPoints - TotalStoryPointsRemaining;
     }
 
     private record JiraIssue
