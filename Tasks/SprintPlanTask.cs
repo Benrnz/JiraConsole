@@ -127,7 +127,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         Console.WriteLine();
 
         // Get and group the data by Team and by Sprint.
-        var sprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(query, Fields)).Select(CreateJiraIssue).ToList();
+        var sprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(query, Fields)).Select(CreateJiraIssueWithPmPlan).ToList();
 
         // Find PMPLAN for each issue if it exists.
         // Duplicate work
