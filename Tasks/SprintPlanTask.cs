@@ -58,8 +58,6 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                 x.Issue.PmPlan = x.PmPlanIssue.PmPlan;
                 x.Issue.PmPlanSummary = x.PmPlanIssue.PmPlanSummary;
             });
-
-        var types = this.sprintTickets.Select(x => x.Type).Distinct();
     }
 
     private async Task ExportAllSprintTickets()
@@ -149,8 +147,12 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
             // Sprint child Data row
             var pmPlanRecord = this.pmPlans.SingleOrDefault(p => p.Key == row.PmPlan);
-            var percentCompleteStartOfSprint = pmPlanRecord?.RunningTotalWorkDone / (pmPlanRecord?.TotalStoryPoints <= 0  ? 1 : pmPlanRecord?.TotalStoryPoints);
-            var percentCompleteEndOfSprint = (pmPlanRecord?.RunningTotalWorkDone + row.StoryPoints) / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
+            var doneSprintTickets = this.sprintTickets.Where(t => t.Sprint == row.SprintName && t.Team == row.Team && t.PmPlan == row.PmPlan && t.Status == Constants.DoneStatus)
+                .Sum(t => t.StoryPoints);
+            // Dont count work just done during this sprint
+            var runningTotalWorkDone = pmPlanRecord?.RunningTotalWorkDone - doneSprintTickets ?? 0.0;
+            var percentCompleteStartOfSprint = runningTotalWorkDone / (pmPlanRecord?.TotalStoryPoints <= 0  ? 1 : pmPlanRecord?.TotalStoryPoints);
+            var percentCompleteEndOfSprint = (runningTotalWorkDone + row.StoryPoints) / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
             var rowData = new List<object?>
             {
                 null,
@@ -160,7 +162,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                 row.Summary,
                 row.Tickets,
                 row.StoryPoints,
-                pmPlanRecord?.TotalStoryPoints - pmPlanRecord?.RunningTotalWorkDone,
+                pmPlanRecord?.TotalStoryPoints - runningTotalWorkDone,
                 percentCompleteStartOfSprint,
                 percentCompleteEndOfSprint
             };
@@ -169,7 +171,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
             if (pmPlanRecord is not null)
             {
-                pmPlanRecord.RunningTotalWorkDone += row.StoryPoints;
+                pmPlanRecord.RunningTotalWorkDone = runningTotalWorkDone + row.StoryPoints;
             }
         }
 
