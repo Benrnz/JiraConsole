@@ -1,35 +1,38 @@
 ﻿namespace BensJiraConsole.Tasks;
 
-public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, ExportPmPlanStories pmPlanStoriesTask) : IJiraExportTask
+public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
 {
     private const string GoogleSheetId = "1iS6iB3EA38SHJgDu8rpMFcouGlu1Az8cntKA52U07xU";
     private const string TaskKey = "SPRINT_PLAN";
 
     private static readonly IFieldMapping[] Fields =
     [
-        JiraFields.Summary,
         JiraFields.Status,
-        JiraFields.Team,
-        JiraFields.StoryPoints,
-        JiraFields.Priority,
         JiraFields.Team,
         JiraFields.StoryPoints,
         JiraFields.Sprint,
         JiraFields.SprintStartDate,
-        JiraFields.IssueType,
-        JiraFields.ParentKey
+        JiraFields.IssueType
     ];
 
     private static readonly IFieldMapping[] PmPlanFields =
     [
         JiraFields.Summary,
-        JiraFields.Status,
         JiraFields.IssueType,
         JiraFields.PmPlanHighLevelEstimate,
         JiraFields.EstimationStatus,
-        JiraFields.StoryPoints,
         JiraFields.IsReqdForGoLive
     ];
+
+    /// <summary>
+    ///     All PMPLANs
+    /// </summary>
+    private IReadOnlyList<PmPlanIssue> pmPlans = [];
+
+    /// <summary>
+    ///     All tickets in current and future sprints.
+    /// </summary>
+    private IReadOnlyList<JiraIssue> sprintTickets = [];
 
     public string Description => "Export to a Google Sheet a over-arching plan of all future sprints for the two project teams.";
     public string Key => TaskKey;
@@ -37,110 +40,39 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine(Description);
-        var issues = await ExtractAllSprintsAndTickets();
 
-        await SprintPmPlan(issues);
+        await RetrieveAllData();
+        PopulatePmPlansOnSprintTickets();
+        await ExportAllSprintTickets();
+        await UpdateSheetSprintMasterPlan();
+        await sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
     }
 
-    private async Task<List<PmPlanIssue>> ExtractPmPlanTickets()
+    private void PopulatePmPlansOnSprintTickets()
     {
-        Console.WriteLine("Extracting PMPLAN tickets...");
-        var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
-        Console.WriteLine(jqlPmPlans);
-        var childrenJql = "(issue in (linkedIssues(\"{{0}}\")) OR parent in (linkedIssues(\"{{0}}\"))) ORDER BY key";
-        Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
-        var pmPlans = (await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, [JiraFields.Summary, JiraFields.EstimationStatus, JiraFields.IsReqdForGoLive, JiraFields.PmPlanHighLevelEstimate]))
-            .Select(CreatePmPlanIssue)
-            .ToList();
-        foreach (var pmPlan in pmPlans)
+        // For each sprint ticket, find its PMPLAN from its parent or linked issues.
+        foreach (var ticket in this.sprintTickets)
         {
-            var childrenIssues = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields);
-            pmPlan.TotalStoryPoints = childrenIssues.Sum(issue => issue.StoryPoints);
-            pmPlan.TotalStoryPointsRemaining = pmPlan.TotalStoryPoints - childrenIssues.Where(issue => issue.Status == Constants.DoneStatus).Sum(issue => issue.StoryPoints);
-        }
-
-        return pmPlans;
-    }
-
-    private PmPlanIssue CreatePmPlanIssue(dynamic i)
-    {
-        return new PmPlanIssue(
-            JiraFields.Key.Parse(i),
-            JiraFields.Summary.Parse(i),
-            JiraFields.PmPlanHighLevelEstimate.Parse(i) ?? 0.0);
-    }
-
-    private async Task<IReadOnlyList<JiraIssueWithPmPlan>> RetrieveAllStoriesMappingToPmPlan()
-    {
-        var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
-        Console.WriteLine(jqlPmPlans);
-        var childrenJql = "(issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
-        Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
-        var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields);
-
-        var allIssues = new Dictionary<string, JiraIssueWithPmPlan>(); // Ensure the final list of JAVPMs is unique NO DUPLICATES
-        foreach (var pmPlan in pmPlans)
-        {
-            var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.key), Fields);
-            Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
-            foreach (var child in children)
+            var pmPlan = this.pmPlans.FirstOrDefault(p => p.ChildrenStories.Any(c => c.Key == ticket.Key));
+            if (pmPlan != null)
             {
-                JiraIssueWithPmPlan issue = CreateJiraIssueWithPmPlan(child, pmPlan);
-                allIssues.TryAdd(issue.Key, issue);
+                ticket.PmPlan = pmPlan.Key;
+                ticket.PmPlanSummary = pmPlan.Summary;
             }
         }
-
-        return allIssues.Values.ToList();
     }
-
-    private JiraIssueWithPmPlan CreateJiraIssueWithPmPlan(dynamic i, dynamic pmPlan)
+    private async Task ExportAllSprintTickets()
     {
-        string key = JiraFields.Key.Parse(i);
-        string sprintField = JiraFields.Sprint.Parse(i) ?? "No Sprint";
-        var sprintDate = JiraFields.SprintStartDate.Parse(i);
-        var teamField = JiraFields.Team.Parse(i) ?? "No Team";
-        var storyPointsField = JiraFields.StoryPoints.Parse(i) ?? 0.0;
-
-        var typedIssue = new JiraIssueWithPmPlan(
-            pmPlan.key,
-            key,
-            JiraFields.Summary.Parse(i),
-            teamField,
-            sprintField,
-            sprintDate,
-            JiraFields.Status.Parse(i),
-            JiraFields.IssueType.Parse(i),
-            storyPointsField,
-            JiraFields.IsReqdForGoLive.Parse(pmPlan),
-            JiraFields.EstimationStatus.Parse(pmPlan),
-            JiraFields.PmPlanHighLevelEstimate.Parse(pmPlan),
-            JiraFields.Created.Parse(i),
-            JiraFields.Summary.Parse(pmPlan),
-            JiraFields.ParentKey.Parse(i));
-        return typedIssue;
-    }
-
-    private async Task<List<JiraIssueWithPmPlan>> ExtractAllSprintsAndTickets()
-    {
-        var query = """project = "JAVPM" AND "Team[Team]" IN (60412efa-7e2e-4285-bb4e-f329c3b6d417, 1a05d236-1562-4e58-ae88-1ffc6c5edb32) AND (Sprint IN openSprints() OR Sprint IN futureSprints())""";
-        Console.WriteLine(query);
-        Console.WriteLine();
-
-        // Get and group the data by Team and by Sprint.
-        var sprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(query, Fields)).Select(CreateJiraIssueWithPmPlan).ToList();
-
         // Find PMPLAN for each issue if it exists.
-        // Duplicate work
-        var pmPlanStories = await pmPlanStoriesTask.RetrieveAllStoriesMappingToPmPlan();
-        sprintTickets.Join(pmPlanStories, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlan: p))
+        this.sprintTickets.Join(this.pmPlans, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlan: p))
             .ToList()
             .ForEach(x =>
             {
-                x.Issue.PmPlan = x.PmPlan.PmPlan;
-                x.Issue.PmPlanSummary = x.PmPlan.PmPlanSummary;
+                x.Issue.PmPlan = x.PmPlan.Key;
+                x.Issue.PmPlanSummary = x.PmPlan.Summary;
             });
 
-        sprintTickets = sprintTickets.OrderBy(i => i.Team)
+        this.sprintTickets = this.sprintTickets.OrderBy(i => i.Team)
             .ThenBy(i => i.SprintStartDate)
             .ThenBy(i => i.Sprint)
             .ThenBy(i => i.PmPlan)
@@ -148,21 +80,43 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
         // temp save to CSV
         exporter.SetFileNameMode(FileNameMode.Auto, Key + "_FullData");
-        var file = exporter.Export(sprintTickets);
+        var file = exporter.Export(this.sprintTickets);
 
         // Export to Google Sheets.
         await sheetUpdater.Open(GoogleSheetId);
         sheetUpdater.CsvFilePathAndName = file;
         await sheetUpdater.ClearRange("Data");
         await sheetUpdater.ImportFile("'Data'!A1");
-        return sprintTickets;
     }
 
-    private async Task SprintPmPlan(List<JiraIssueWithPmPlan> issues)
+    private async Task RetrieveAllData()
     {
-        var pmPlans = await ExtractPmPlanTickets();
+        // Get all PMPLAN tickets
+        Console.WriteLine("Extracting PMPLAN tickets...");
+        var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
+        Console.WriteLine(jqlPmPlans);
+        this.pmPlans = (await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields)).Select(i => new PmPlanIssue(i)).ToList();
 
-        var groupBySprint = issues
+        // Get all children of each PMPLAN
+        var childrenJql = "type IN (Story, Improvement, Bug, Epic) AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
+        Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
+        foreach (var pmPlan in this.pmPlans)
+        {
+            pmPlan.ChildrenStories = (await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields)).Select(i => new JiraIssue(i)).ToList();
+            Console.WriteLine($"Fetched {pmPlan.ChildrenStories.Count} children for {pmPlan.Key}");
+            pmPlan.TotalStoryPoints = pmPlan.ChildrenStories.Sum(issue => issue.StoryPoints);
+            pmPlan.TotalStoryPointsRemaining = pmPlan.TotalStoryPoints - pmPlan.ChildrenStories.Where(issue => issue.Status == Constants.DoneStatus).Sum(issue => issue.StoryPoints);
+        }
+
+        // Get all tickets in open and future sprints for the teams.
+        var query = """project = "JAVPM" AND "Team[Team]" IN (60412efa-7e2e-4285-bb4e-f329c3b6d417, 1a05d236-1562-4e58-ae88-1ffc6c5edb32) AND (Sprint IN openSprints() OR Sprint IN futureSprints())""";
+        Console.WriteLine(query);
+        this.sprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(query, Fields)).Select(i => new JiraIssue(i)).ToList();
+    }
+
+    private async Task UpdateSheetSprintMasterPlan()
+    {
+        var groupBySprint = this.sprintTickets
             .GroupBy(i => (i.Team, i.SprintStartDate, i.Sprint, i.PmPlan, i.PmPlanSummary))
             .OrderBy(g => g.Key.Team)
             .ThenBy(g => g.Key.SprintStartDate)
@@ -172,7 +126,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                 g.Key.Team,
                 StartDate = g.Key.SprintStartDate,
                 SprintName = g.Key.Sprint,
-                PMPLAN = g.Key.PmPlan,
+                g.Key.PmPlan,
                 Summary = g.Key.PmPlanSummary,
                 StoryPoints = g.Sum(x => x.StoryPoints),
                 Tickets = g.Count()
@@ -183,7 +137,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         var teamSprint = string.Empty;
         foreach (var row in groupBySprint.OrderBy(g => g.StartDate).ThenBy(g => g.Team).ThenBy(g => g.SprintName))
         {
-            var pmPlanRecord = pmPlans.Single(p => p.Key == row.PMPLAN);
+            var pmPlanRecord = this.pmPlans.SingleOrDefault(p => p.Key == row.PmPlan);
             if (row.Team + row.SprintName != teamSprint)
             {
                 // Sprint header row
@@ -201,50 +155,72 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             }
 
             // Sprint child Data row
+            var percentCompleteStartOfSprint = (pmPlanRecord.TotalStoryPoints - pmPlanRecord.TotalStoryPointsRemaining) / pmPlanRecord.TotalStoryPoints <= 0
+                ? 1
+                : pmPlanRecord.TotalStoryPointsRemaining;
+            var percentCompleteEndOfSprint = (pmPlanRecord.TotalStoryPoints - pmPlanRecord.TotalStoryPointsRemaining + row.StoryPoints) / pmPlanRecord.TotalStoryPoints <= 0
+                ? 1
+                : pmPlanRecord.TotalStoryPointsRemaining;
             var rowData = new List<object?>
             {
                 null,
                 null,
                 null,
-                string.IsNullOrEmpty(row.PMPLAN) ? "No PMPLAN" : row.PMPLAN,
+                string.IsNullOrEmpty(row.PmPlan) ? "No PMPLAN" : row.PmPlan,
                 row.Summary,
                 row.Tickets,
                 row.StoryPoints,
                 pmPlanRecord.TotalStoryPointsRemaining,
-                (pmPlanRecord.TotalStoryPoints - pmPlanRecord.TotalStoryPointsRemaining) / pmPlanRecord.TotalStoryPoints <= 0 ? 1 : pmPlanRecord.TotalStoryPointsRemaining,
-                (pmPlanRecord.TotalStoryPoints - pmPlanRecord.TotalStoryPointsRemaining + row.StoryPoints) / pmPlanRecord.TotalStoryPoints <= 0 ? 1 : pmPlanRecord.TotalStoryPointsRemaining
+                percentCompleteStartOfSprint,
+                percentCompleteEndOfSprint
             };
             sheetData.Add(rowData);
             teamSprint = row.Team + row.SprintName;
         }
 
         await sheetUpdater.Open(GoogleSheetId);
-        await sheetUpdater.ClearRange("Sprints-PMPlans", "A2:Z10000");
-        await sheetUpdater.EditSheet("Sprints-PMPlans!A2", sheetData);
+        await sheetUpdater.ClearRange("Sprint-Master-Plan", "A2:Z10000");
+        await sheetUpdater.EditSheet("Sprint-Master-Plan!A2", sheetData);
         //await sheetUpdater.ApplyDateFormat("Sprints-PMPlans", 2, "d mmm yy");
     }
 
-    private record PmPlanIssue(string Key, string Summary, double EstimatedStoryPoints)
+    private record PmPlanIssue
     {
-        public double TotalStoryPoints { get; set; }
+        public PmPlanIssue(dynamic issue)
+        {
+            Key = JiraFields.Key.Parse(issue);
+            Summary = JiraFields.Summary.Parse(issue);
+        }
 
+        public string Key { get; }
+        public string Summary { get; }
+        public List<JiraIssue> ChildrenStories { get; set; } = new();
+        public double TotalStoryPoints { get; set; }
         public double TotalStoryPointsRemaining { get; set; }
+        public double StoryPointsCompleted => TotalStoryPoints - TotalStoryPointsRemaining;
     }
 
-    public record JiraIssueWithPmPlan(
-        string PmPlan,
-        string Key,
-        string Summary,
-        string Team,
-        string Sprint,
-        DateTimeOffset SprintStartDate,
-        string Status,
-        string Type,
-        double StoryPoints,
-        bool IsReqdForGoLive,
-        string? EstimationStatus,
-        double PmPlanHighLevelEstimate,
-        DateTimeOffset CreatedDateTime,
-        string PmPlanSummary,
-        string? ParentEpic = null);
+    private record JiraIssue
+    {
+        public JiraIssue(dynamic issue)
+        {
+            Key = JiraFields.Key.Parse(issue);
+            Sprint = JiraFields.Sprint.Parse(issue) ?? "No Sprint";
+            SprintStartDate = JiraFields.SprintStartDate.Parse(issue);
+            Team = JiraFields.Team.Parse(issue) ?? "No Team";
+            StoryPoints = JiraFields.StoryPoints.Parse(issue) ?? 0.0;
+            Status = JiraFields.Status.Parse(issue);
+            Type = JiraFields.IssueType.Parse(issue);
+        }
+
+        public string Key { get; }
+        public string PmPlan { get; set; } = string.Empty;
+        public string PmPlanSummary { get; set; } = string.Empty;
+        public string Sprint { get; }
+        public DateTimeOffset SprintStartDate { get; }
+        public string Status { get; }
+        public double StoryPoints { get; }
+        public string Team { get; }
+        public string Type { get; init; }
+    }
 }
