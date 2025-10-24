@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 
 namespace BensJiraConsole;
 
@@ -41,6 +42,9 @@ public class App(IEnumerable<IJiraExportTask> tasks)
             return;
         }
 
+        var sw = Stopwatch.StartNew();
         await selectedTask.ExecuteAsync(this.commandLineArgs);
+        sw.Stop();
+        Console.WriteLine($"Task '{selectedTask.Key}' completed in {sw.Elapsed.TotalSeconds:N2} seconds.");
     }
 }

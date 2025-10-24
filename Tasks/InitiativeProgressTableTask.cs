@@ -46,14 +46,14 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
 
         // Update the Summary Tab
         var summaryReportArray = BuildSummaryReportArray(AllInitiativesData);
-        await sheetUpdater.ClearSheet("Summary", "A4:Z10000");
-        await sheetUpdater.EditSheet("'Summary'!B1", [[DateTime.Now.ToString("G")]], true);
-        await sheetUpdater.EditSheet("'Summary'!A4", summaryReportArray, true);
+        await sheetUpdater.ClearRange("Summary", "A2:Z10000");
+        await sheetUpdater.EditSheet("'Summary'!A2", summaryReportArray, true);
 
         // Update the OverviewGraph tab
         var overviewReportArray = BuildOverviewReportArray(AllInitiativesData);
-        await sheetUpdater.ClearSheet("OverviewGraphs", "A2:Z10000");
+        await sheetUpdater.ClearRange("OverviewGraphs", "A2:Z10000");
         await sheetUpdater.EditSheet("'OverviewGraphs'!A2", overviewReportArray, true);
+        await sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
     }
 
     public async Task LoadData()

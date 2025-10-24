@@ -43,7 +43,7 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
             if (chart.Any())
             {
                 await Task.Delay(2000); // Getting around Google quota limit per minute
-                await sheetUpdater.EditSheet($"'{initiative}'!A3", true);
+                await sheetUpdater.ImportFile($"'{initiative}'!A3", true);
                 await sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
             }
         }

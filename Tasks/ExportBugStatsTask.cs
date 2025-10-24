@@ -121,7 +121,7 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
         var fileName = exporter.Export(bugCounts, SerialiseCatergoriesHeaderRow, SerialiseToCsv);
 
         sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.EditSheet("'ProductCategories'!A1");
+        await sheetUpdater.ImportFile("'ProductCategories'!A1");
     }
 
     private async Task ExportBugStatsCodeAreas(List<JiraIssue> jiras)
@@ -146,7 +146,7 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
         var fileName = exporter.Export(bugCounts, SerialiseCodeAreasHeaderRow, SerialiseToCsv);
 
         sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.EditSheet("'CodeAreas'!A1");
+        await sheetUpdater.ImportFile("'CodeAreas'!A1");
     }
 
     private async Task ExportBugStatsReportedVsResolved(List<JiraIssue> jiras, List<BarChartData> severityTotals)
@@ -170,7 +170,7 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
 
         var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported,,,Ticket Backlog\n,P1,P2,Other,Open P1s,Open P2s,Open Others", SerialiseToCsv);
         sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.EditSheet("'Reported Vs Backlog'!A1");
+        await sheetUpdater.ImportFile("'Reported Vs Backlog'!A1");
     }
 
         private async Task ExportBugStatsEnvestSeverities(List<JiraIssue> jiras, List<BarChartData> severityTotals)
@@ -189,7 +189,7 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
 
         var fileName = exporter.Export(chartData, () => "Month,Totals,,,Envest Only\n,P1,P2,Other,EP1,EP2,EOther", SerialiseToCsv);
         sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.EditSheet("'Envest'!A1");
+        await sheetUpdater.ImportFile("'Envest'!A1");
     }
 
     private async Task ExportBugStatsRecentDevelopment(List<JiraIssue> jiras)
@@ -213,7 +213,7 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-RecentDev");
         var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
         sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.EditSheet("'RecentDev'!A1");
+        await sheetUpdater.ImportFile("'RecentDev'!A1");
     }
 
     private async Task<List<BarChartData>> ExportBugStatsSeverities(List<JiraIssue> jiras, string? customerFilter = null)
@@ -240,7 +240,7 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
             exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-Severities");
             var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
             sheetUpdater.CsvFilePathAndName = fileName;
-            await sheetUpdater.EditSheet("'Severities'!A1");
+            await sheetUpdater.ImportFile("'Severities'!A1");
         }
 
         return bugCounts;

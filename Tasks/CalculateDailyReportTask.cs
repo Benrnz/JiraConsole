@@ -151,7 +151,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         await sheetUpdater.Open(GoogleSheetId);
         await sheetUpdater.DeleteSheet($"{teamName}");
         await sheetUpdater.AddSheet($"{teamName}");
-        await sheetUpdater.EditSheet($"'{teamName}'!A1");
+        await sheetUpdater.ImportFile($"'{teamName}'!A1");
         Console.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
     }
 
