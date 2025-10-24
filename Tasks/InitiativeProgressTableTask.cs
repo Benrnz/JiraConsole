@@ -81,11 +81,13 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
         IList<IList<object?>> reportArray = new List<IList<object?>>();
         foreach (var initiative in allInitiativeData)
         {
-            var row = new List<object?>();
-            row.Add(initiative.Description);
-            row.Add(initiative.InitiativeKey);
-            row.Add(initiative.Progress.Done);
-            row.Add(initiative.Progress.Remaining);
+            var row = new List<object?>
+            {
+                initiative.Description,
+                initiative.InitiativeKey,
+                initiative.Progress.Done,
+                initiative.Progress.Remaining
+            };
             reportArray.Add(row);
         }
 
@@ -97,27 +99,31 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
         IList<IList<object?>> reportArray = new List<IList<object?>>();
         foreach (var initiative in allInitiativeData)
         {
-            var row = new List<object?>();
-            row.Add(initiative.Description);
-            row.Add(initiative.InitiativeKey);
-            row.Add(initiative.Progress.Total);
-            row.Add(initiative.Progress.Done);
-            row.Add(initiative.Progress.Remaining);
-            row.Add(initiative.Progress.PercentDone);
-            row.Add(initiative.Status);
-            row.Add(initiative.Target?.ToString("d MMM yy"));
+            var row = new List<object?>
+            {
+                initiative.Description,
+                initiative.InitiativeKey,
+                initiative.Progress.Total,
+                initiative.Progress.Done,
+                initiative.Progress.Remaining,
+                initiative.Progress.PercentDone,
+                initiative.Status,
+                initiative.Target?.ToString("d MMM yy")
+            };
             reportArray.Add(row);
             foreach (var childPmPlan in initiative.PmPlans)
             {
-                var childRow = new List<object?>();
-                childRow.Add(childPmPlan.Description);
-                childRow.Add(childPmPlan.PmPlanKey);
-                childRow.Add(childPmPlan.Progress.Total);
-                childRow.Add(childPmPlan.Progress.Done);
-                childRow.Add(childPmPlan.Progress.Remaining);
-                childRow.Add(childPmPlan.Progress.PercentDone);
-                childRow.Add(childPmPlan.Status);
-                childRow.Add(childPmPlan.Target?.ToString("d MMM yy"));
+                var childRow = new List<object?>
+                {
+                    childPmPlan.Description,
+                    childPmPlan.PmPlanKey,
+                    childPmPlan.Progress.Total,
+                    childPmPlan.Progress.Done,
+                    childPmPlan.Progress.Remaining,
+                    childPmPlan.Progress.PercentDone,
+                    childPmPlan.Status,
+                    childPmPlan.Target?.ToString("d MMM yy")
+                };
                 reportArray.Add(childRow);
             }
 
