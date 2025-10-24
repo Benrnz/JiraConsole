@@ -53,6 +53,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
         var overviewReportArray = BuildOverviewReportArray(AllInitiativesData);
         await sheetUpdater.ClearRange("OverviewGraphs", "A2:Z10000");
         await sheetUpdater.EditSheet("'OverviewGraphs'!A2", overviewReportArray, true);
+        await sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
     }
 
     public async Task LoadData()
