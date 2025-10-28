@@ -151,7 +151,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                 .Sum(t => t.StoryPoints);
             // Dont count work just done during this sprint
             var runningTotalWorkDone = (pmPlanRecord?.RunningTotalWorkDone - doneSprintTickets) ?? 0.0;
-            var ticketsWithNoEstimate = pmPlanRecord?.ChildrenStories.Where(t => t.Status != Constants.DoneStatus && t.StoryPoints <= 0).Count();
+            var ticketsWithNoEstimate = pmPlanRecord?.ChildrenStories.Count(t => t.Status != Constants.DoneStatus && t.StoryPoints <= 0 && t.Type != Constants.EpicType);
             var percentCompleteStartOfSprint = runningTotalWorkDone / (pmPlanRecord?.TotalStoryPoints <= 0  ? 1 : pmPlanRecord?.TotalStoryPoints);
             var percentCompleteEndOfSprint = (runningTotalWorkDone + row.StoryPoints) / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
             var rowData = new List<object?>
