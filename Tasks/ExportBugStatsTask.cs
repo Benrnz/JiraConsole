@@ -52,6 +52,7 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
         await ExportBugStatsReportedVsResolved(monthTotalsForSeverities);
         await ExportBugStatsEnvestSeverities(jiras, monthTotalsForSeverities);
         await ExportBugStatsCategories(jiras);
+        await sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
     }
 
     private DateTime CalculateStartDate()
