@@ -48,7 +48,8 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
         await ExportBugStatsCodeAreas(jiras);
         await ExportBugStatsRecentDevelopment(jiras);
         var monthTotalsForSeverities = await ExportBugStatsSeverities(jiras);
-        await ExportBugStatsReportedVsResolved(jiras, monthTotalsForSeverities);
+        await ExportBugStatsReportedVsBacklog(monthTotalsForSeverities);
+        await ExportBugStatsReportedVsResolved(monthTotalsForSeverities);
         await ExportBugStatsEnvestSeverities(jiras, monthTotalsForSeverities);
         await ExportBugStatsCategories(jiras);
     }
@@ -149,7 +150,7 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
         await sheetUpdater.ImportFile("'CodeAreas'!A1");
     }
 
-    private async Task ExportBugStatsReportedVsResolved(List<JiraIssue> jiras, List<BarChartData> severityTotals)
+    private async Task ExportBugStatsReportedVsBacklog(List<BarChartData> severityTotals)
     {
         var chartData = new List<LayeredBarChartData>();
         var jql = """project = JAVPM AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND status != Done""";
@@ -173,7 +174,31 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
         await sheetUpdater.ImportFile("'Reported Vs Backlog'!A1");
     }
 
-        private async Task ExportBugStatsEnvestSeverities(List<JiraIssue> jiras, List<BarChartData> severityTotals)
+    private async Task ExportBugStatsReportedVsResolved(List<BarChartData> severityTotals)
+    {
+        var chartData = new List<LayeredBarChartData>();
+        var jql = """project = "JAVPM" AND status = Done AND type = Bug AND Severity IN (Critical, Major) AND "Bug Type[Dropdown]" IN (Production, UAT) AND resolutiondate >= startOfMonth("-13M") ORDER BY resolutiondate""";
+        var issuesBacklog = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
+        foreach (var totalChartDataMonth in severityTotals)
+        {
+            var month = totalChartDataMonth.Month;
+            var monthIssueBacklog = issuesBacklog.Where(x => x.Resolved >= month && x.Resolved < month.AddMonths(1));
+            var p1Resolved = monthIssueBacklog.Where(x => x.Severity == Constants.SeverityCritical).Count();
+            var p2Resolved = monthIssueBacklog.Where(x => x.Severity == Constants.SeverityMajor).Count();
+            var otherResolved = monthIssueBacklog.Count() - p1Resolved - p2Resolved;
+            var monthbacklogData = new BarChartData(month, p1Resolved, p2Resolved, otherResolved);
+            var row = new LayeredBarChartData(totalChartDataMonth, monthbacklogData);
+            chartData.Add(row);
+        }
+
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-ReportVsResolved");
+
+        var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported,,,Resolved Bugs\n,P1,P2,Other,Resolved P1s,Resolved P2s,Resolved Others", SerialiseToCsv);
+        sheetUpdater.CsvFilePathAndName = fileName;
+        await sheetUpdater.ImportFile("'Reported Vs Resolved'!A1");
+    }
+
+    private async Task ExportBugStatsEnvestSeverities(List<JiraIssue> jiras, List<BarChartData> severityTotals)
     {
         var chartData = new List<LayeredBarChartData>();
         var envestChartData = await ExportBugStatsSeverities(jiras, Constants.Envest);
@@ -356,13 +381,13 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
         if (record is LayeredBarChartData layeredBarChartData)
         {
             var builder = new StringBuilder();
-            builder.Append(layeredBarChartData.Total.Month.ToString("MMM-yy"));
-            builder.Append($",{layeredBarChartData.Total.P1s}");
-            builder.Append($",{layeredBarChartData.Total.P2s}");
-            builder.Append($",{layeredBarChartData.Total.Others}");
-            builder.Append($",{layeredBarChartData.Envest.P1s}");
-            builder.Append($",{layeredBarChartData.Envest.P2s}");
-            builder.Append($",{layeredBarChartData.Envest.Others}");
+            builder.Append(layeredBarChartData.DataSet1.Month.ToString("MMM-yy"));
+            builder.Append($",{layeredBarChartData.DataSet1.P1s}");
+            builder.Append($",{layeredBarChartData.DataSet1.P2s}");
+            builder.Append($",{layeredBarChartData.DataSet1.Others}");
+            builder.Append($",{layeredBarChartData.DataSet2.P1s}");
+            builder.Append($",{layeredBarChartData.DataSet2.P2s}");
+            builder.Append($",{layeredBarChartData.DataSet2.Others}");
             return builder.ToString();
         }
 
@@ -373,7 +398,7 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
     private record BarChartData(DateTime Month, int P1s, int P2s, int Others);
     // ReSharper restore InconsistentNaming
 
-    private record LayeredBarChartData(BarChartData Total, BarChartData Envest);
+    private record LayeredBarChartData(BarChartData DataSet1, BarChartData DataSet2);
 
     private record BarChartDataCategories(DateTime Month, IDictionary<string, int> CategoryData);
 
