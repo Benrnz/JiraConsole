@@ -150,19 +150,21 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             var doneSprintTickets = this.sprintTickets.Where(t => t.Sprint == row.SprintName && t.Team == row.Team && t.PmPlan == row.PmPlan && t.Status == Constants.DoneStatus)
                 .Sum(t => t.StoryPoints);
             // Dont count work just done during this sprint
-            var runningTotalWorkDone = pmPlanRecord?.RunningTotalWorkDone - doneSprintTickets ?? 0.0;
+            var runningTotalWorkDone = (pmPlanRecord?.RunningTotalWorkDone - doneSprintTickets) ?? 0.0;
+            var ticketsWithNoEstimate = pmPlanRecord?.ChildrenStories.Where(t => t.Status != Constants.DoneStatus && t.StoryPoints <= 0).Count();
             var percentCompleteStartOfSprint = runningTotalWorkDone / (pmPlanRecord?.TotalStoryPoints <= 0  ? 1 : pmPlanRecord?.TotalStoryPoints);
             var percentCompleteEndOfSprint = (runningTotalWorkDone + row.StoryPoints) / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
             var rowData = new List<object?>
             {
-                null,
-                null,
-                null,
+                null, //Team
+                null, //Sprint
+                null, //Start Date
                 string.IsNullOrEmpty(row.PmPlan) ? "No PMPLAN" : row.PmPlan,
                 row.Summary,
-                row.Tickets,
-                row.StoryPoints,
-                pmPlanRecord?.TotalStoryPoints - runningTotalWorkDone,
+                row.Tickets, // Tickets in Sprint
+                row.StoryPoints, // Story Points in Sprint
+                pmPlanRecord?.TotalStoryPoints - runningTotalWorkDone, // Total Work remaining
+                ticketsWithNoEstimate, // Count of tickets with no estimate
                 percentCompleteStartOfSprint,
                 percentCompleteEndOfSprint
             };
