@@ -42,9 +42,32 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
             // Update data table
             if (chart.Any())
             {
-                await Task.Delay(1000); // Getting around Google quota limit per minute
+                await Task.Delay(2000); // Getting around Google quota limit per minute
                 await sheetUpdater.ImportFile($"'{initiative}'!A3", true);
                 await sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
+                var children = mainTask.AllIssuesData[initiative]
+                    .Where(i => i.Status != Constants.DoneStatus)
+                    .GroupBy(i => i.PmPlan)
+                    .SelectMany(g => g)
+                    .OrderBy(x => x.PmPlan)
+                    .ThenBy(x => x.Key);
+                var childrenArray = new List<IList<object?>>();
+                var currentPmPlan = string.Empty;
+                foreach (var child in children)
+                {
+                    if (currentPmPlan != child.PmPlan)
+                    {
+                        // new PmPlan header row
+                        var header = new List<object?> { child.PmPlan, child.PmPlanSummary };
+                        childrenArray.Add(header);
+                        currentPmPlan = child.PmPlan;
+                    }
+                    var row = new List<object?> { null, child.Key, child.Summary, null, null, null, child.StoryPoints };
+                    childrenArray.Add(row);
+                }
+
+                await sheetUpdater.ClearRange($"'{initiative}'", "F42:L1000");
+                await sheetUpdater.EditSheet($"'{initiative}'!F42", childrenArray, true);
             }
         }
     }
