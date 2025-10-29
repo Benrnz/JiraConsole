@@ -186,6 +186,10 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
     public async Task ClearRange(string sheetName, string range = "A1:Z10000")
     {
         ArgumentNullException.ThrowIfNull(this.service);
+        if (sheetName.Contains("'"))
+        {
+            sheetName = sheetName.Replace("'", "");
+        }
 
         var sheetAndrange = $"'{sheetName}'!{range}"; // Adjust range as needed
         var requestBody = new ClearValuesRequest();

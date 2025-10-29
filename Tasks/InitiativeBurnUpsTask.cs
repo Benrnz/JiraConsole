@@ -42,8 +42,9 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
             // Update data table
             if (chart.Any())
             {
-                await Task.Delay(2000); // Getting around Google quota limit per minute
+                await Task.Delay(1000); // Getting around Google quota limit per minute
                 await sheetUpdater.ImportFile($"'{initiative}'!A3", true);
+                await Task.Delay(1000); // Getting around Google quota limit per minute
                 await sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
                 var children = mainTask.AllIssuesData[initiative]
                     .Where(i => i.Status != Constants.DoneStatus)
@@ -66,8 +67,10 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
                     childrenArray.Add(row);
                 }
 
-                await sheetUpdater.ClearRange($"'{initiative}'", "F42:L1000");
-                await sheetUpdater.EditSheet($"'{initiative}'!F42", childrenArray, true);
+                await Task.Delay(1000); // Getting around Google quota limit per minute
+                await sheetUpdater.ClearRange($"{initiative}", "F43:L1000");
+                await Task.Delay(1000); // Getting around Google quota limit per minute
+                await sheetUpdater.EditSheet($"'{initiative}'!G43", childrenArray, true);
             }
         }
     }
