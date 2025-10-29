@@ -134,27 +134,20 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
         return reportArray;
     }
 
-    private JiraIssue CreateJiraIssue(string initiative, dynamic issue)
+    private JiraIssue CreateJiraIssue(string? pmPlan, string? pmPlanSummary, dynamic issue)
     {
-        var status = JiraFields.Status.Parse(issue) ?? Constants.Unknown;
-        var storyPoints = JiraFields.StoryPoints.Parse(issue);
-        if (storyPoints is null)
-        {
-            // If no story points, try to estimate from original estimate (in seconds)
-            var originalEstimate = JiraFields.OriginalEstimate.Parse(issue);
-            if (originalEstimate is not null)
-            {
-                storyPoints = Math.Round((double)originalEstimate / 3600 / 8, 1);
-            }
-        }
+        string status = JiraFields.Status.Parse(issue) ?? Constants.Unknown;
+        double storyPoints = JiraFields.StoryPoints.Parse(issue) ?? 0.0;
 
         return new JiraIssue(
             JiraFields.Key.Parse(issue)!,
             JiraFields.Created.Parse(issue),
             JiraFields.Resolved.Parse(issue),
             status,
-            storyPoints ?? 0.0,
-            initiative);
+            storyPoints,
+            pmPlan ?? string.Empty,
+            JiraFields.Summary.Parse(issue) ?? string.Empty,
+            pmPlanSummary ?? string.Empty);
     }
 
     private async Task ExtractAllInitiativeData(IReadOnlyList<string> initiativeKeys)
@@ -180,7 +173,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
                 var pmPlanData = new JiraPmPlan(pmPlanKey, summary, new StatLine(), status, target);
                 var children = await runner.SearchJiraIssuesWithJqlAsync(string.Format(javPmKeyql, pmPlanKey), IssueFields);
                 Console.WriteLine($"Fetched {children.Count} children for {pmPlan.key}");
-                var range = children.Select<dynamic, JiraIssue>(i => CreateJiraIssue(initiative, i)).ToList();
+                var range = children.Select<dynamic, JiraIssue>(i => CreateJiraIssue(pmPlanKey, summary, i)).ToList();
                 pmPlanData.Progress.Total = range.Sum(i => i.StoryPoints);
                 pmPlanData.Progress.Done = range.Where(i => i.Status == Constants.DoneStatus).Sum(i => i.StoryPoints);
                 allIssues.AddRange(range);
@@ -233,5 +226,5 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
         public double Total { get; set; }
     }
 
-    public record JiraIssue(string Key, DateTimeOffset CreatedDateTime, DateTimeOffset? ResolvedDateTime, string Status, double StoryPoints, string PmPlan);
+    public record JiraIssue(string Key, DateTimeOffset CreatedDateTime, DateTimeOffset? ResolvedDateTime, string Status, double StoryPoints, string PmPlan, string Summary, string PmPlanSummary);
 }
