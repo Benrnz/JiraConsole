@@ -1,6 +1,4 @@
-﻿using Google.Apis.Sheets.v4.Data;
-
-namespace BensJiraConsole.Tasks;
+﻿namespace BensJiraConsole.Tasks;
 
 public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, InitiativeProgressTableTask tableTask) : IJiraExportTask
 {
@@ -27,9 +25,9 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
         {
             var issues = mainTask.AllIssuesData[initiative];
             var chart = ParseChartData(issues
-                .OrderBy(i => i.PmPlan)
-                .ThenBy(i => i.ResolvedDateTime)
-                .ThenBy(i => i.CreatedDateTime))
+                    .OrderBy(i => i.PmPlan)
+                    .ThenBy(i => i.ResolvedDateTime)
+                    .ThenBy(i => i.CreatedDateTime))
                 .ToList();
             exporter.SetFileNameMode(FileNameMode.ExactName, initiative);
             var fileName = exporter.Export(chart);
@@ -37,15 +35,13 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
 
             // Update Header
             var initiativeRecord = mainTask.AllInitiativesData.Single(i => i.InitiativeKey == initiative);
-            await sheetUpdater.EditSheet($"'{initiative}'!A1", new List<IList<object?>>([[$"{initiativeRecord.InitiativeKey} {initiativeRecord.Description}"]]));
+            sheetUpdater.EditSheet($"'{initiative}'!A1", new List<IList<object?>>([[$"{initiativeRecord.InitiativeKey} {initiativeRecord.Description}"]]));
 
             // Update data table
             if (chart.Any())
             {
-                await Task.Delay(1000); // Getting around Google quota limit per minute
                 await sheetUpdater.ImportFile($"'{initiative}'!A3", true);
-                await Task.Delay(1000); // Getting around Google quota limit per minute
-                await sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
+                sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
                 var children = mainTask.AllIssuesData[initiative]
                     .Where(i => i.Status != Constants.DoneStatus)
                     .GroupBy(i => i.PmPlan)
@@ -63,16 +59,17 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
                         childrenArray.Add(header);
                         currentPmPlan = child.PmPlan;
                     }
+
                     var row = new List<object?> { null, child.Key, child.Summary, null, null, null, child.StoryPoints };
                     childrenArray.Add(row);
                 }
 
-                await Task.Delay(1000); // Getting around Google quota limit per minute
-                await sheetUpdater.ClearRange($"{initiative}", "F43:L1000");
-                await Task.Delay(1000); // Getting around Google quota limit per minute
-                await sheetUpdater.EditSheet($"'{initiative}'!G43", childrenArray, true);
+                sheetUpdater.ClearRange($"{initiative}", "F43:L1000");
+                sheetUpdater.EditSheet($"'{initiative}'!G43", childrenArray, true);
             }
         }
+
+        await sheetUpdater.SubmitBatch();
     }
 
     private IEnumerable<BurnUpChartData> ParseChartData(IEnumerable<InitiativeProgressTableTask.JiraIssue> rawData)
