@@ -13,7 +13,10 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         JiraFields.Team,
         JiraFields.Sprint,
         JiraFields.AssigneeDisplay,
-        JiraFields.FlagCount
+        JiraFields.FlagCount,
+        JiraFields.IssueType,
+        JiraFields.Severity,
+        JiraFields.BugType
     ];
 
     public string Key => KeyString;
@@ -36,6 +39,10 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         // Ruby Ducks team
         jql = """Project = JAVPM AND "Team[Team]" = 60412efa-7e2e-4285-bb4e-f329c3b6d417 AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, "Ruby Ducks", sprintStart);
+
+        // Spearhead team
+        jql = """Project = JAVPM AND "Team[Team]" = f08f7fdc-cfab-4de7-8fdd-8da57b10adb6 AND Sprint IN openSprints()""";
+        await CalculateTeamStats(jql, "Spearhead", sprintStart);
     }
 
     private async Task CalculateTeamStats(string jql, string teamName, DateTime sprintStart)
@@ -50,11 +57,17 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         var ticketsInQa = tickets.Count(t => t.Status == Constants.InQaStatus);
         var ticketsInDev = tickets.Count(t => t.Status == Constants.InDevStatus);
         var ticketsFlagged = tickets.Sum(t => t.FlagCount);
+        var p1Bugs = tickets.Count(t => t.Type == Constants.BugType && t is { Severity: Constants.SeverityCritical, BugType: Constants.BugTypeProduction or Constants.BugTypeUat });
+        var p2Bugs = tickets.Count(t => t.Type == Constants.BugType && t is { Severity: Constants.SeverityMajor, BugType: Constants.BugTypeProduction or Constants.BugTypeUat });
         Console.WriteLine($"{teamName} Team Stats:");
         Console.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets-remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
         Console.WriteLine($"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints-remainingStoryPoints} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
         Console.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
         Console.WriteLine($"     - Number of Flags raised: {ticketsFlagged}");
+        if (p1Bugs > 0 || p2Bugs > 0)
+        {
+            Console.WriteLine($"     - *** P1 Bugs: {p1Bugs}, P2 Bugs: {p2Bugs} ***");
+        }
 
         if (sprintStart == DateTime.Today)
         {
@@ -74,7 +87,10 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
             JiraFields.StoryPoints.Parse(ticket) ?? 0,
             JiraFields.Team.Parse(ticket),
             JiraFields.AssigneeDisplay.Parse(ticket),
-            JiraFields.FlagCount.Parse(ticket)
+            JiraFields.FlagCount.Parse(ticket),
+            JiraFields.IssueType.Parse(ticket),
+            JiraFields.Severity.Parse(ticket) ?? string.Empty,
+            JiraFields.BugType.Parse(ticket) ?? string.Empty
         );
     }
 
@@ -86,7 +102,9 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
             double.Parse(sheetData[2].ToString() ?? "0"),
             sheetData[3].ToString() ?? throw new NotSupportedException("Team"),
             sheetData[4].ToString() ?? string.Empty,
-            int.Parse(sheetData[5].ToString() ?? "0")
+            int.Parse(sheetData[5].ToString() ?? "0"),
+            string.Empty,
+            string.Empty
         );
     }
 
@@ -155,5 +173,5 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         Console.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
     }
 
-    private record JiraIssue(string Key, string Status, double StoryPoints, string Team, string? Assignee, int FlagCount);
+    private record JiraIssue(string Key, string Status, double StoryPoints, string Team, string? Assignee, int FlagCount, string Type, string? Severity = "", string? BugType = "");
 }
