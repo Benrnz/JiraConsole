@@ -26,11 +26,14 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
     {
         Console.WriteLine(Description);
         await sheetReader.Open(GoogleSheetId);
-        DateTime sprintStart;
-        do
+        var sprintStart = args.Length > 1 ? DateTime.Parse(args[1]) : DateTime.MinValue;
+        SuggestTwoMostRecentMondays(sprintStart);
+        while (sprintStart == DateTime.MinValue)
         {
+            Console.WriteLine();
             Console.Write("Enter the start date of the sprint (dd-MM-yyyy):");
-        } while (!DateTime.TryParse(Console.ReadLine(), out sprintStart));
+            DateTime.TryParse(Console.ReadLine(), out sprintStart);
+        }
 
         // Superclass team
         var jql = """Project = JAVPM AND "Team[Team]" = 1a05d236-1562-4e58-ae88-1ffc6c5edb32 AND Sprint IN openSprints()""";
@@ -43,12 +46,16 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         // Spearhead team
         jql = """Project = JAVPM AND "Team[Team]" = f08f7fdc-cfab-4de7-8fdd-8da57b10adb6 AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, "Spearhead", sprintStart);
+
+        Console.WriteLine("---------------------------------------------------------------------------------------------------");
+        Console.WriteLine();
     }
 
     private async Task CalculateTeamStats(string jql, string teamName, DateTime sprintStart)
     {
+        Console.WriteLine();
+        Console.WriteLine("---------------------------------------------------------------------------------------------------");
         Console.WriteLine($"Calculating team stats for {teamName}");
-        Console.WriteLine(jql);
         var tickets = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
         var totalTickets = tickets.Count();
         var totalStoryPoints = tickets.Sum(t => t.StoryPoints);
@@ -60,8 +67,9 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         var p1Bugs = tickets.Count(t => t.Type == Constants.BugType && t is { Severity: Constants.SeverityCritical, BugType: Constants.BugTypeProduction or Constants.BugTypeUat });
         var p2Bugs = tickets.Count(t => t.Type == Constants.BugType && t is { Severity: Constants.SeverityMajor, BugType: Constants.BugTypeProduction or Constants.BugTypeUat });
         Console.WriteLine($"{teamName} Team Stats:");
-        Console.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets-remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
-        Console.WriteLine($"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints-remainingStoryPoints} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
+        Console.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
+        Console.WriteLine(
+            $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
         Console.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
         Console.WriteLine($"     - Number of Flags raised: {ticketsFlagged}");
         if (p1Bugs > 0 || p2Bugs > 0)
@@ -173,5 +181,26 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         Console.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
     }
 
-    private record JiraIssue(string Key, string Status, double StoryPoints, string Team, string? Assignee, int FlagCount, string Type, string? Severity = "", string? BugType = "");
+    private static void SuggestTwoMostRecentMondays(DateTime sprintStart)
+    {
+        if (sprintStart == DateTime.MinValue)
+        {
+            var today = DateTime.Today;
+            var daysSinceMonday = ((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+            var mostRecentMonday = today.AddDays(-daysSinceMonday);
+            var previousMonday = mostRecentMonday.AddDays(-7);
+            Console.WriteLine($"Suggested start dates: {mostRecentMonday:dd-MM-yyyy} (most recent Monday) or {previousMonday:dd-MM-yyyy} (previous Monday).");
+        }
+    }
+
+    private record JiraIssue(
+        string Key,
+        string Status,
+        double StoryPoints,
+        string Team,
+        string? Assignee,
+        int FlagCount,
+        string Type,
+        string? Severity = "",
+        string? BugType = "");
 }
