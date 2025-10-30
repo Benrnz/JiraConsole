@@ -16,7 +16,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         JiraFields.FlagCount,
         JiraFields.IssueType,
         JiraFields.Severity,
-        JiraFields.BugType  
+        JiraFields.BugType
     ];
 
     public string Key => KeyString;
@@ -57,12 +57,17 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         var ticketsInQa = tickets.Count(t => t.Status == Constants.InQaStatus);
         var ticketsInDev = tickets.Count(t => t.Status == Constants.InDevStatus);
         var ticketsFlagged = tickets.Sum(t => t.FlagCount);
-        var p1Bugs = tickets.Count(t => t.Type == Constants.BugType && t.Severity == Constants.SeverityCritical);
+        var p1Bugs = tickets.Count(t => t.Type == Constants.BugType && t is { Severity: Constants.SeverityCritical, BugType: Constants.BugTypeProduction or Constants.BugTypeUat });
+        var p2Bugs = tickets.Count(t => t.Type == Constants.BugType && t is { Severity: Constants.SeverityMajor, BugType: Constants.BugTypeProduction or Constants.BugTypeUat });
         Console.WriteLine($"{teamName} Team Stats:");
         Console.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets-remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
         Console.WriteLine($"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints-remainingStoryPoints} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
         Console.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
         Console.WriteLine($"     - Number of Flags raised: {ticketsFlagged}");
+        if (p1Bugs > 0 || p2Bugs > 0)
+        {
+            Console.WriteLine($"     - *** P1 Bugs: {p1Bugs}, P2 Bugs: {p2Bugs} ***");
+        }
 
         if (sprintStart == DateTime.Today)
         {
