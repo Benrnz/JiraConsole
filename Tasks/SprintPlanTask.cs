@@ -32,7 +32,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     /// <summary>
     ///     All tickets in current and future sprints.
     /// </summary>
-    private IReadOnlyList<JiraIssue> sprintTickets = [];
+    private IReadOnlyList<JiraIssue> allSprintTickets = [];
 
     public string Description => "Export to a Google Sheet a over-arching plan of all future sprints for the two project teams.";
     public string Key => TaskKey;
@@ -51,7 +51,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     private void PopulatePmPlansOnSprintTickets()
     {
         var flattenPmPlanTickets = this.pmPlans.SelectMany(x => x.ChildrenStories);
-        this.sprintTickets.Join(flattenPmPlanTickets, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlanIssue: p))
+        this.allSprintTickets.Join(flattenPmPlanTickets, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlanIssue: p))
             .ToList()
             .ForEach(x =>
             {
@@ -63,7 +63,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     private async Task ExportAllSprintTickets()
     {
         // Find PMPLAN for each issue if it exists.
-        this.sprintTickets = this.sprintTickets.OrderBy(i => i.Team)
+        this.allSprintTickets = this.allSprintTickets.OrderBy(i => i.Team)
             .ThenBy(i => i.SprintStartDate)
             .ThenBy(i => i.Sprint)
             .ThenBy(i => i.PmPlan)
@@ -71,7 +71,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
         // temp save to CSV
         exporter.SetFileNameMode(FileNameMode.Auto, Key + "_FullData");
-        var file = exporter.Export(this.sprintTickets);
+        var file = exporter.Export(this.allSprintTickets);
 
         // Export to Google Sheets.
         await sheetUpdater.Open(GoogleSheetId);
@@ -102,12 +102,12 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         // Get all tickets in open and future sprints for the teams.
         var query = """project = "JAVPM" AND "Team[Team]" IN (60412efa-7e2e-4285-bb4e-f329c3b6d417, 1a05d236-1562-4e58-ae88-1ffc6c5edb32) AND (Sprint IN openSprints() OR Sprint IN futureSprints())""";
         Console.WriteLine(query);
-        this.sprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(query, Fields)).Select(i => new JiraIssue(i)).ToList();
+        this.allSprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(query, Fields)).Select(i => new JiraIssue(i)).ToList();
     }
 
     private async Task UpdateSheetSprintMasterPlan()
     {
-        var groupBySprint = this.sprintTickets
+        var groupBySprint = this.allSprintTickets
             .GroupBy(i => (i.Team, i.SprintStartDate, i.Sprint, i.PmPlan, i.PmPlanSummary))
             .OrderBy(g => g.Key.Team)
             .ThenBy(g => g.Key.SprintStartDate)
@@ -120,7 +120,8 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                 g.Key.PmPlan,
                 Summary = g.Key.PmPlanSummary,
                 StoryPoints = g.Sum(x => x.StoryPoints),
-                Tickets = g.Count()
+                Tickets = g.Count(),
+                SprintTickets = g.ToList()
             })
             .ToList();
 
@@ -147,11 +148,10 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
             // Sprint child Data row
             var pmPlanRecord = this.pmPlans.SingleOrDefault(p => p.Key == row.PmPlan);
-            var doneSprintTickets = this.sprintTickets.Where(t => t.Sprint == row.SprintName && t.Team == row.Team && t.PmPlan == row.PmPlan && t.Status == Constants.DoneStatus)
-                .Sum(t => t.StoryPoints);
+            var doneSprintTickets = row.SprintTickets.Where(t => t.Status == Constants.DoneStatus).Sum(t => t.StoryPoints);
             // Dont count work just done during this sprint
             var runningTotalWorkDone = (pmPlanRecord?.RunningTotalWorkDone - doneSprintTickets) ?? 0.0;
-            var ticketsWithNoEstimate = pmPlanRecord?.ChildrenStories.Count(t => t.Status != Constants.DoneStatus && t.StoryPoints <= 0 && t.Type != Constants.EpicType);
+            var ticketsWithNoEstimate = row.SprintTickets.Count(t => t.Status != Constants.DoneStatus && t.StoryPoints <= 0 && t.Type != Constants.EpicType);
             var percentCompleteStartOfSprint = runningTotalWorkDone / (pmPlanRecord?.TotalStoryPoints <= 0  ? 1 : pmPlanRecord?.TotalStoryPoints);
             var percentCompleteEndOfSprint = (runningTotalWorkDone + row.StoryPoints) / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
             var rowData = new List<object?>
