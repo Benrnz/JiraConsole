@@ -3,7 +3,7 @@
 public interface IWorkSheetUpdater
 {
     string? CsvFilePathAndName { get; set; }
-    bool QuoteStrings { get; set; }
+
     void AddSheet(string sheetName);
 
     void ApplyDateFormat(string sheetName, int column, string format);

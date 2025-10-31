@@ -27,22 +27,13 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
 
     private string? googleSheetId;
 
-    private SheetsService? service;
-
     public async Task Open(string sheetId)
     {
         this.googleSheetId = sheetId;
-        if (!await Authenticate())
-        {
-            return;
-        }
-
-        this.service = CreateSheetsService();
+        await Authenticate();
     }
 
     public string? CsvFilePathAndName { get; set; }
-
-    public bool QuoteStrings { get; set; } = false;
 
     public void AddSheet(string sheetName)
     {
@@ -149,12 +140,57 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
             return;
         }
 
-        this.service = CreateSheetsService();
+        using var service = new SheetsService(new BaseClientService.Initializer { HttpClientInitializer = this.credential, ApplicationName = Constants.ApplicationName });
 
+        await SendApplyClearRangeRequests(service);
+        await SendApplyValueRangeRequests(service);
+        await SendDeleteAddAndFormatRequests(service); // Formatting should be applied last, add delete don't matter and can be bundled into same service call.
+
+       // Clear all queues after successful submission
+        this.pendingSpreadsheetRequests.Clear();
+        this.pendingDeleteSheetNames.Clear();
+        this.pendingApplyDateFormats.Clear();
+        this.pendingClears.Clear();
+        this.pendingValueUpdates.Clear();
+    }
+
+    private async Task SendApplyClearRangeRequests(SheetsService service)
+    {
+        // Batch clear ranges
+        if (this.pendingClears.Any())
+        {
+            var batchClear = new BatchClearValuesRequest { Ranges = this.pendingClears.ToList() };
+            await service.Spreadsheets.Values.BatchClear(batchClear, this.googleSheetId).ExecuteAsync();
+        }
+    }
+
+    private async Task SendApplyValueRangeRequests(SheetsService service)
+    {
+        // Batch value updates, preserving the original order but group by input mode.
+        for (var i = 0; i < 2; i++)
+        {
+            var modeRange = this.pendingValueUpdates
+                .Where(p => p.UserMode == (i == 1))
+                .Select(p => p.Range)
+                .ToList();
+            if (modeRange.Any())
+            {
+                var batchValues = new BatchUpdateValuesRequest
+                {
+                    ValueInputOption = i == 1 ? "USER_ENTERED" : "RAW",
+                    Data = modeRange
+                };
+                await service.Spreadsheets.Values.BatchUpdate(batchValues, this.googleSheetId).ExecuteAsync();
+            }
+        }
+    }
+
+    private async Task SendDeleteAddAndFormatRequests(SheetsService service)
+    {
         Spreadsheet? spreadsheet = null;
         if (this.pendingDeleteSheetNames.Any() || this.pendingApplyDateFormats.Any())
         {
-            spreadsheet = await this.service.Spreadsheets.Get(this.googleSheetId).ExecuteAsync();
+            spreadsheet = await service.Spreadsheets.Get(this.googleSheetId).ExecuteAsync();
         }
 
         var requests = new List<Request>();
@@ -230,40 +266,8 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         if (requests.Any())
         {
             var batchUpdate = new BatchUpdateSpreadsheetRequest { Requests = requests };
-            await this.service.Spreadsheets.BatchUpdate(batchUpdate, this.googleSheetId).ExecuteAsync();
+            await service.Spreadsheets.BatchUpdate(batchUpdate, this.googleSheetId).ExecuteAsync();
         }
-
-        // Batch clear ranges
-        if (this.pendingClears.Any())
-        {
-            var batchClear = new BatchClearValuesRequest { Ranges = this.pendingClears.ToList() };
-            await this.service.Spreadsheets.Values.BatchClear(batchClear, this.googleSheetId).ExecuteAsync();
-        }
-
-        // Batch value updates, preserving the original order but group by input mode.
-        for (var i = 0; i < 2; i++)
-        {
-            var modeRange = this.pendingValueUpdates
-                .Where(p => p.UserMode == (i == 1))
-                .Select(p => p.Range)
-                .ToList();
-            if (modeRange.Any())
-            {
-                var batchValues = new BatchUpdateValuesRequest
-                {
-                    ValueInputOption = i == 1 ? "USER_ENTERED" : "RAW",
-                    Data = modeRange
-                };
-                await this.service.Spreadsheets.Values.BatchUpdate(batchValues, this.googleSheetId).ExecuteAsync();
-            }
-        }
-
-        // Clear queues after successful submission
-        this.pendingSpreadsheetRequests.Clear();
-        this.pendingDeleteSheetNames.Clear();
-        this.pendingApplyDateFormats.Clear();
-        this.pendingClears.Clear();
-        this.pendingValueUpdates.Clear();
     }
 
     private async Task<bool> Authenticate()
@@ -299,20 +303,6 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         return false;
     }
 
-    private SheetsService CreateSheetsService()
-    {
-        if (this.service is not null)
-        {
-            return this.service;
-        }
-
-        return this.service = new SheetsService(new BaseClientService.Initializer
-        {
-            HttpClientInitializer = this.credential,
-            ApplicationName = Constants.ApplicationName
-        });
-    }
-
     private object SetType(string? value)
     {
         if (value == null)
@@ -328,12 +318,6 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         if (double.TryParse(value, out var doubleValue))
         {
             return doubleValue;
-        }
-
-        // Assume string
-        if (QuoteStrings)
-        {
-            return value;
         }
 
         // Strip quotes if present
