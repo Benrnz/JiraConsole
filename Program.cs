@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using BensJiraConsole;
+using BensJiraConsole.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -16,6 +17,7 @@ public static class Program
             services.AddTransient<ICloudUploader, GoogleDriveUploader>();
             services.AddTransient<IWorkSheetUpdater, GoogleSheetUpdater>();
             services.AddTransient<IWorkSheetReader, GoogleSheetReader>();
+            services.AddSingleton<BugStatsWorker>();
 
             // Find and Register all tasks
             foreach (var taskType in TaskTypes())
