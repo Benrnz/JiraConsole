@@ -240,24 +240,19 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
             await this.service.Spreadsheets.Values.BatchClear(batchClear, this.googleSheetId).ExecuteAsync();
         }
 
-        // Batch value updates, preserving original order while grouping contiguous segments by input mode
-        if (this.pendingValueUpdates.Any())
+        // Batch value updates, preserving the original order but group by input mode.
+        for (var i = 0; i < 2; i++)
         {
-            var index = 0;
-            while (index < this.pendingValueUpdates.Count)
+            var modeRange = this.pendingValueUpdates
+                .Where(p => p.UserMode == (i == 1))
+                .Select(p => p.Range)
+                .ToList();
+            if (modeRange.Any())
             {
-                var userMode = this.pendingValueUpdates[index].UserMode;
-                var segment = new List<ValueRange>();
-                while (index < this.pendingValueUpdates.Count && this.pendingValueUpdates[index].UserMode == userMode)
-                {
-                    segment.Add(this.pendingValueUpdates[index].Range);
-                    index++;
-                }
-
                 var batchValues = new BatchUpdateValuesRequest
                 {
-                    ValueInputOption = userMode ? "USER_ENTERED" : "RAW",
-                    Data = segment
+                    ValueInputOption = i == 1 ? "USER_ENTERED" : "RAW",
+                    Data = modeRange
                 };
                 await this.service.Spreadsheets.Values.BatchUpdate(batchValues, this.googleSheetId).ExecuteAsync();
             }
