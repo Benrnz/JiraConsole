@@ -47,6 +47,10 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         jql = """Project = JAVPM AND "Team[Team]" = f08f7fdc-cfab-4de7-8fdd-8da57b10adb6 AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, "Spearhead", sprintStart);
 
+        // Officetech team
+        jql = """Project = OTPM AND Sprint IN openSprints()""";
+        await CalculateTeamStats(jql, "Officetech", sprintStart);
+
         Console.WriteLine("---------------------------------------------------------------------------------------------------");
         Console.WriteLine();
     }
