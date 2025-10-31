@@ -15,100 +15,51 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
     // The scopes required to access and modify Google Sheets.
     private static readonly string[] Scopes = [SheetsService.Scope.Spreadsheets];
     private static readonly Regex CsvParser = new(@",(?=(?:[^""]*""[^""]*"")*(?![^""]*""))");
+    private readonly List<(string SheetName, int Column, string Format)> pendingApplyDateFormats = new();
+    private readonly List<string> pendingClears = new();
+    private readonly List<string> pendingDeleteSheetNames = new();
+
+    // Batching queues
+    private readonly List<Request> pendingSpreadsheetRequests = new();
+    private readonly List<(ValueRange Range, bool UserMode)> pendingValueUpdates = new();
 
     private UserCredential? credential;
 
     private string? googleSheetId;
 
-    private SheetsService? service;
-
     public async Task Open(string sheetId)
     {
         this.googleSheetId = sheetId;
-        if (!await Authenticate())
-        {
-            return;
-        }
-
-        this.service = CreateSheetsService();
+        await Authenticate();
     }
 
     public string? CsvFilePathAndName { get; set; }
 
-    public bool QuoteStrings { get; set; } = false;
-
-    public async Task AddSheet(string sheetName)
+    public void AddSheet(string sheetName)
     {
-        ArgumentNullException.ThrowIfNull(this.service);
-
-        try
+        // Queue an AddSheet request; it will be sent on SubmitBatch().
+        var addSheetRequest = new Request
         {
-            var addSheetRequest = new Request
+            AddSheet = new AddSheetRequest
             {
-                AddSheet = new AddSheetRequest
+                Properties = new SheetProperties
                 {
-                    Properties = new SheetProperties
-                    {
-                        Title = sheetName
-                    }
+                    Title = sheetName
                 }
-            };
+            }
+        };
 
-            var batchUpdateRequest = new BatchUpdateSpreadsheetRequest
-            {
-                Requests = new List<Request> { addSheetRequest }
-            };
-
-            await this.service.Spreadsheets.BatchUpdate(batchUpdateRequest, this.googleSheetId).ExecuteAsync();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred while adding the sheet: {ex.Message}");
-            throw;
-        }
+        this.pendingSpreadsheetRequests.Add(addSheetRequest);
     }
 
-    public async Task DeleteSheet(string sheetName)
+    public void DeleteSheet(string sheetName)
     {
-        ArgumentNullException.ThrowIfNull(this.service);
-
-        try
-        {
-            // First, get the spreadsheet to find the sheet ID
-            var spreadsheet = await this.service.Spreadsheets.Get(this.googleSheetId).ExecuteAsync();
-            var sheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == sheetName);
-
-            if (sheet == null)
-            {
-                throw new Exception($"Sheet '{sheetName}' not found");
-            }
-
-            var deleteRequest = new Request
-            {
-                DeleteSheet = new DeleteSheetRequest
-                {
-                    SheetId = sheet.Properties.SheetId
-                }
-            };
-
-            var batchUpdateRequest = new BatchUpdateSpreadsheetRequest
-            {
-                Requests = new List<Request> { deleteRequest }
-            };
-
-            await this.service.Spreadsheets.BatchUpdate(batchUpdateRequest, this.googleSheetId).ExecuteAsync();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred while deleting the sheet (in order to clear the data). Message: {ex.Message}");
-            throw;
-        }
+        // Queue delete by name; resolve SheetId in SubmitBatch().
+        this.pendingDeleteSheetNames.Add(sheetName);
     }
 
     public async Task ImportFile(string sheetAndRange, bool userMode = false)
     {
-        ArgumentNullException.ThrowIfNull(this.service);
-
         if (CsvFilePathAndName is null)
         {
             throw new ArgumentException("CsvFilePathAndName has not been supplied to source data from.");
@@ -144,116 +95,178 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
             return;
         }
 
-        await EditSheet(sheetAndRange, values, userMode);
+        EditSheet(sheetAndRange, values, userMode);
     }
 
-    public async Task EditSheet(string sheetAndRange, IList<IList<object?>> sourceData, bool userMode = false)
+    public void EditSheet(string sheetAndRange, IList<IList<object?>> sourceData, bool userMode = false)
     {
-        if (!await Authenticate())
-        {
-            return;
-        }
-
-        // Create the Google Sheets service client.
-        this.service = CreateSheetsService();
-
-        // Define the data to be updated in the Google Sheet.
+        // Queue the value update; will be sent on SubmitBatch().
         var valueRange = new ValueRange
         {
             MajorDimension = "ROWS",
+            Range = sheetAndRange,
             Values = sourceData
         };
 
-        try
-        {
-            // Create the update request.
-            var updateRequest = this.service.Spreadsheets.Values.Update(valueRange, this.googleSheetId, sheetAndRange);
-            updateRequest.ValueInputOption =
-                userMode ? SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED : SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.RAW;
-
-            // Execute the request to update the Google Sheet.
-            var response = await updateRequest.ExecuteAsync();
-
-            Console.WriteLine($"\nSuccessfully updated {response.UpdatedCells} cells in https://docs.google.com/spreadsheets/d/{this.googleSheetId}/");
-            Console.WriteLine("Import complete.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred during the API call: {ex.Message}");
-        }
+        this.pendingValueUpdates.Add((valueRange, userMode));
     }
 
-    public async Task ClearRange(string sheetName, string range = "A1:Z10000")
+    public void ClearRange(string sheetName, string range = "A1:Z10000")
     {
-        ArgumentNullException.ThrowIfNull(this.service);
         if (sheetName.Contains("'"))
         {
             sheetName = sheetName.Replace("'", "");
         }
 
-        var sheetAndrange = $"'{sheetName}'!{range}"; // Adjust range as needed
-        var requestBody = new ClearValuesRequest();
-
-        var request = this.service.Spreadsheets.Values.Clear(requestBody, this.googleSheetId, sheetAndrange);
-        await request.ExecuteAsync();
+        var sheetAndRange = $"'{sheetName}'!{range}";
+        this.pendingClears.Add(sheetAndRange);
     }
 
-    public async Task ApplyDateFormat(string sheetName, int column, string format)
+    public void ApplyDateFormat(string sheetName, int column, string format)
     {
-        ArgumentNullException.ThrowIfNull(this.service);
+        // Queue apply date format by name; resolve SheetId in SubmitBatch().
+        this.pendingApplyDateFormats.Add((sheetName, column, format));
+    }
 
-        try
+    public async Task SubmitBatch()
+    {
+        if (string.IsNullOrEmpty(this.googleSheetId))
         {
-            // First, get the spreadsheet to find the sheet ID
-            var spreadsheet = await this.service.Spreadsheets.Get(this.googleSheetId).ExecuteAsync();
-            var sheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == sheetName);
-
-            if (sheet == null)
-            {
-                throw new Exception($"Sheet '{sheetName}' not found");
-            }
-
-            // Create the request to format the cells.
-            var repeatCellRequest = new Request
-            {
-                RepeatCell = new RepeatCellRequest
-                {
-                    // Define the range to apply the format to.
-                    // This example targets all of Column A on the first sheet (sheetId: 0).
-                    Range = new GridRange
-                    {
-                        SheetId = sheet.Properties.SheetId, // 0 is the ID of the very first sheet
-                        StartColumnIndex = column, // 0 is Column A
-                        EndColumnIndex = column + 1 // The range is exclusive, so this stops before Column B
-                    },
-                    // Define the format to apply.
-                    Cell = new CellData
-                    {
-                        UserEnteredFormat = new CellFormat
-                        {
-                            NumberFormat = new NumberFormat
-                            {
-                                Type = "DATE",
-                                Pattern = format // Your desired custom date format
-                            }
-                        }
-                    },
-                    // Specify that we are only updating the number format.
-                    Fields = "userEnteredFormat.numberFormat"
-                }
-            };
-
-            var batchUpdateRequest = new BatchUpdateSpreadsheetRequest
-            {
-                Requests = new List<Request> { repeatCellRequest }
-            };
-
-            await this.service.Spreadsheets.BatchUpdate(batchUpdateRequest, this.googleSheetId).ExecuteAsync();
+            throw new InvalidOperationException("Google Sheet ID is not set. Call Open(sheetId) first.");
         }
-        catch (Exception ex)
+
+        if (!await Authenticate())
         {
-            Console.WriteLine($"An error occurred while editing the sheet. Message: {ex.Message}");
-            throw;
+            return;
+        }
+
+        using var service = new SheetsService(new BaseClientService.Initializer { HttpClientInitializer = this.credential, ApplicationName = Constants.ApplicationName });
+
+        await SendApplyClearRangeRequests(service);
+        await SendApplyValueRangeRequests(service);
+        await SendDeleteAddAndFormatRequests(service); // Formatting should be applied last, add delete don't matter and can be bundled into same service call.
+
+       // Clear all queues after successful submission
+        this.pendingSpreadsheetRequests.Clear();
+        this.pendingDeleteSheetNames.Clear();
+        this.pendingApplyDateFormats.Clear();
+        this.pendingClears.Clear();
+        this.pendingValueUpdates.Clear();
+    }
+
+    private async Task SendApplyClearRangeRequests(SheetsService service)
+    {
+        // Batch clear ranges
+        if (this.pendingClears.Any())
+        {
+            var batchClear = new BatchClearValuesRequest { Ranges = this.pendingClears.ToList() };
+            await service.Spreadsheets.Values.BatchClear(batchClear, this.googleSheetId).ExecuteAsync();
+        }
+    }
+
+    private async Task SendApplyValueRangeRequests(SheetsService service)
+    {
+        // Batch value updates, preserving the original order but group by input mode.
+        for (var i = 0; i < 2; i++)
+        {
+            var modeRange = this.pendingValueUpdates
+                .Where(p => p.UserMode == (i == 1))
+                .Select(p => p.Range)
+                .ToList();
+            if (modeRange.Any())
+            {
+                var batchValues = new BatchUpdateValuesRequest
+                {
+                    ValueInputOption = i == 1 ? "USER_ENTERED" : "RAW",
+                    Data = modeRange
+                };
+                await service.Spreadsheets.Values.BatchUpdate(batchValues, this.googleSheetId).ExecuteAsync();
+            }
+        }
+    }
+
+    private async Task SendDeleteAddAndFormatRequests(SheetsService service)
+    {
+        Spreadsheet? spreadsheet = null;
+        if (this.pendingDeleteSheetNames.Any() || this.pendingApplyDateFormats.Any())
+        {
+            spreadsheet = await service.Spreadsheets.Get(this.googleSheetId).ExecuteAsync();
+        }
+
+        var requests = new List<Request>();
+
+        // Resolve deletes first
+        if (this.pendingDeleteSheetNames.Any() && spreadsheet is not null)
+        {
+            foreach (var name in this.pendingDeleteSheetNames)
+            {
+                var title = name.Trim('\'');
+                var sheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == title);
+                if (sheet?.Properties?.SheetId is { } sheetId)
+                {
+                    requests.Add(new Request
+                    {
+                        DeleteSheet = new DeleteSheetRequest { SheetId = sheetId }
+                    });
+                }
+                else
+                {
+                    Console.WriteLine($"Warning: Sheet '{name}' not found to delete.");
+                }
+            }
+        }
+
+        // AddSheet and other prebuilt requests
+        if (this.pendingSpreadsheetRequests.Any())
+        {
+            requests.AddRange(this.pendingSpreadsheetRequests);
+        }
+
+        // Apply date formats
+        if (this.pendingApplyDateFormats.Any() && spreadsheet is not null)
+        {
+            foreach (var item in this.pendingApplyDateFormats)
+            {
+                var title = item.SheetName.Trim('\'');
+                var sheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == title);
+                if (sheet?.Properties?.SheetId is { } sheetId)
+                {
+                    requests.Add(new Request
+                    {
+                        RepeatCell = new RepeatCellRequest
+                        {
+                            Range = new GridRange
+                            {
+                                SheetId = sheetId,
+                                StartColumnIndex = item.Column,
+                                EndColumnIndex = item.Column + 1
+                            },
+                            Cell = new CellData
+                            {
+                                UserEnteredFormat = new CellFormat
+                                {
+                                    NumberFormat = new NumberFormat
+                                    {
+                                        Type = "DATE",
+                                        Pattern = item.Format
+                                    }
+                                }
+                            },
+                            Fields = "userEnteredFormat.numberFormat"
+                        }
+                    });
+                }
+                else
+                {
+                    Console.WriteLine($"Warning: Sheet '{item.SheetName}' not found to apply date format.");
+                }
+            }
+        }
+
+        if (requests.Any())
+        {
+            var batchUpdate = new BatchUpdateSpreadsheetRequest { Requests = requests };
+            await service.Spreadsheets.BatchUpdate(batchUpdate, this.googleSheetId).ExecuteAsync();
         }
     }
 
@@ -290,20 +303,6 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         return false;
     }
 
-    private SheetsService CreateSheetsService()
-    {
-        if (this.service is not null)
-        {
-            return this.service;
-        }
-
-        return this.service = new SheetsService(new BaseClientService.Initializer
-        {
-            HttpClientInitializer = this.credential,
-            ApplicationName = Constants.ApplicationName
-        });
-    }
-
     private object SetType(string? value)
     {
         if (value == null)
@@ -319,12 +318,6 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         if (double.TryParse(value, out var doubleValue))
         {
             return doubleValue;
-        }
-
-        // Assume string
-        if (QuoteStrings)
-        {
-            return value;
         }
 
         // Strip quotes if present

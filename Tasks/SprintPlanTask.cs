@@ -25,14 +25,14 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     ];
 
     /// <summary>
-    ///     All PMPLANs
-    /// </summary>
-    private IReadOnlyList<PmPlanIssue> pmPlans = [];
-
-    /// <summary>
     ///     All tickets in current and future sprints.
     /// </summary>
     private IReadOnlyList<JiraIssue> allSprintTickets = [];
+
+    /// <summary>
+    ///     All PMPLANs
+    /// </summary>
+    private IReadOnlyList<PmPlanIssue> pmPlans = [];
 
     public string Description => "Export to a Google Sheet a over-arching plan of all future sprints for the two project teams.";
     public string Key => TaskKey;
@@ -45,19 +45,8 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         PopulatePmPlansOnSprintTickets();
         await ExportAllSprintTickets();
         await UpdateSheetSprintMasterPlan();
-        await sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
-    }
-
-    private void PopulatePmPlansOnSprintTickets()
-    {
-        var flattenPmPlanTickets = this.pmPlans.SelectMany(x => x.ChildrenStories);
-        this.allSprintTickets.Join(flattenPmPlanTickets, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlanIssue: p))
-            .ToList()
-            .ForEach(x =>
-            {
-                x.Issue.PmPlan = x.PmPlanIssue.PmPlan;
-                x.Issue.PmPlanSummary = x.PmPlanIssue.PmPlanSummary;
-            });
+        sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
+        await sheetUpdater.SubmitBatch();
     }
 
     private async Task ExportAllSprintTickets()
@@ -76,8 +65,20 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         // Export to Google Sheets.
         await sheetUpdater.Open(GoogleSheetId);
         sheetUpdater.CsvFilePathAndName = file;
-        await sheetUpdater.ClearRange("SprintTickets");
+        sheetUpdater.ClearRange("SprintTickets");
         await sheetUpdater.ImportFile("'SprintTickets'!A1");
+    }
+
+    private void PopulatePmPlansOnSprintTickets()
+    {
+        var flattenPmPlanTickets = this.pmPlans.SelectMany(x => x.ChildrenStories);
+        this.allSprintTickets.Join(flattenPmPlanTickets, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlanIssue: p))
+            .ToList()
+            .ForEach(x =>
+            {
+                x.Issue.PmPlan = x.PmPlanIssue.PmPlan;
+                x.Issue.PmPlanSummary = x.PmPlanIssue.PmPlanSummary;
+            });
     }
 
     private async Task RetrieveAllData()
@@ -152,7 +153,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             // Dont count work just done during this sprint
             var runningTotalWorkDone = (pmPlanRecord?.RunningTotalWorkDone - doneSprintTickets) ?? 0.0;
             var ticketsWithNoEstimate = row.SprintTickets.Count(t => t.Status != Constants.DoneStatus && t.StoryPoints <= 0 && t.Type != Constants.EpicType);
-            var percentCompleteStartOfSprint = runningTotalWorkDone / (pmPlanRecord?.TotalStoryPoints <= 0  ? 1 : pmPlanRecord?.TotalStoryPoints);
+            var percentCompleteStartOfSprint = runningTotalWorkDone / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
             var percentCompleteEndOfSprint = (runningTotalWorkDone + row.StoryPoints) / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
             var rowData = new List<object?>
             {
@@ -178,8 +179,8 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         }
 
         await sheetUpdater.Open(GoogleSheetId);
-        await sheetUpdater.ClearRange("Sprint-Master-Plan", "A2:Z10000");
-        await sheetUpdater.EditSheet("Sprint-Master-Plan!A2", sheetData);
+        sheetUpdater.ClearRange("Sprint-Master-Plan", "A2:Z10000");
+        sheetUpdater.EditSheet("Sprint-Master-Plan!A2", sheetData);
         //await sheetUpdater.ApplyDateFormat("Sprints-PMPlans", 2, "d mmm yy");
     }
 
@@ -191,12 +192,13 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             Summary = JiraFields.Summary.Parse(issue);
         }
 
-        public string Key { get; }
-        public string Summary { get; }
         public List<JiraIssue> ChildrenStories { get; set; } = new();
+
+        public string Key { get; }
+        public double RunningTotalWorkDone { get; set; }
+        public string Summary { get; }
         public double TotalStoryPoints { get; set; }
         public double TotalWorkDone { get; set; }
-        public double RunningTotalWorkDone { get; set; }
     }
 
     private record JiraIssue
@@ -212,13 +214,6 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             Type = JiraFields.IssueType.Parse(issue);
         }
 
-        public JiraIssue AddPmPlanDetails(PmPlanIssue pmPlan)
-        {
-            PmPlan = pmPlan.Key;
-            PmPlanSummary = pmPlan.Summary;
-            return this;
-        }
-
         public string Key { get; }
         public string PmPlan { get; set; } = string.Empty;
         public string PmPlanSummary { get; set; } = string.Empty;
@@ -227,6 +222,13 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         public string Status { get; }
         public double StoryPoints { get; }
         public string Team { get; }
-        public string Type { get; init; }
+        public string Type { get; }
+
+        public JiraIssue AddPmPlanDetails(PmPlanIssue pmPlan)
+        {
+            PmPlan = pmPlan.Key;
+            PmPlanSummary = pmPlan.Summary;
+            return this;
+        }
     }
 }

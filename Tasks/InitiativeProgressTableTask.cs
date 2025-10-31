@@ -46,14 +46,15 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
 
         // Update the Summary Tab
         var summaryReportArray = BuildSummaryReportArray(AllInitiativesData);
-        await sheetUpdater.ClearRange("Summary", "A2:Z10000");
-        await sheetUpdater.EditSheet("'Summary'!A2", summaryReportArray, true);
+        sheetUpdater.ClearRange("Summary", "A2:Z10000");
+        sheetUpdater.EditSheet("'Summary'!A2", summaryReportArray, true);
 
         // Update the OverviewGraph tab
         var overviewReportArray = BuildOverviewReportArray(AllInitiativesData);
-        await sheetUpdater.ClearRange("OverviewGraphs", "A2:Z10000");
-        await sheetUpdater.EditSheet("'OverviewGraphs'!A2", overviewReportArray, true);
-        await sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
+        sheetUpdater.ClearRange("OverviewGraphs", "A2:Z10000");
+        sheetUpdater.EditSheet("'OverviewGraphs'!A2", overviewReportArray, true);
+        sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
+        await sheetUpdater.SubmitBatch();
     }
 
     public async Task LoadData()
@@ -226,5 +227,13 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
         public double Total { get; set; }
     }
 
-    public record JiraIssue(string Key, DateTimeOffset CreatedDateTime, DateTimeOffset? ResolvedDateTime, string Status, double StoryPoints, string PmPlan, string Summary, string PmPlanSummary);
+    public record JiraIssue(
+        string Key,
+        DateTimeOffset CreatedDateTime,
+        DateTimeOffset? ResolvedDateTime,
+        string Status,
+        double StoryPoints,
+        string PmPlan,
+        string Summary,
+        string PmPlanSummary);
 }

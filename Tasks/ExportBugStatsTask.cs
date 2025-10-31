@@ -23,10 +23,11 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
         JiraFields.Resolution,
         JiraFields.CodeAreaParent,
         JiraFields.CodeArea,
-        JiraFields.CustomersMultiSelect,
+        JiraFields.CustomersMultiSelect
     ];
 
     private List<string> allCategories = new();
+
     private List<string> allCodeAreas = new();
     //private int dynamicIndex;
 
@@ -52,7 +53,8 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
         await ExportBugStatsReportedVsResolved(monthTotalsForSeverities);
         await ExportBugStatsEnvestSeverities(jiras, monthTotalsForSeverities);
         await ExportBugStatsCategories(jiras);
-        await sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
+        sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
+        await sheetUpdater.SubmitBatch();
     }
 
     private DateTime CalculateStartDate()
@@ -151,54 +153,6 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
         await sheetUpdater.ImportFile("'CodeAreas'!A1");
     }
 
-    private async Task ExportBugStatsReportedVsBacklog(List<BarChartData> severityTotals)
-    {
-        var chartData = new List<LayeredBarChartData>();
-        var jql = """project = JAVPM AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND status != Done""";
-        var issuesBacklog = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
-        foreach (var totalChartDataMonth in severityTotals)
-        {
-            var month = totalChartDataMonth.Month;
-            var monthIssueBacklog = issuesBacklog.Where(x => x.Created < month.AddMonths(1));
-            var p1Backlog = monthIssueBacklog.Where(x => x.Severity == Constants.SeverityCritical).Count();
-            var p2Backlog = monthIssueBacklog.Where(x => x.Severity == Constants.SeverityMajor).Count();
-            var otherBacklog = monthIssueBacklog.Count() - p1Backlog - p2Backlog;
-            var monthbacklogData = new BarChartData(month, p1Backlog, p2Backlog, otherBacklog);
-            var row = new LayeredBarChartData(totalChartDataMonth, monthbacklogData);
-            chartData.Add(row);
-        }
-
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-ReportVsBacklog");
-
-        var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported,,,Ticket Backlog\n,P1,P2,Other,Open P1s,Open P2s,Open Others", SerialiseToCsv);
-        sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.ImportFile("'Reported Vs Backlog'!A1");
-    }
-
-    private async Task ExportBugStatsReportedVsResolved(List<BarChartData> severityTotals)
-    {
-        var chartData = new List<LayeredBarChartData>();
-        var jql = """project = "JAVPM" AND status = Done AND type = Bug AND Severity IN (Critical, Major) AND "Bug Type[Dropdown]" IN (Production, UAT) AND resolutiondate >= startOfMonth("-13M") ORDER BY resolutiondate""";
-        var issuesBacklog = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
-        foreach (var totalChartDataMonth in severityTotals)
-        {
-            var month = totalChartDataMonth.Month;
-            var monthIssueBacklog = issuesBacklog.Where(x => x.Resolved >= month && x.Resolved < month.AddMonths(1));
-            var p1Resolved = monthIssueBacklog.Where(x => x.Severity == Constants.SeverityCritical).Count();
-            var p2Resolved = monthIssueBacklog.Where(x => x.Severity == Constants.SeverityMajor).Count();
-            var otherResolved = monthIssueBacklog.Count() - p1Resolved - p2Resolved;
-            var monthbacklogData = new BarChartData(month, p1Resolved, p2Resolved, otherResolved);
-            var row = new LayeredBarChartData(totalChartDataMonth, monthbacklogData);
-            chartData.Add(row);
-        }
-
-        exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-ReportVsResolved");
-
-        var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported,,,Resolved Bugs\n,P1,P2,Other,Resolved P1s,Resolved P2s,Resolved Others", SerialiseToCsv);
-        sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.ImportFile("'Reported Vs Resolved'!A1");
-    }
-
     private async Task ExportBugStatsEnvestSeverities(List<JiraIssue> jiras, List<BarChartData> severityTotals)
     {
         var chartData = new List<LayeredBarChartData>();
@@ -240,6 +194,55 @@ public class ExportBugStatsTask(IJiraQueryRunner runner, ICsvExporter exporter, 
         var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
         sheetUpdater.CsvFilePathAndName = fileName;
         await sheetUpdater.ImportFile("'RecentDev'!A1");
+    }
+
+    private async Task ExportBugStatsReportedVsBacklog(List<BarChartData> severityTotals)
+    {
+        var chartData = new List<LayeredBarChartData>();
+        var jql = """project = JAVPM AND issuetype = Bug AND "Bug Type[Dropdown]" IN (Production, UAT) AND status != Done""";
+        var issuesBacklog = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
+        foreach (var totalChartDataMonth in severityTotals)
+        {
+            var month = totalChartDataMonth.Month;
+            var monthIssueBacklog = issuesBacklog.Where(x => x.Created < month.AddMonths(1)).ToList();
+            var p1Backlog = monthIssueBacklog.Count(x => x.Severity == Constants.SeverityCritical);
+            var p2Backlog = monthIssueBacklog.Count(x => x.Severity == Constants.SeverityMajor);
+            var otherBacklog = monthIssueBacklog.Count() - p1Backlog - p2Backlog;
+            var monthbacklogData = new BarChartData(month, p1Backlog, p2Backlog, otherBacklog);
+            var row = new LayeredBarChartData(totalChartDataMonth, monthbacklogData);
+            chartData.Add(row);
+        }
+
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-ReportVsBacklog");
+
+        var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported,,,Ticket Backlog\n,P1,P2,Other,Open P1s,Open P2s,Open Others", SerialiseToCsv);
+        sheetUpdater.CsvFilePathAndName = fileName;
+        await sheetUpdater.ImportFile("'Reported Vs Backlog'!A1");
+    }
+
+    private async Task ExportBugStatsReportedVsResolved(List<BarChartData> severityTotals)
+    {
+        var chartData = new List<LayeredBarChartData>();
+        var jql =
+            """project = "JAVPM" AND status = Done AND type = Bug AND Severity IN (Critical, Major) AND "Bug Type[Dropdown]" IN (Production, UAT) AND resolutiondate >= startOfMonth("-13M") ORDER BY resolutiondate""";
+        var issuesBacklog = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(CreateJiraIssue).ToList();
+        foreach (var totalChartDataMonth in severityTotals)
+        {
+            var month = totalChartDataMonth.Month;
+            var monthIssueBacklog = issuesBacklog.Where(x => x.Resolved >= month && x.Resolved < month.AddMonths(1)).ToList();
+            var p1Resolved = monthIssueBacklog.Count(x => x.Severity == Constants.SeverityCritical);
+            var p2Resolved = monthIssueBacklog.Count(x => x.Severity == Constants.SeverityMajor);
+            var otherResolved = monthIssueBacklog.Count() - p1Resolved - p2Resolved;
+            var monthbacklogData = new BarChartData(month, p1Resolved, p2Resolved, otherResolved);
+            var row = new LayeredBarChartData(totalChartDataMonth, monthbacklogData);
+            chartData.Add(row);
+        }
+
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{Key}-ReportVsResolved");
+
+        var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported,,,Resolved Bugs\n,P1,P2,Other,Resolved P1s,Resolved P2s,Resolved Others", SerialiseToCsv);
+        sheetUpdater.CsvFilePathAndName = fileName;
+        await sheetUpdater.ImportFile("'Reported Vs Resolved'!A1");
     }
 
     private async Task<List<BarChartData>> ExportBugStatsSeverities(List<JiraIssue> jiras, string? customerFilter = null)
