@@ -1,6 +1,6 @@
 ﻿namespace BensJiraConsole;
 
-public class JiraGreenhopperClient
+public class JiraGreenHopperClient
 {
     private const string BaseUrl = "https://javlnsupport.atlassian.net/rest/greenhopper/1.0/";
 

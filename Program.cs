@@ -14,6 +14,7 @@ public static class Program
             services.AddSingleton<App>();
             services.AddTransient<ICsvExporter, SimpleCsvExporter>();
             services.AddTransient<IJiraQueryRunner, JiraQueryDynamicRunner>();
+            services.AddTransient<IGreenHopperRunner, GreenHopperDynamicRunner>();
             services.AddTransient<ICloudUploader, GoogleDriveUploader>();
             services.AddTransient<IWorkSheetUpdater, GoogleSheetUpdater>();
             services.AddTransient<IWorkSheetReader, GoogleSheetReader>();
