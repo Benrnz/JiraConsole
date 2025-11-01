@@ -1,5 +1,6 @@
 ﻿using System.Dynamic;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace BensJiraConsole;
 
@@ -8,6 +9,31 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
     private SortedList<string, IFieldMapping[]> fieldAliases = new();
 
     private string[] IgnoreFields => ["avatarId", "hierarchyLevel", "iconUrl", "id", "expand", "self", "subtask"];
+
+    public async Task<AgileSprint?> GetCurrentSprint(int boardId)
+    {
+        var result = await new JiraApiClient().GetAgileBoardActiveSprintAsync(boardId);
+        if (string.IsNullOrEmpty(result))
+        {
+            return null;
+        }
+
+        var json = JsonNode.Parse(result);
+        if (json is null)
+        {
+            return null;
+        }
+
+        var values = json["values"]?[0] ?? throw new NotSupportedException("No Agile Sprint values returned from API.");
+        return new AgileSprint(
+            values["id"]!.GetValue<int>(),
+            values["state"]!.GetValue<string>(),
+            values["name"]!.GetValue<string>(),
+            values["startDate"]!.GetValue<DateTimeOffset>(),
+            values["endDate"]!.GetValue<DateTimeOffset>(),
+            values["originBoardId"]!.GetValue<int>(),
+            values["goal"]!.GetValue<string>());
+    }
 
     public async Task<IReadOnlyList<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, IFieldMapping[] fields)
     {
