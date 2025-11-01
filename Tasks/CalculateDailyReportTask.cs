@@ -36,15 +36,15 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         }
 
         // Superclass team
-        var jql = """Project = JAVPM AND "Team[Team]" = 1a05d236-1562-4e58-ae88-1ffc6c5edb32 AND Sprint IN openSprints()""";
+        var jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamSuperclass} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, "Superclass", sprintStart);
 
         // Ruby Ducks team
-        jql = """Project = JAVPM AND "Team[Team]" = 60412efa-7e2e-4285-bb4e-f329c3b6d417 AND Sprint IN openSprints()""";
+        jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamRubyDucks} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, "Ruby Ducks", sprintStart);
 
         // Spearhead team
-        jql = """Project = JAVPM AND "Team[Team]" = f08f7fdc-cfab-4de7-8fdd-8da57b10adb6 AND Sprint IN openSprints()""";
+        jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamSpearhead} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, "Spearhead", sprintStart);
 
         // Officetech team
