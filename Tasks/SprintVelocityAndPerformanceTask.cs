@@ -2,9 +2,9 @@
 
 namespace BensJiraConsole.Tasks;
 
-public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClient, IJiraQueryRunner runner) : IJiraExportTask
+public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClient, IJiraQueryRunner runner, IWorkSheetReader reader) : IJiraExportTask
 {
-    private const string GoogleSheetId = "";
+    private const string GoogleSheetId = "1HuI-uYOtR66rs8B0qp8e3L39x13reFTaiOB3VN42vAQ";
     private const string TaskKey = "SPRINT_PERF";
 
     private readonly TeamSprint[] teams =
@@ -20,22 +20,20 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
 
     public async Task ExecuteAsync(string[] args)
     {
+        // This task can accept a list of space seperated sprint IDs from the commandline to extract metrics for those sprints. Omit for current sprint.
         Console.WriteLine(Description);
         Console.WriteLine();
 
-        var sprintsOfInterest = new List<AgileSprint>();
-        foreach (var requestedSprint in args.Skip(1).Select(int.Parse))
-        {
-            var sprint = await runner.GetSprintById(requestedSprint);
-            if (sprint is null)
-            {
-                Console.WriteLine($"No such sprint found: {requestedSprint}.");
-                return;
-            }
+        var sprintsOfInterest = await ParseOptionalArguments(args);
 
-            sprintsOfInterest.Add(sprint);
-        }
+        var sprintMetrics = await ExtractAndCalculateSprintMetrics(sprintsOfInterest);
 
+        await reader.Open(GoogleSheetId);
+        var lastRow = await reader.GetLastRowInColumnAsync("Summary", "A");
+    }
+
+    private async Task<IReadOnlyList<SprintMetrics>> ExtractAndCalculateSprintMetrics(List<AgileSprint> sprintsOfInterest)
+    {
         var sprintMetrics = new List<SprintMetrics>();
         foreach (var team in this.teams)
         {
@@ -64,6 +62,26 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
 
             sprintMetrics.Add(await ProcessSprint(team));
         }
+
+        return sprintMetrics;
+    }
+
+    private async Task<List<AgileSprint>> ParseOptionalArguments(string[] args)
+    {
+        var sprintsOfInterest = new List<AgileSprint>();
+        foreach (var requestedSprint in args.Skip(1).Select(int.Parse))
+        {
+            var sprint = await runner.GetSprintById(requestedSprint);
+            if (sprint is null)
+            {
+                Console.WriteLine($"No such sprint found: {requestedSprint}.");
+                return sprintsOfInterest;
+            }
+
+            sprintsOfInterest.Add(sprint);
+        }
+
+        return sprintsOfInterest;
     }
 
     private DateTimeOffset GetDateTimeOffset(JsonNode? node)
