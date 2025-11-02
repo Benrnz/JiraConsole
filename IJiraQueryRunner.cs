@@ -2,6 +2,7 @@
 
 public interface IJiraQueryRunner
 {
-    Task<AgileSprint?> GetCurrentSprint(int boardId);
+    Task<AgileSprint?> GetCurrentSprintForBoard(int boardId);
+    Task<AgileSprint?> GetSprintById(int sprintId);
     Task<IReadOnlyList<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, IFieldMapping[] fields);
 }

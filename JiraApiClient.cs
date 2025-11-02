@@ -23,6 +23,13 @@ public class JiraApiClient
         return await GetAgileBoardByStateAsync(boardId, "future");
     }
 
+    public async Task<string> GetAgileBoardSprintByIdAsync(int sprintId)
+    {
+        var response = await App.Http.GetAsync($"{BaseAgileUrl}sprint/{sprintId}");
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync();
+    }
+
     public async Task<string> PostSearchJqlAsync(string jql, string[] fields, string? nextPageToken = null)
     {
         var requestBody = new

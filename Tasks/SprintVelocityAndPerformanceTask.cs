@@ -23,17 +23,45 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         Console.WriteLine(Description);
         Console.WriteLine();
 
+        var sprintsOfInterest = new List<AgileSprint>();
+        foreach (var requestedSprint in args.Skip(1).Select(int.Parse))
+        {
+            var sprint = await runner.GetSprintById(requestedSprint);
+            if (sprint is null)
+            {
+                Console.WriteLine($"No such sprint found: {requestedSprint}.");
+                return;
+            }
+
+            sprintsOfInterest.Add(sprint);
+        }
+
         var sprintMetrics = new List<SprintMetrics>();
         foreach (var team in this.teams)
         {
-            var sprint = await runner.GetCurrentSprint(team.BoardId);
-            if (sprint is null)
+            if (sprintsOfInterest.Any())
             {
-                Console.WriteLine("No active sprint for team {team.Team} found.");
-                continue;
+                var sprint = sprintsOfInterest.FirstOrDefault(x => x.OriginBoardId == team.BoardId);
+                if (sprint is null)
+                {
+                    // This team doesn't have a sprint in the requested list.
+                    continue;
+                }
+
+                team.CurrentSprintId = sprint.Id;
+            }
+            else
+            {
+                var sprint = await runner.GetCurrentSprintForBoard(team.BoardId);
+                if (sprint is null)
+                {
+                    Console.WriteLine("No active sprint for team {team.Team} found.");
+                    continue;
+                }
+
+                team.CurrentSprintId = sprint.Id;
             }
 
-            team.CurrentSprintId = sprint.Id;
             sprintMetrics.Add(await ProcessSprint(team));
         }
     }
@@ -65,9 +93,11 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         }
 
         var contents = result["contents"] ?? throw new NotSupportedException("No contents returned from API.");
-        var ticketsCompletedOriginalEstimate = GetValueAsDays(contents["completedIssuesInitialEstimateSum"]);
+        var ticketsCompletedInitialEstimate = GetValueAsDays(contents["completedIssuesInitialEstimateSum"]);
         var ticketsCompleted = GetValueAsDays(contents["completedIssuesEstimateSum"]);
-        var ticketsNotCompleted = GetValueAsDays(contents["issuesNotCompletedInitialEstimateSum"]);
+        var ticketsNotCompletedInitial = GetValueAsDays(contents["issuesNotCompletedInitialEstimateSum"]);
+        var ticketsNotCompleted = GetValueAsDays(contents["issuesNotCompletedEstimateSum"]);
+        var ticketsRemovedInitial = GetValueAsDays(contents["puntedIssuesInitialEstimateSum"]);
         var ticketsRemoved = GetValueAsDays(contents["puntedIssuesEstimateSum"]);
         var ticketsCompletedOutsideSprint = GetValueAsDays(contents["issuesCompletedInAnotherSprintEstimateSum"]);
         var sprint = result["sprint"] ?? throw new NotSupportedException("No sprint returned from API.");
@@ -79,9 +109,9 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
             sprint["daysRemaining"]?.GetValue<int>() ?? 0,
             GetDateTimeOffset(sprint["startDate"]),
             GetDateTimeOffset(sprint["endDate"]),
-            ticketsCompletedOriginalEstimate + ticketsNotCompleted + ticketsRemoved,
+            ticketsCompletedInitialEstimate + ticketsNotCompletedInitial + ticketsRemovedInitial,
             ticketsCompleted + ticketsCompletedOutsideSprint,
-            (ticketsCompleted + ticketsCompletedOutsideSprint) / (ticketsCompletedOriginalEstimate + ticketsNotCompleted + ticketsRemoved),
+            (ticketsCompleted + ticketsCompletedOutsideSprint) / (ticketsCompletedInitialEstimate + ticketsNotCompletedInitial + ticketsRemovedInitial),
             (ticketsCompleted + ticketsCompletedOutsideSprint) / teamSprint.MaxCapacity);
 
         Console.WriteLine($"{sprintMetrics.Team.Team}");
