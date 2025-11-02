@@ -23,6 +23,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         Console.WriteLine(Description);
         Console.WriteLine();
 
+        var sprintMetrics = new List<SprintMetrics>();
         foreach (var team in this.teams)
         {
             var sprint = await runner.GetCurrentSprint(team.BoardId);
@@ -33,7 +34,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
             }
 
             team.CurrentSprintId = sprint.Id;
-            await ProcessSprint(team);
+            sprintMetrics.Add(await ProcessSprint(team));
         }
     }
 
@@ -54,13 +55,13 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         return value / 60 / 60 / 8; // values were in seconds, convert to days, 8 hours in a day.
     }
 
-    private async Task ProcessSprint(TeamSprint teamSprint)
+    private async Task<SprintMetrics> ProcessSprint(TeamSprint teamSprint)
     {
         var result = await greenHopperClient.GetSprintReportAsync(teamSprint.BoardId, teamSprint.CurrentSprintId);
         if (result is null)
         {
             Console.WriteLine("No sprint report returned from API.");
-            return;
+            return new SprintMetrics(teamSprint, "No sprint found", "NOT-FOUND", 0, DateTimeOffset.MinValue, DateTimeOffset.MinValue, 0, 0, 0, 0);
         }
 
         var contents = result["contents"] ?? throw new NotSupportedException("No contents returned from API.");
@@ -69,26 +70,44 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         var ticketsNotCompleted = GetValueAsDays(contents["issuesNotCompletedInitialEstimateSum"]);
         var ticketsRemoved = GetValueAsDays(contents["puntedIssuesEstimateSum"]);
         var ticketsCompletedOutsideSprint = GetValueAsDays(contents["issuesCompletedInAnotherSprintEstimateSum"]);
-        var capacityAccuracy = (ticketsCompleted + ticketsCompletedOutsideSprint) / (ticketsCompletedOriginalEstimate + ticketsNotCompleted + ticketsRemoved);
-        var percentOfMaxCapacity = (ticketsCompleted + ticketsCompletedOutsideSprint) / teamSprint.MaxCapacity;
-
         var sprint = result["sprint"] ?? throw new NotSupportedException("No sprint returned from API.");
-        var sprintName = sprint["name"]?.GetValue<string>() ?? string.Empty;
-        var sprintStartDate = GetDateTimeOffset(sprint["startDate"]);
-        var sprintState = sprint["state"]?.GetValue<string>() ?? string.Empty;
-        var sprintEndDate = GetDateTimeOffset(sprint["endDate"]);
-        var sprintDaysRemaining = sprint["daysRemaining"]?.GetValue<int>() ?? 0;
 
-        Console.WriteLine($"{teamSprint.Team}");
-        Console.WriteLine($"Sprint: {sprintName} ({sprintState}), Days remaining: {sprintDaysRemaining}");
-        Console.WriteLine($"{sprintStartDate:d-MMM} to {sprintEndDate:d-MMM}");
-        Console.WriteLine($"Max theoretical capacity:            {teamSprint.MaxCapacity}");
-        Console.WriteLine($"Committed days work:                 {ticketsCompletedOriginalEstimate + ticketsNotCompleted + ticketsRemoved}");
-        Console.WriteLine($"Completed days work:                 {ticketsCompleted + ticketsCompletedOutsideSprint}");
-        Console.WriteLine($"Capacity accuracy:                   {capacityAccuracy:P0}");
-        Console.WriteLine($"Percent of theoretical max capacity: {percentOfMaxCapacity:P0}");
+        var sprintMetrics = new SprintMetrics(
+            teamSprint,
+            sprint["name"]?.GetValue<string>() ?? string.Empty,
+            sprint["state"]?.GetValue<string>() ?? string.Empty,
+            sprint["daysRemaining"]?.GetValue<int>() ?? 0,
+            GetDateTimeOffset(sprint["startDate"]),
+            GetDateTimeOffset(sprint["endDate"]),
+            ticketsCompletedOriginalEstimate + ticketsNotCompleted + ticketsRemoved,
+            ticketsCompleted + ticketsCompletedOutsideSprint,
+            (ticketsCompleted + ticketsCompletedOutsideSprint) / (ticketsCompletedOriginalEstimate + ticketsNotCompleted + ticketsRemoved),
+            (ticketsCompleted + ticketsCompletedOutsideSprint) / teamSprint.MaxCapacity);
+
+        Console.WriteLine($"{sprintMetrics.Team.Team}");
+        Console.WriteLine($"Sprint: {sprintMetrics.SprintName} ({sprintMetrics.SprintState}), Days remaining: {sprintMetrics.DaysRemaining}");
+        Console.WriteLine($"{sprintMetrics.StartDate:d-MMM} to {sprintMetrics.EndDate:d-MMM}");
+        Console.WriteLine($"Max theoretical capacity:            {sprintMetrics.Team.MaxCapacity}");
+        Console.WriteLine($"Committed days work:                 {sprintMetrics.CommittedDaysWork}");
+        Console.WriteLine($"Completed days work:                 {sprintMetrics.CompletedDaysWork}");
+        Console.WriteLine($"Capacity accuracy:                   {sprintMetrics.CapacityAccuracy:P0}");
+        Console.WriteLine($"Percent of theoretical max capacity: {sprintMetrics.PercentOfMaxCapacity:P0}");
         Console.WriteLine("------------------------------------------------------------------------");
+
+        return sprintMetrics;
     }
+
+    private record SprintMetrics(
+        TeamSprint Team,
+        string SprintName,
+        string SprintState,
+        int DaysRemaining,
+        DateTimeOffset StartDate,
+        DateTimeOffset EndDate,
+        double CommittedDaysWork,
+        double CompletedDaysWork,
+        double CapacityAccuracy,
+        double PercentOfMaxCapacity);
 
     private record TeamSprint(string Team, string TeamId, int BoardId, double MaxCapacity)
     {
