@@ -73,7 +73,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         Console.WriteLine($"{teamName} Team Stats:");
         Console.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
         Console.WriteLine(
-            $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
+            $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints:F1} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
         Console.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
         Console.WriteLine($"     - Number of Flags raised: {ticketsFlagged}");
         if (p1Bugs > 0 || p2Bugs > 0)
