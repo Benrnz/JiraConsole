@@ -45,7 +45,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
 // Header row: Metric label + team names as columns
         sheetData.Add(new List<object?>
         {
-            "Metric"
+            string.Empty
         }.Concat(orderedTeams.Select(t => (object?)t.Team)).ToList());
 
 // Small local helper to add a row: first cell is label, followed by values per team
