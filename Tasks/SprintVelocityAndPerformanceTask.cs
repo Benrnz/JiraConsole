@@ -28,52 +28,28 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
 
         var sprintMetrics = await ExtractAndCalculateSprintMetrics(sprintsOfInterest);
 
+        await UpdateSheet(sprintMetrics);
+    }
+
+    private async Task UpdateSheet(IReadOnlyList<SprintMetrics> sprintMetrics)
+    {
         await reader.Open(GoogleSheetId);
+        var row = new List<object?>();
+        foreach (var sprintMetric in sprintMetrics)
+        {
+            row.Add($"{sprintMetric.SprintName} {sprintMetric.StartDate:d-MMM-yy} to {sprintMetric.EndDate:d-MMM-yy}");
+            row.Add(sprintMetric.CommittedDaysWork);
+            row.Add(sprintMetric.CompletedDaysWork);
+            row.Add(sprintMetric.CapacityAccuracy);
+            row.Add(sprintMetric.PercentOfMaxCapacity);
+        };
+
+        var sheetData = new List<IList<object?>> { row };
+
         var lastRow = await reader.GetLastRowInColumnAsync("Summary", "A");
-        // Ensure we keep a stable team order by the predefined `teams` field
-        var orderedTeams = this.teams.ToList();
-
-// Map team -> metrics (some teams may be missing if no sprint was found)
-        var metricsByTeamId = sprintMetrics.ToDictionary(
-            m => m.Team.TeamId,
-            m => m
-        );
-
-// Start building the 2D sheet data: rows of objects
-        var sheetData = new List<IList<object?>>();
-
-// Header row: Metric label + team names as columns
-        sheetData.Add(new List<object?>
-        {
-            string.Empty
-        }.Concat(orderedTeams.Select(t => (object?)t.Team)).ToList());
-
-// Small local helper to add a row: first cell is label, followed by values per team
-        void AddRow(string label, Func<SprintMetrics, object?> selector, object? valueIfMissing = null)
-        {
-            var row = new List<object?> { label };
-            foreach (var team in orderedTeams)
-            {
-                var m = metricsByTeamId.GetValueOrDefault(team.TeamId);
-                row.Add(m is null ? valueIfMissing : selector(m));
-            }
-
-            sheetData.Add(row);
-        }
-
-// Add your rows (labels in col A). You can adjust formatting/rounding as needed.
-        AddRow("Sprint name", m => m.SprintName);
-        AddRow("Sprint state", m => m.SprintState);
-        AddRow("Days remaining", m => m.DaysRemaining);
-        AddRow("Start date", m => m.StartDate.ToString("yyyy-MM-dd"));
-        AddRow("End date", m => m.EndDate.ToString("yyyy-MM-dd"));
-        AddRow("Committed days work", m => Math.Round(m.CommittedDaysWork, 2));
-        AddRow("Completed days work", m => Math.Round(m.CompletedDaysWork, 2));
-        AddRow("Capacity accuracy", m => Math.Round(m.CapacityAccuracy, 4)); // as fraction (e.g., 0.87)
-        AddRow("% of max capacity", m => Math.Round(m.PercentOfMaxCapacity, 4)); // as fraction (e.g., 0.92)
 
         await updater.Open(GoogleSheetId);
-        updater.EditSheet($"'Summary'!A1", sheetData);
+        updater.EditSheet($"'Summary'!A{lastRow + 1}", sheetData);
         await updater.SubmitBatch();
     }
 
