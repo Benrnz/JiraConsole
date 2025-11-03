@@ -18,8 +18,9 @@ public static class Constants
     public const string SeverityCritical = "Critical";
     public const string SeverityMajor = "Major";
     public const string StoryType = "Story";
-    public const string TeamSuperclass = "1a05d236-1562-4e58-ae88-1ffc6c5edb32";
+    public const string TeamOfficetech = "Empty";
     public const string TeamRubyDucks = "60412efa-7e2e-4285-bb4e-f329c3b6d417";
     public const string TeamSpearhead = "f08f7fdc-cfab-4de7-8fdd-8da57b10adb6";
+    public const string TeamSuperclass = "1a05d236-1562-4e58-ae88-1ffc6c5edb32";
     public const string Unknown = "Unknown";
 }

@@ -11,7 +11,8 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
     [
         new("Superclass", Constants.TeamSuperclass, 419, 60),
         new("RubyDucks", Constants.TeamRubyDucks, 420, 70),
-        new("Spearhead", Constants.TeamSpearhead, 418, 60)
+        new("Spearhead", Constants.TeamSpearhead, 418, 60),
+        new("Officetech", Constants.TeamOfficetech, 483, 35)
     ];
 
     public string Description => "Export to a Google Sheet the last 12 months of sprint velocity and performance metrics.";
