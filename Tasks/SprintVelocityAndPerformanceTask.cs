@@ -50,6 +50,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
 
         await updater.Open(GoogleSheetId);
         updater.EditSheet($"'Summary'!A{lastRow + 1}", sheetData);
+        updater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
         await updater.SubmitBatch();
     }
 
