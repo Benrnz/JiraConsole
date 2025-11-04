@@ -10,7 +10,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
     private readonly TeamSprint[] teams =
     [
         new("Superclass", Constants.TeamSuperclass, 419, 60),
-        new("RubyDucks", Constants.TeamRubyDucks, 420, 70),
+        new("RubyDucks", Constants.TeamRubyDucks, 420, 60),
         new("Spearhead", Constants.TeamSpearhead, 418, 60),
         new("Officetech", Constants.TeamOfficetech, 483, 35)
     ];
