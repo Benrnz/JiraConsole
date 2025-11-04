@@ -1,10 +1,24 @@
 ﻿using System.Diagnostics;
+using System.Net.Http.Headers;
 using System.Text;
 
 namespace BensJiraConsole;
 
 public class App(IEnumerable<IJiraExportTask> tasks)
 {
+    // Shared HttpClient for all API calls
+    public static readonly HttpClient Http = CreateHttpClient();
+
+    private static HttpClient CreateHttpClient()
+    {
+        var client = new HttpClient();
+        var email = Secrets.Username;
+        var token = Secrets.JiraToken;
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{email}:{token}"));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
+        return client;
+    }
+
     private readonly IJiraExportTask[] allTasks = tasks.ToArray();
     private string[] commandLineArgs = [];
 

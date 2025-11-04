@@ -1,24 +1,33 @@
-﻿using System.Net.Http.Headers;
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 
 namespace BensJiraConsole;
 
 public class JiraApiClient
 {
-    private const string BaseUrl = "https://javlnsupport.atlassian.net/rest/api/3/";
-    private static readonly HttpClient Client = new();
+    private const string BaseApi3Url = "https://javlnsupport.atlassian.net/rest/api/3/";
+    private const string BaseAgileUrl = "https://javlnsupport.atlassian.net/rest/agile/1.0/";
 
-    public JiraApiClient()
+    public async Task<string> GetAgileBoardActiveSprintAsync(int boardId)
     {
-        var email = Secrets.Username;
-        var token = Secrets.JiraToken;
-        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{email}:{token}"));
+        return await GetAgileBoardByStateAsync(boardId, "active");
+    }
 
-        if (Client.DefaultRequestHeaders.Authorization == null)
-        {
-            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
-        }
+    public async Task<string> GetAgileBoardClosedSprintsAsync(int boardId)
+    {
+        return await GetAgileBoardByStateAsync(boardId, "closed");
+    }
+
+    public async Task<string> GetAgileBoardFutureSprintsAsync(int boardId)
+    {
+        return await GetAgileBoardByStateAsync(boardId, "future");
+    }
+
+    public async Task<string> GetAgileBoardSprintByIdAsync(int sprintId)
+    {
+        var response = await App.Http.GetAsync($"{BaseAgileUrl}sprint/{sprintId}");
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync();
     }
 
     public async Task<string> PostSearchJqlAsync(string jql, string[] fields, string? nextPageToken = null)
@@ -34,7 +43,7 @@ public class JiraApiClient
         var json = JsonSerializer.Serialize(requestBody);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await Client.PostAsync($"{BaseUrl}search/jql", content);
+        var response = await App.Http.PostAsync($"{BaseApi3Url}search/jql", content);
         if (!response.IsSuccessStatusCode)
         {
             Console.WriteLine("ERROR!");
@@ -49,27 +58,10 @@ public class JiraApiClient
         return responseJson;
     }
 
-    // private static async Task<List<JiraIssue>> GetSearchJiraAsync(string jql)
-    // {
-    //     var url = $"{BaseUrl}search?jql={Uri.EscapeDataString(jql)}";
-    //
-    //     var response = await Client.GetAsync(url);
-    //     response.EnsureSuccessStatusCode();
-    //
-    //     var json = await response.Content.ReadAsStringAsync();
-    //     var jiraResponse = JsonSerializer.Deserialize<JiraResponseDto>(json);
-    //
-    //     var output = new List<JiraIssue>();
-    //     foreach (var issue in jiraResponse.Issues)
-    //     {
-    //         output.Add(new JiraIssue(
-    //             issue.Key,
-    //             issue.Fields.Summary,
-    //             issue.Fields.Status?.Name ?? "Unknown",
-    //             issue.Fields.Assignee?.DisplayName ?? "Unassigned"
-    //         ));
-    //     }
-    //
-    //     return output;
-    // }
+    private async Task<string> GetAgileBoardByStateAsync(int boardId, string state)
+    {
+        var response = await App.Http.GetAsync($"{BaseAgileUrl}/board/{boardId}/sprint?state={state}");
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync();
+    }
 }

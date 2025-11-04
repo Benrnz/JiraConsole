@@ -36,15 +36,15 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         }
 
         // Superclass team
-        var jql = """Project = JAVPM AND "Team[Team]" = 1a05d236-1562-4e58-ae88-1ffc6c5edb32 AND Sprint IN openSprints()""";
+        var jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamSuperclass} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, "Superclass", sprintStart);
 
         // Ruby Ducks team
-        jql = """Project = JAVPM AND "Team[Team]" = 60412efa-7e2e-4285-bb4e-f329c3b6d417 AND Sprint IN openSprints()""";
+        jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamRubyDucks} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, "Ruby Ducks", sprintStart);
 
         // Spearhead team
-        jql = """Project = JAVPM AND "Team[Team]" = f08f7fdc-cfab-4de7-8fdd-8da57b10adb6 AND Sprint IN openSprints()""";
+        jql = $"""Project = JAVPM AND "Team[Team]" = {Constants.TeamSpearhead} AND Sprint IN openSprints()""";
         await CalculateTeamStats(jql, "Spearhead", sprintStart);
 
         // Officetech team
@@ -73,7 +73,7 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         Console.WriteLine($"{teamName} Team Stats:");
         Console.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
         Console.WriteLine(
-            $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
+            $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints:F1} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
         Console.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
         Console.WriteLine($"     - Number of Flags raised: {ticketsFlagged}");
         if (p1Bugs > 0 || p2Bugs > 0)

@@ -1,5 +1,6 @@
 ﻿using System.Dynamic;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace BensJiraConsole;
 
@@ -8,6 +9,24 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
     private SortedList<string, IFieldMapping[]> fieldAliases = new();
 
     private string[] IgnoreFields => ["avatarId", "hierarchyLevel", "iconUrl", "id", "expand", "self", "subtask"];
+
+    public async Task<AgileSprint?> GetCurrentSprintForBoard(int boardId)
+    {
+        var result = await new JiraApiClient().GetAgileBoardActiveSprintAsync(boardId);
+        if (string.IsNullOrEmpty(result))
+        {
+            return null;
+        }
+
+        var json = JsonNode.Parse(result);
+        if (json is null)
+        {
+            return null;
+        }
+
+        var values = json["values"]?[0] ?? throw new NotSupportedException("No Agile Sprint values returned from API.");
+        return CreateAgileSprintFromJsonNode(values);
+    }
 
     public async Task<IReadOnlyList<dynamic>> SearchJiraIssuesWithJqlAsync(string jql, IFieldMapping[] fields)
     {
@@ -48,6 +67,35 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         } while (!isLastPage || nextPageToken != null);
 
         return results;
+    }
+
+    public async Task<AgileSprint?> GetSprintById(int sprintId)
+    {
+        var result = await new JiraApiClient().GetAgileBoardSprintByIdAsync(sprintId);
+        if (string.IsNullOrEmpty(result))
+        {
+            return null;
+        }
+
+        var json = JsonNode.Parse(result);
+        if (json is null)
+        {
+            return null;
+        }
+
+        return CreateAgileSprintFromJsonNode(json);
+    }
+
+    private AgileSprint CreateAgileSprintFromJsonNode(JsonNode values)
+    {
+        return new AgileSprint(
+            values["id"]!.GetValue<int>(),
+            values["state"]!.GetValue<string>(),
+            values["name"]!.GetValue<string>(),
+            values["startDate"]!.GetValue<DateTimeOffset>(),
+            values["endDate"]!.GetValue<DateTimeOffset>(),
+            values["originBoardId"]!.GetValue<int>(),
+            values["goal"]!.GetValue<string>());
     }
 
     private dynamic DeserialiseDynamicArray(JsonElement element, string propertyName, string childField)

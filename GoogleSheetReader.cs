@@ -1,6 +1,7 @@
 ﻿using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
+using Google.Apis.Sheets.v4.Data;
 using Google.Apis.Util.Store;
 
 namespace BensJiraConsole;
@@ -45,6 +46,18 @@ public class GoogleSheetReader : IWorkSheetReader
         }
 
         this.service = CreateSheetsService();
+    }
+
+    public async Task<int> GetLastRowInColumnAsync(string sheetName, string columnLetter)
+    {
+        ArgumentNullException.ThrowIfNull(this.service);
+        var range = $"{sheetName}!{columnLetter}:{columnLetter}";
+        var request = this.service.Spreadsheets.Values.Get(this.googleSheetId, range);
+        // ask for values as COLUMNS so returned Values[0] is the single column's values
+        request.MajorDimension = SpreadsheetsResource.ValuesResource.GetRequest.MajorDimensionEnum.COLUMNS;
+        var response = await request.ExecuteAsync();
+        var column = response.Values?.FirstOrDefault();
+        return column?.Count ?? 0; // 1-based row index; 0 means column empty
     }
 
     public async Task<IEnumerable<string>> GetSheetNames()
