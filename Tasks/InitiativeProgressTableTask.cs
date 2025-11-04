@@ -78,16 +78,18 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
 
     private static IList<IList<object?>> BuildOverviewReportArray(IList<JiraInitiative> allInitiativeData)
     {
+        // This data excludes UAT so that the overall initiative can be reports as a 'Done' state even if the block of time allocated to UAT is not completely used up.
         // 4 columns: Name, Key, Done, Remaining
         IList<IList<object?>> reportArray = new List<IList<object?>>();
         foreach (var initiative in allInitiativeData)
         {
+            var pmPlansExclUat = initiative.PmPlans.Where(p => !p.Description.StartsWith("UAT:")).ToList();
             var row = new List<object?>
             {
                 initiative.Description,
                 initiative.InitiativeKey,
-                initiative.Progress.Done,
-                initiative.Progress.Remaining
+                pmPlansExclUat.Sum(p => p.Progress.Done),
+                pmPlansExclUat.Sum(p => p.Progress.Remaining)
             };
             reportArray.Add(row);
         }
