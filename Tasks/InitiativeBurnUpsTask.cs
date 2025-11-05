@@ -40,6 +40,7 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
             // Update data table
             if (chart.Any())
             {
+                sheetUpdater.ClearRange(initiative, "A3:C1000");
                 await sheetUpdater.ImportFile($"'{initiative}'!A3", true);
                 sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
                 var children = mainTask.AllIssuesData[initiative]
@@ -64,7 +65,7 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
                     childrenArray.Add(row);
                 }
 
-                sheetUpdater.ClearRange($"{initiative}", "F43:L1000");
+                sheetUpdater.ClearRange($"{initiative}", "F43:M1000");
                 sheetUpdater.EditSheet($"'{initiative}'!G43", childrenArray, true);
             }
         }
