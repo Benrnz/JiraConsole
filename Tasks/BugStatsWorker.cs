@@ -128,8 +128,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-Categories");
         var fileName = exporter.Export(bugCounts, SerialiseCatergoriesHeaderRow, SerialiseToCsv);
 
-        sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.ImportFile("'ProductCategories'!A1");
+        await sheetUpdater.ImportFile("'ProductCategories'!A1", fileName);
     }
 
     private async Task ExportBugStatsCodeAreas(List<JiraIssue> jiras)
@@ -153,8 +152,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-Areas");
         var fileName = exporter.Export(bugCounts, SerialiseCodeAreasHeaderRow, SerialiseToCsv);
 
-        sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.ImportFile("'CodeAreas'!A1");
+        await sheetUpdater.ImportFile("'CodeAreas'!A1", fileName);
     }
 
     private async Task ExportBugStatsEnvestSeverities(List<JiraIssue> jiras, List<BarChartData> severityTotals)
@@ -172,8 +170,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-SeveritiesEnvest");
 
         var fileName = exporter.Export(chartData, () => "Month,Totals,,,Envest Only\n,P1,P2,Other,EP1,EP2,EOther", SerialiseToCsv);
-        sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.ImportFile("'Envest'!A1");
+        await sheetUpdater.ImportFile("'Envest'!A1", fileName);
     }
 
     private async Task ExportBugStatsRecentDevelopment(List<JiraIssue> jiras)
@@ -196,8 +193,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-RecentDev");
         var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
-        sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.ImportFile("'RecentDev'!A1");
+        await sheetUpdater.ImportFile("'RecentDev'!A1", fileName);
     }
 
     private async Task ExportBugStatsReportedVsBacklog(List<BarChartData> severityTotals)
@@ -220,8 +216,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-ReportVsBacklog");
 
         var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported,,,Ticket Backlog\n,P1,P2,Other,Open P1s,Open P2s,Open Others", SerialiseToCsv);
-        sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.ImportFile("'Reported Vs Backlog'!A1");
+        await sheetUpdater.ImportFile("'Reported Vs Backlog'!A1", fileName);
     }
 
     private async Task ExportBugStatsReportedVsResolved(List<BarChartData> severityTotals)
@@ -245,8 +240,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-ReportVsResolved");
 
         var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported,,,Resolved Bugs\n,P1,P2,Other,Resolved P1s,Resolved P2s,Resolved Others", SerialiseToCsv);
-        sheetUpdater.CsvFilePathAndName = fileName;
-        await sheetUpdater.ImportFile("'Reported Vs Resolved'!A1");
+        await sheetUpdater.ImportFile("'Reported Vs Resolved'!A1", fileName);
     }
 
     private async Task<List<BarChartData>> ExportBugStatsSeverities(List<JiraIssue> jiras, string? customerFilter = null)
@@ -272,8 +266,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             // Only update the master Severities total sheet if we're running without a specific customer filter.
             exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-Severities");
             var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
-            sheetUpdater.CsvFilePathAndName = fileName;
-            await sheetUpdater.ImportFile("'Severities'!A1");
+            await sheetUpdater.ImportFile("'Severities'!A1", fileName);
         }
 
         return bugCounts;

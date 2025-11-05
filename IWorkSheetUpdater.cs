@@ -2,8 +2,6 @@
 
 public interface IWorkSheetUpdater
 {
-    string? CsvFilePathAndName { get; set; }
-
     void AddSheet(string sheetName);
 
     void ApplyDateFormat(string sheetName, int column, string format);
@@ -27,8 +25,9 @@ public interface IWorkSheetUpdater
     ///     Edit a sheet and insert data provided in the CSV file.
     /// </summary>
     /// <param name="sheetAndRange">'Sheet1!A1'</param>
+    /// <param name="csvFileName">The file to import</param>
     /// <param name="userMode">Defaults to false.  If true, data is entered and interpreted by the workbook as if entered by the user.</param>
-    Task ImportFile(string sheetAndRange, bool userMode = false);
+    Task ImportFile(string sheetAndRange, string csvFileName, bool userMode = false);
 
     Task Open(string sheetId);
 

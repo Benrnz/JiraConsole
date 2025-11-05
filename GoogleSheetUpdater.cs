@@ -33,8 +33,6 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         await Authenticate();
     }
 
-    public string? CsvFilePathAndName { get; set; }
-
     public void AddSheet(string sheetName)
     {
         // Queue an AddSheet request; it will be sent on SubmitBatch().
@@ -58,11 +56,11 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         this.pendingDeleteSheetNames.Add(sheetName);
     }
 
-    public async Task ImportFile(string sheetAndRange, bool userMode = false)
+    public async Task ImportFile(string sheetAndRange, string csvFileName, bool userMode = false)
     {
-        if (CsvFilePathAndName is null)
+        if (csvFileName is null)
         {
-            throw new ArgumentException("CsvFilePathAndName has not been supplied to source data from.");
+            throw new ArgumentNullException(nameof(csvFileName), "CsvFilePathAndName has not been supplied to source data from.");
         }
 
         // Read the CSV data from the local file.
@@ -70,7 +68,7 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         try
         {
             // Read all lines from the CSV file.
-            var lines = await File.ReadAllLinesAsync(CsvFilePathAndName);
+            var lines = await File.ReadAllLinesAsync(csvFileName);
             foreach (var line in lines)
             {
                 // Split preserving quoted strings with commas
@@ -86,7 +84,7 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         }
         catch (FileNotFoundException)
         {
-            Console.WriteLine($"Error: The CSV file '{CsvFilePathAndName}' was not found.");
+            Console.WriteLine($"Error: The CSV file '{csvFileName}' was not found.");
             return;
         }
         catch (Exception ex)

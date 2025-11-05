@@ -64,9 +64,8 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
         // Export to Google Sheets.
         await sheetUpdater.Open(GoogleSheetId);
-        sheetUpdater.CsvFilePathAndName = file;
         sheetUpdater.ClearRange("SprintTickets");
-        await sheetUpdater.ImportFile("'SprintTickets'!A1");
+        await sheetUpdater.ImportFile("'SprintTickets'!A1", file);
     }
 
     private void PopulatePmPlansOnSprintTickets()

@@ -31,7 +31,6 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
                 .ToList();
             exporter.SetFileNameMode(FileNameMode.ExactName, initiative);
             var fileName = exporter.Export(chart);
-            sheetUpdater.CsvFilePathAndName = fileName;
 
             // Update Header
             var initiativeRecord = mainTask.AllInitiativesData.Single(i => i.InitiativeKey == initiative);
@@ -41,7 +40,7 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
             if (chart.Any())
             {
                 sheetUpdater.ClearRange(initiative, "A3:C1000");
-                await sheetUpdater.ImportFile($"'{initiative}'!A3", true);
+                await sheetUpdater.ImportFile($"'{initiative}'!A3", fileName, true);
                 sheetUpdater.ApplyDateFormat(initiative, 0, "d mmm yy");
                 var children = mainTask.AllIssuesData[initiative]
                     .Where(i => i.Status != Constants.DoneStatus)

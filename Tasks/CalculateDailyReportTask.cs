@@ -177,11 +177,10 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         var fileName = $"{Key}_{teamName}";
         exporter.SetFileNameMode(FileNameMode.ExactName, fileName);
         var pathAndFileName = exporter.Export(tickets, () => $"Key,Status,StoryPoints,Team,Assignee,FlagCount,{sprintStart:yyyy-MM-dd}");
-        sheetUpdater.CsvFilePathAndName = pathAndFileName;
         await sheetUpdater.Open(GoogleSheetId);
         sheetUpdater.DeleteSheet($"{teamName}");
         sheetUpdater.AddSheet($"{teamName}");
-        await sheetUpdater.ImportFile($"'{teamName}'!A1");
+        await sheetUpdater.ImportFile($"'{teamName}'!A1", pathAndFileName);
         await sheetUpdater.SubmitBatch();
         Console.WriteLine("Successfully recorded the list of tickets brought into the beginning of the sprint.");
     }
