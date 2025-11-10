@@ -87,7 +87,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
             var row = new List<object?>
             {
                 initiative.Description,
-                initiative.InitiativeKey,
+                $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{initiative.InitiativeKey}", "{initiative.InitiativeKey}")""",
                 pmPlansExclUat.Sum(p => p.Progress.Done),
                 pmPlansExclUat.Sum(p => p.Progress.Remaining)
             };
@@ -105,7 +105,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
             var row = new List<object?>
             {
                 initiative.Description,
-                initiative.InitiativeKey,
+                $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{initiative.InitiativeKey}", "{initiative.InitiativeKey}")""",
                 initiative.Progress.Total,
                 initiative.Progress.Done,
                 initiative.Progress.Remaining,
@@ -119,7 +119,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
                 var childRow = new List<object?>
                 {
                     childPmPlan.Description,
-                    childPmPlan.PmPlanKey,
+                    $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{childPmPlan.PmPlanKey}", "{childPmPlan.PmPlanKey}")""",
                     childPmPlan.Progress.Total,
                     childPmPlan.Progress.Done,
                     childPmPlan.Progress.Remaining,
