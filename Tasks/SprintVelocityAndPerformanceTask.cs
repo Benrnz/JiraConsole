@@ -38,7 +38,8 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         var row = new List<object?>();
         foreach (var sprintMetric in sprintMetrics)
         {
-            row.Add($"{sprintMetric.SprintName} {sprintMetric.StartDate:d-MMM-yy} to {sprintMetric.EndDate:d-MMM-yy}");
+            var sprintText = $"{sprintMetric.SprintName} {sprintMetric.StartDate:d-MMM-yy} to {sprintMetric.EndDate:d-MMM-yy}";
+            row.Add($"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/software/c/projects/JAVPM/boards/{sprintMetric.Team.BoardId}/reports/sprint-retrospective?sprint={sprintMetric.Team.CurrentSprintId}", "{sprintText}")""");
             row.Add(sprintMetric.CommittedDaysWork);
             row.Add(sprintMetric.CompletedDaysWork);
             row.Add(sprintMetric.CapacityAccuracy);
@@ -50,7 +51,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         var lastRow = await reader.GetLastRowInColumnAsync("Summary", "A");
 
         await updater.Open(GoogleSheetId);
-        updater.EditSheet($"'Summary'!A{lastRow + 1}", sheetData);
+        updater.EditSheet($"'Summary'!A{lastRow + 1}", sheetData, true);
         updater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
         await updater.SubmitBatch();
     }
