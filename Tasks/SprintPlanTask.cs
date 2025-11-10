@@ -154,12 +154,15 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             var ticketsWithNoEstimate = row.SprintTickets.Count(t => t.Status != Constants.DoneStatus && t.StoryPoints <= 0 && t.Type != Constants.EpicType);
             var percentCompleteStartOfSprint = runningTotalWorkDone / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
             var percentCompleteEndOfSprint = (runningTotalWorkDone + row.StoryPoints) / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
+            var pmPlanText = string.IsNullOrEmpty(row.PmPlan)
+                ? "No PMPLAN"
+                : $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{row.PmPlan}", "{row.PmPlan}")""";
             var rowData = new List<object?>
             {
                 null, //Team
                 null, //Sprint
                 null, //Start Date
-                string.IsNullOrEmpty(row.PmPlan) ? "No PMPLAN" : row.PmPlan,
+                pmPlanText,
                 row.Summary,
                 row.Tickets, // Tickets in Sprint
                 row.StoryPoints, // Story Points in Sprint
@@ -179,8 +182,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
         await sheetUpdater.Open(GoogleSheetId);
         sheetUpdater.ClearRange("Sprint-Master-Plan", "A2:Z10000");
-        sheetUpdater.EditSheet("Sprint-Master-Plan!A2", sheetData);
-        //await sheetUpdater.ApplyDateFormat("Sprints-PMPlans", 2, "d mmm yy");
+        sheetUpdater.EditSheet("Sprint-Master-Plan!A2", sheetData, true);
     }
 
     private record PmPlanIssue
