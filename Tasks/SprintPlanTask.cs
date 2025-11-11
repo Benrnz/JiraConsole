@@ -50,7 +50,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         PopulatePmPlansOnSprintTickets();
         await ExportAllSprintTickets();
         await UpdateSheetSprintMasterPlan(this.openFutureSprintTickets, "Sprint-Master-Plan");
-        await UpdateSheetSprintMasterPlan(this.closedSprintTickets, "Closed-Sprints", true);
+        await UpdateSheetSprintMasterPlan(this.closedSprintTickets, "Closed-Sprints", skipFirstSprint: true);
         sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
         await sheetUpdater.SubmitBatch();
     }
@@ -152,7 +152,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         };
         foreach (var row in groupBySprint.OrderBy(g => g.StartDate).ThenBy(g => g.Team).ThenBy(g => g.SprintName))
         {
-            if (skipFirstSprints.Any(kvp => kvp.Value))
+            if (skipFirstSprints.Any(kvp => kvp.Value == true))
             {
                 if (string.IsNullOrEmpty(firstSprint))
                 {
@@ -163,10 +163,9 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                 {
                     continue;
                 }
-
                 skipFirstSprints[row.Team] = false;
                 firstSprint = row.Team + row.SprintName;
-                if (skipFirstSprints.Any(kvp => kvp.Value))
+                if (skipFirstSprints.Any(kvp => kvp.Value == true))
                 {
                     continue;
                 }
