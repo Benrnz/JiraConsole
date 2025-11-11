@@ -25,13 +25,14 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     ];
 
     /// <summary>
-    ///     All tickets in current and future sprints.
-    /// </summary>
-    private IReadOnlyList<JiraIssue> openFutureSprintTickets = [];
-    /// <summary>
     ///     All tickets from previous closed sprints.
     /// </summary>
     private IReadOnlyList<JiraIssue> closedSprintTickets = [];
+
+    /// <summary>
+    ///     All tickets in current and future sprints.
+    /// </summary>
+    private IReadOnlyList<JiraIssue> openFutureSprintTickets = [];
 
     /// <summary>
     ///     All PMPLANs
@@ -181,6 +182,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                     row.StartDate == DateTimeOffset.MaxValue ? null : row.StartDate.ToString("d-MMM-yy"),
                     null,
                     null,
+                    null,
                     groupBySprint.Where(g => g.StartDate == row.StartDate && g.SprintName == row.SprintName && g.Team == row.Team).Sum(g => g.Tickets),
                     groupBySprint.Where(g => g.StartDate == row.StartDate && g.SprintName == row.SprintName && g.Team == row.Team).Sum(g => g.StoryPoints)
                 };
@@ -203,8 +205,9 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                 null, //Team
                 null, //Sprint
                 null, //Start Date
-                pmPlanText,
+                pmPlanText, // PMPLAN key and link
                 row.Summary,
+                pmPlanRecord?.IsReqdForGoLive ?? false ? "Yes" : "No",
                 row.Tickets, // Tickets in Sprint
                 row.StoryPoints, // Story Points in Sprint
                 pmPlanRecord?.TotalStoryPoints - runningTotalWorkDone, // Total Work remaining
@@ -232,10 +235,11 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         {
             Key = JiraFields.Key.Parse(issue);
             Summary = JiraFields.Summary.Parse(issue);
+            IsReqdForGoLive = JiraFields.IsReqdForGoLive.Parse(issue);
         }
 
         public List<JiraIssue> ChildrenStories { get; set; } = new();
-
+        public bool IsReqdForGoLive { get; }
         public string Key { get; }
         public double RunningTotalWorkDone { get; set; }
         public string Summary { get; }
