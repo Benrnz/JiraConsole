@@ -25,13 +25,14 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     ];
 
     /// <summary>
-    ///     All tickets in current and future sprints.
-    /// </summary>
-    private IReadOnlyList<JiraIssue> openFutureSprintTickets = [];
-    /// <summary>
     ///     All tickets from previous closed sprints.
     /// </summary>
     private IReadOnlyList<JiraIssue> closedSprintTickets = [];
+
+    /// <summary>
+    ///     All tickets in current and future sprints.
+    /// </summary>
+    private IReadOnlyList<JiraIssue> openFutureSprintTickets = [];
 
     /// <summary>
     ///     All PMPLANs
@@ -49,7 +50,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         PopulatePmPlansOnSprintTickets();
         await ExportAllSprintTickets();
         await UpdateSheetSprintMasterPlan(this.openFutureSprintTickets, "Sprint-Master-Plan");
-        await UpdateSheetSprintMasterPlan(this.closedSprintTickets, "Closed-Sprints", skipFirstSprint: true);
+        await UpdateSheetSprintMasterPlan(this.closedSprintTickets, "Closed-Sprints", true);
         sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
         await sheetUpdater.SubmitBatch();
     }
@@ -151,7 +152,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         };
         foreach (var row in groupBySprint.OrderBy(g => g.StartDate).ThenBy(g => g.Team).ThenBy(g => g.SprintName))
         {
-            if (skipFirstSprints.Any(kvp => kvp.Value == true))
+            if (skipFirstSprints.Any(kvp => kvp.Value))
             {
                 if (string.IsNullOrEmpty(firstSprint))
                 {
@@ -162,9 +163,10 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                 {
                     continue;
                 }
+
                 skipFirstSprints[row.Team] = false;
                 firstSprint = row.Team + row.SprintName;
-                if (skipFirstSprints.Any(kvp => kvp.Value == true))
+                if (skipFirstSprints.Any(kvp => kvp.Value))
                 {
                     continue;
                 }
@@ -179,6 +181,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                     row.Team,
                     row.SprintName,
                     row.StartDate == DateTimeOffset.MaxValue ? null : row.StartDate.ToString("d-MMM-yy"),
+                    null,
                     null,
                     null,
                     groupBySprint.Where(g => g.StartDate == row.StartDate && g.SprintName == row.SprintName && g.Team == row.Team).Sum(g => g.Tickets),
@@ -203,8 +206,9 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
                 null, //Team
                 null, //Sprint
                 null, //Start Date
-                pmPlanText,
+                pmPlanText, // PMPLAN key and link
                 row.Summary,
+                pmPlanRecord?.IsReqdForGoLive ?? false ? "Yes" : "No",
                 row.Tickets, // Tickets in Sprint
                 row.StoryPoints, // Story Points in Sprint
                 pmPlanRecord?.TotalStoryPoints - runningTotalWorkDone, // Total Work remaining
@@ -232,10 +236,11 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         {
             Key = JiraFields.Key.Parse(issue);
             Summary = JiraFields.Summary.Parse(issue);
+            IsReqdForGoLive = JiraFields.IsReqdForGoLive.Parse(issue);
         }
 
         public List<JiraIssue> ChildrenStories { get; set; } = new();
-
+        public bool IsReqdForGoLive { get; }
         public string Key { get; }
         public double RunningTotalWorkDone { get; set; }
         public string Summary { get; }
