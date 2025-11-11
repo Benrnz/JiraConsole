@@ -27,7 +27,11 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     /// <summary>
     ///     All tickets in current and future sprints.
     /// </summary>
-    private IReadOnlyList<JiraIssue> allSprintTickets = [];
+    private IReadOnlyList<JiraIssue> openFutureSprintTickets = [];
+    /// <summary>
+    ///     All tickets from previous closed sprints.
+    /// </summary>
+    private IReadOnlyList<JiraIssue> closedSprintTickets = [];
 
     /// <summary>
     ///     All PMPLANs
@@ -44,15 +48,15 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         await RetrieveAllData();
         PopulatePmPlansOnSprintTickets();
         await ExportAllSprintTickets();
-        await UpdateSheetSprintMasterPlan();
+        await UpdateSheetSprintMasterPlan(this.openFutureSprintTickets, "Sprint-Master-Plan");
+        await UpdateSheetSprintMasterPlan(this.closedSprintTickets, "Closed-Sprints", skipFirstSprint: true);
         sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
         await sheetUpdater.SubmitBatch();
     }
 
     private async Task ExportAllSprintTickets()
     {
-        // Find PMPLAN for each issue if it exists.
-        this.allSprintTickets = this.allSprintTickets.OrderBy(i => i.Team)
+        this.openFutureSprintTickets = this.openFutureSprintTickets.OrderBy(i => i.Team)
             .ThenBy(i => i.SprintStartDate)
             .ThenBy(i => i.Sprint)
             .ThenBy(i => i.PmPlan)
@@ -60,18 +64,25 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
         // temp save to CSV
         exporter.SetFileNameMode(FileNameMode.Auto, Key + "_FullData");
-        var file = exporter.Export(this.allSprintTickets);
+        var file = exporter.Export(this.openFutureSprintTickets);
 
         // Export to Google Sheets.
         await sheetUpdater.Open(GoogleSheetId);
-        sheetUpdater.ClearRange("SprintTickets");
-        await sheetUpdater.ImportFile("'SprintTickets'!A1", file);
+        sheetUpdater.ClearRange("Open-And-Future-Sprint-Tickets");
+        await sheetUpdater.ImportFile("'Open-And-Future-Sprint-Tickets'!A1", file);
     }
 
     private void PopulatePmPlansOnSprintTickets()
     {
-        var flattenPmPlanTickets = this.pmPlans.SelectMany(x => x.ChildrenStories);
-        this.allSprintTickets.Join(flattenPmPlanTickets, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlanIssue: p))
+        var flattenPmPlanTickets = this.pmPlans.SelectMany(x => x.ChildrenStories).ToList();
+        this.openFutureSprintTickets.Join(flattenPmPlanTickets, i => i.Key, p => p.Key, (i, p) => (Issue: i, PmPlanIssue: p))
+            .ToList()
+            .ForEach(x =>
+            {
+                x.Issue.PmPlan = x.PmPlanIssue.PmPlan;
+                x.Issue.PmPlanSummary = x.PmPlanIssue.PmPlanSummary;
+            });
+        this.closedSprintTickets.Join(flattenPmPlanTickets, i => i.Key, f => f.Key, (i, f) => (Issue: i, PmPlanIssue: f))
             .ToList()
             .ForEach(x =>
             {
@@ -102,12 +113,17 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         // Get all tickets in open and future sprints for the teams.
         var query = """project = "JAVPM" AND "Team[Team]" IN (60412efa-7e2e-4285-bb4e-f329c3b6d417, 1a05d236-1562-4e58-ae88-1ffc6c5edb32) AND (Sprint IN openSprints() OR Sprint IN futureSprints())""";
         Console.WriteLine(query);
-        this.allSprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(query, Fields)).Select(i => new JiraIssue(i)).ToList();
+        this.openFutureSprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(query, Fields)).Select(i => new JiraIssue(i)).ToList();
+
+        // Get closed sprint tickets going back 6 months.
+        var queryPast = """project = "JAVPM" AND "Team[Team]" IN (60412efa-7e2e-4285-bb4e-f329c3b6d417, 1a05d236-1562-4e58-ae88-1ffc6c5edb32) AND Sprint IN closedSprints() AND createdDate > -180d""";
+        Console.WriteLine(queryPast);
+        this.closedSprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(queryPast, Fields)).Select(i => new JiraIssue(i)).ToList();
     }
 
-    private async Task UpdateSheetSprintMasterPlan()
+    private async Task UpdateSheetSprintMasterPlan(IReadOnlyList<JiraIssue> sprintTickets, string sheetName, bool skipFirstSprint = false)
     {
-        var groupBySprint = this.allSprintTickets
+        var groupBySprint = sprintTickets
             .GroupBy(i => (i.Team, i.SprintStartDate, i.Sprint, i.PmPlan, i.PmPlanSummary))
             .OrderBy(g => g.Key.Team)
             .ThenBy(g => g.Key.SprintStartDate)
@@ -127,8 +143,33 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
         var sheetData = new List<IList<object?>>();
         var teamSprint = string.Empty;
+        var firstSprint = string.Empty;
+        var skipFirstSprints = new Dictionary<string, bool>
+        {
+            { "Superclass Team", skipFirstSprint },
+            { "Ruby Ducks Team", skipFirstSprint }
+        };
         foreach (var row in groupBySprint.OrderBy(g => g.StartDate).ThenBy(g => g.Team).ThenBy(g => g.SprintName))
         {
+            if (skipFirstSprints.Any(kvp => kvp.Value == true))
+            {
+                if (string.IsNullOrEmpty(firstSprint))
+                {
+                    firstSprint = row.Team + row.SprintName;
+                }
+
+                if (firstSprint == row.Team + row.SprintName)
+                {
+                    continue;
+                }
+                skipFirstSprints[row.Team] = false;
+                firstSprint = row.Team + row.SprintName;
+                if (skipFirstSprints.Any(kvp => kvp.Value == true))
+                {
+                    continue;
+                }
+            }
+
             if (row.Team + row.SprintName != teamSprint)
             {
                 // Sprint header row
@@ -149,17 +190,20 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             // Sprint child Data row
             var pmPlanRecord = this.pmPlans.SingleOrDefault(p => p.Key == row.PmPlan);
             var doneSprintTickets = row.SprintTickets.Where(t => t.Status == Constants.DoneStatus).Sum(t => t.StoryPoints);
-            // Dont count work just done during this sprint
+            // Don't count work just done during this sprint
             var runningTotalWorkDone = (pmPlanRecord?.RunningTotalWorkDone - doneSprintTickets) ?? 0.0;
             var ticketsWithNoEstimate = row.SprintTickets.Count(t => t.Status != Constants.DoneStatus && t.StoryPoints <= 0 && t.Type != Constants.EpicType);
             var percentCompleteStartOfSprint = runningTotalWorkDone / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
             var percentCompleteEndOfSprint = (runningTotalWorkDone + row.StoryPoints) / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
+            var pmPlanText = string.IsNullOrEmpty(row.PmPlan)
+                ? "No PMPLAN"
+                : $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{row.PmPlan}", "{row.PmPlan}")""";
             var rowData = new List<object?>
             {
                 null, //Team
                 null, //Sprint
                 null, //Start Date
-                string.IsNullOrEmpty(row.PmPlan) ? "No PMPLAN" : row.PmPlan,
+                pmPlanText,
                 row.Summary,
                 row.Tickets, // Tickets in Sprint
                 row.StoryPoints, // Story Points in Sprint
@@ -178,9 +222,8 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         }
 
         await sheetUpdater.Open(GoogleSheetId);
-        sheetUpdater.ClearRange("Sprint-Master-Plan", "A2:Z10000");
-        sheetUpdater.EditSheet("Sprint-Master-Plan!A2", sheetData);
-        //await sheetUpdater.ApplyDateFormat("Sprints-PMPlans", 2, "d mmm yy");
+        sheetUpdater.ClearRange(sheetName, "A2:Z10000");
+        sheetUpdater.EditSheet($"{sheetName}!A2", sheetData, true);
     }
 
     private record PmPlanIssue
