@@ -215,7 +215,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-ReportVsBacklog");
 
-        var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported,,,Ticket Backlog\n,P1,P2,Other,Open P1s,Open P2s,Open Others", SerialiseToCsv);
+        var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported (Left Axis),,,Ticket Backlog (Right Axis)\n,P1,P2,Other,Open P1s,Open P2s,Open Others", SerialiseToCsv);
         await sheetUpdater.ImportFile("'Reported Vs Backlog'!A1", fileName);
     }
 
@@ -239,7 +239,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-ReportVsResolved");
 
-        var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported,,,Resolved Bugs\n,P1,P2,Other,Resolved P1s,Resolved P2s,Resolved Others", SerialiseToCsv);
+        var fileName = exporter.Export(chartData, () => "Month,New Bugs Reported (Left Axis),,,Resolved Bugs (Right Axis)\n,P1,P2,Other,Resolved P1s,Resolved P2s,Resolved Others", SerialiseToCsv);
         await sheetUpdater.ImportFile("'Reported Vs Resolved'!A1", fileName);
     }
 
