@@ -71,7 +71,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
         foreach (var row in this.openFutureSprintTickets)
         {
             var javPmLink = $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{row.Key}", "{row.Key}")""";
-            var pmPlanLink = $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{row.PmPlan}&issueViewSection=deliver", "{row.PmPlan}")""";
+            var pmPlanLink = $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue={row.PmPlan}&issueViewSection=deliver", "{row.PmPlan}")""";
             // Key,	Description, PmPlan,	PmPlanSummary,	Sprint,	SprintStartDate,	Status,	StoryPoints,	Team,	Type
             var rowData = new List<object?>
             {
@@ -220,7 +220,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
             var percentCompleteEndOfSprint = (runningTotalWorkDone + row.StoryPoints) / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
             var pmPlanText = string.IsNullOrEmpty(row.PmPlan)
                 ? "No PMPLAN"
-                : $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{row.PmPlan}&issueViewSection=deliver", "{row.PmPlan}")""";
+                : $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue={row.PmPlan}&issueViewSection=deliver", "{row.PmPlan}")""";
             var rowData = new List<object?>
             {
                 null, //Team

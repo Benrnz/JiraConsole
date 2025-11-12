@@ -87,7 +87,8 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
             var row = new List<object?>
             {
                 initiative.Description,
-                $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{initiative.InitiativeKey}", "{initiative.InitiativeKey}")""",
+                //https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue=PMPLAN-204&issueViewSection=deliver
+                $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue={initiative.InitiativeKey}&issueViewSection=deliver", "{initiative.InitiativeKey}")""",
                 pmPlansExclUat.Sum(p => p.Progress.Done),
                 pmPlansExclUat.Sum(p => p.Progress.Remaining)
             };
@@ -105,7 +106,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
             var row = new List<object?>
             {
                 initiative.Description,
-                $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{initiative.InitiativeKey}", "{initiative.InitiativeKey}")""",
+                $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue={initiative.InitiativeKey}&issueViewSection=deliver", "{initiative.InitiativeKey}")""",
                 initiative.Progress.Total,
                 initiative.Progress.Done,
                 initiative.Progress.Remaining,
@@ -119,7 +120,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
                 var childRow = new List<object?>
                 {
                     childPmPlan.Description,
-                    $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{childPmPlan.PmPlanKey}", "{childPmPlan.PmPlanKey}")""",
+                    $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue={childPmPlan.PmPlanKey}&issueViewSection=deliver", "{childPmPlan.PmPlanKey}")""",
                     childPmPlan.Progress.Total,
                     childPmPlan.Progress.Done,
                     childPmPlan.Progress.Remaining,
