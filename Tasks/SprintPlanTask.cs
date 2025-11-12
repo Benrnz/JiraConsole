@@ -1,6 +1,6 @@
 ﻿namespace BensJiraConsole.Tasks;
 
-public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
+public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
 {
     private const string GoogleSheetId = "1iS6iB3EA38SHJgDu8rpMFcouGlu1Az8cntKA52U07xU";
     private const string TaskKey = "SPRINT_PLAN";
@@ -8,6 +8,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Status,
+        JiraFields.Summary,
         JiraFields.Team,
         JiraFields.StoryPoints,
         JiraFields.Sprint,
@@ -48,14 +49,17 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
         await RetrieveAllData();
         PopulatePmPlansOnSprintTickets();
-        await ExportAllSprintTickets();
-        await UpdateSheetSprintMasterPlan(this.openFutureSprintTickets, "Sprint-Master-Plan");
-        await UpdateSheetSprintMasterPlan(this.closedSprintTickets, "Closed-Sprints", skipFirstSprint: true);
+
+        await sheetUpdater.Open(GoogleSheetId);
+
+        UpdateSheetAllSprintTickets();
+        UpdateSheetSprintMasterPlan(this.openFutureSprintTickets, "Sprint-Master-Plan");
+        UpdateSheetSprintMasterPlan(this.closedSprintTickets, "Closed-Sprints", skipFirstSprint: true);
         sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
         await sheetUpdater.SubmitBatch();
     }
 
-    private async Task ExportAllSprintTickets()
+    private void UpdateSheetAllSprintTickets()
     {
         this.openFutureSprintTickets = this.openFutureSprintTickets.OrderBy(i => i.Team)
             .ThenBy(i => i.SprintStartDate)
@@ -63,14 +67,31 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             .ThenBy(i => i.PmPlan)
             .ToList();
 
-        // temp save to CSV
-        exporter.SetFileNameMode(FileNameMode.Auto, Key + "_FullData");
-        var file = exporter.Export(this.openFutureSprintTickets);
+        var sheetData = new List<IList<object?>>();
+        foreach (var row in this.openFutureSprintTickets)
+        {
+            var javPmLink = $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{row.Key}", "{row.Key}")""";
+            var pmPlanLink = $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue={row.PmPlan}&issueViewSection=deliver", "{row.PmPlan}")""";
+            // Key,	Description, PmPlan,	PmPlanSummary,	Sprint,	SprintStartDate,	Status,	StoryPoints,	Team,	Type
+            var rowData = new List<object?>
+            {
+                javPmLink,
+                row.Description,
+                pmPlanLink,
+                row.PmPlanSummary,
+                row.Sprint,
+                row.SprintStartDate == DateTimeOffset.MaxValue || row.SprintStartDate == DateTimeOffset.MinValue ? null : row.SprintStartDate.ToString("d-MMM-yy"),
+                row.Status,
+                row.StoryPoints,
+                row.Team,
+                row.Type,
+            };
+            sheetData.Add(rowData);
+        }
 
-        // Export to Google Sheets.
-        await sheetUpdater.Open(GoogleSheetId);
-        sheetUpdater.ClearRange("Open-And-Future-Sprint-Tickets");
-        await sheetUpdater.ImportFile("'Open-And-Future-Sprint-Tickets'!A1", file);
+        const string sheetName = "Open-And-Future-Sprint-Tickets";
+        sheetUpdater.ClearRange(sheetName, "A2:Z10000");
+        sheetUpdater.EditSheet($"{sheetName}!A2", sheetData, true);
     }
 
     private void PopulatePmPlansOnSprintTickets()
@@ -122,7 +143,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         this.closedSprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(queryPast, Fields)).Select(i => new JiraIssue(i)).ToList();
     }
 
-    private async Task UpdateSheetSprintMasterPlan(IReadOnlyList<JiraIssue> sprintTickets, string sheetName, bool skipFirstSprint = false)
+    private void UpdateSheetSprintMasterPlan(IReadOnlyList<JiraIssue> sprintTickets, string sheetName, bool skipFirstSprint = false)
     {
         var groupBySprint = sprintTickets
             .GroupBy(i => (i.Team, i.SprintStartDate, i.Sprint, i.PmPlan, i.PmPlanSummary))
@@ -199,7 +220,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             var percentCompleteEndOfSprint = (runningTotalWorkDone + row.StoryPoints) / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
             var pmPlanText = string.IsNullOrEmpty(row.PmPlan)
                 ? "No PMPLAN"
-                : $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{row.PmPlan}", "{row.PmPlan}")""";
+                : $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue={row.PmPlan}&issueViewSection=deliver", "{row.PmPlan}")""";
             var rowData = new List<object?>
             {
                 null, //Team
@@ -224,7 +245,6 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             }
         }
 
-        await sheetUpdater.Open(GoogleSheetId);
         sheetUpdater.ClearRange(sheetName, "A2:Z10000");
         sheetUpdater.EditSheet($"{sheetName}!A2", sheetData, true);
     }
@@ -258,8 +278,10 @@ public class SprintPlanTask(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             StoryPoints = JiraFields.StoryPoints.Parse(issue) ?? 0.0;
             Status = JiraFields.Status.Parse(issue);
             Type = JiraFields.IssueType.Parse(issue);
+            Description = JiraFields.Summary.Parse(issue) ?? string.Empty;
         }
 
+        public string Description { get; }
         public string Key { get; }
         public string PmPlan { get; set; } = string.Empty;
         public string PmPlanSummary { get; set; } = string.Empty;
