@@ -22,7 +22,8 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
         JiraFields.IssueType,
         JiraFields.PmPlanHighLevelEstimate,
         JiraFields.EstimationStatus,
-        JiraFields.IsReqdForGoLive
+        JiraFields.IsReqdForGoLive,
+        JiraFields.PmPlanCustomer
     ];
 
     /// <summary>
@@ -117,7 +118,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
     {
         // Get all PMPLAN tickets
         Console.WriteLine("Extracting PMPLAN tickets...");
-        var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest AND status NOT IN (\"Feature delivered\", Cancelled) ORDER BY Key";
+        var jqlPmPlans = "IssueType = Idea AND status NOT IN (\"Feature delivered\", Cancelled) ORDER BY Key";
         Console.WriteLine(jqlPmPlans);
         this.pmPlans = (await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields)).Select(i => new PmPlanIssue(i)).ToList();
 
@@ -227,6 +228,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
                 null, //Sprint
                 null, //Start Date
                 pmPlanText, // PMPLAN key and link
+                pmPlanRecord?.Customer,
                 row.Summary,
                 pmPlanRecord?.IsReqdForGoLive ?? false ? "Yes" : "No",
                 row.Tickets, // Tickets in Sprint
@@ -256,9 +258,12 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
             Key = JiraFields.Key.Parse(issue);
             Summary = JiraFields.Summary.Parse(issue);
             IsReqdForGoLive = JiraFields.IsReqdForGoLive.Parse(issue);
+            Customer = JiraFields.PmPlanCustomer.Parse(issue);
         }
 
         public List<JiraIssue> ChildrenStories { get; set; } = new();
+
+        public string Customer { get; }
         public bool IsReqdForGoLive { get; }
         public string Key { get; }
         public double RunningTotalWorkDone { get; set; }

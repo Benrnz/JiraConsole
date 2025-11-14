@@ -19,6 +19,7 @@ public static class JiraFields
     public static readonly FieldMapping<long> OriginalEstimate = new() { Field = "timeoriginalestimate", Alias = "OriginalEstimate" };
     public static readonly FieldMapping<string> ParentKey = new() { Field = "parent", Alias = "Parent", FlattenField = "key" };
     public static readonly FieldMapping<double> PmPlanHighLevelEstimate = new() { Field = "customfield_12038", Alias = "PmPlanHighLevelEstimate" };
+    public static readonly FieldMapping<string> PmPlanCustomer = new() { Field = "customfield_11983", Alias = "PmPlanCustomer", FlattenField = "value" };
     public static readonly FieldMapping<string> Priority = new() { Field = "priority", Alias = "Priority", FlattenField = "name" };
 
     public static readonly FieldMapping<DateTimeOffset?> ProjectTarget = new FieldMappingWithParser<DateTimeOffset?>
