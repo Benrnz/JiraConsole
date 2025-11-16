@@ -23,6 +23,8 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
     private readonly List<Request> pendingSpreadsheetRequests = new();
     private readonly List<(ValueRange Range, bool UserMode)> pendingValueUpdates = new();
 
+    private readonly Dictionary<string, int> sheetNamesToIds = new();
+
     private UserCredential? credential;
 
     private string? googleSheetId;
@@ -54,6 +56,30 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
     {
         // Queue delete by name; resolve SheetId in SubmitBatch().
         this.pendingDeleteSheetNames.Add(sheetName);
+    }
+
+    public async Task HideColumn(string sheetName, int column)
+    {
+        var hideColumnRequest = new Request
+        {
+            UpdateDimensionProperties = new UpdateDimensionPropertiesRequest
+            {
+                Range = new DimensionRange
+                {
+                    SheetId = await GetSheetIdByName(sheetName),
+                    Dimension = "COLUMNS", // Specify that we are modifying columns
+                    StartIndex = column,
+                    EndIndex = column + 1 // EndIndex is exclusive
+                },
+                Properties = new DimensionProperties
+                {
+                    HiddenByUser = true // Set the "hidden" property
+                },
+                Fields = "hiddenByUser" // Specify which property we are updating
+            }
+        };
+
+        this.pendingSpreadsheetRequests.Add(hideColumnRequest);
     }
 
     public async Task ImportFile(string sheetAndRange, string csvFileName, bool userMode = false)
@@ -128,28 +154,106 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
 
     public async Task SubmitBatch()
     {
-        if (string.IsNullOrEmpty(this.googleSheetId))
-        {
-            throw new InvalidOperationException("Google Sheet ID is not set. Call Open(sheetId) first.");
-        }
-
-        if (!await Authenticate())
-        {
-            return;
-        }
-
-        using var service = new SheetsService(new BaseClientService.Initializer { HttpClientInitializer = this.credential, ApplicationName = Constants.ApplicationName });
+        using var service = await InitiateService();
 
         await SendApplyClearRangeRequests(service);
         await SendApplyValueRangeRequests(service);
         await SendDeleteAddAndFormatRequests(service); // Formatting should be applied last, add delete don't matter and can be bundled into same service call.
 
-       // Clear all queues after successful submission
+        // Clear all queues after successful submission
         this.pendingSpreadsheetRequests.Clear();
         this.pendingDeleteSheetNames.Clear();
         this.pendingApplyDateFormats.Clear();
         this.pendingClears.Clear();
         this.pendingValueUpdates.Clear();
+    }
+
+    private async Task<bool> Authenticate()
+    {
+        if (this.credential is not null)
+        {
+            return true;
+        }
+
+        try
+        {
+            // Load the client secrets file for authentication.
+            await using var stream = new FileStream(ClientSecretsFile, FileMode.Open, FileAccess.Read);
+            // The DataStore stores your authentication token securely.
+            this.credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
+                (await GoogleClientSecrets.FromStreamAsync(stream)).Secrets,
+                Scopes,
+                "user",
+                CancellationToken.None,
+                new FileDataStore("Sheets.Api.Store"));
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
+            Console.WriteLine($"Error: The required file '{ClientSecretsFile}' was not found.");
+            Console.WriteLine("Please download it from the Google Cloud Console and place it next to the application executable.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred during authentication: {ex.Message}");
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Gets the integer SheetId (gid) for a specific sheet tab name.
+    /// </summary>
+    private async Task<int?> GetSheetIdByName(string sheetName)
+    {
+        if (this.sheetNamesToIds.TryGetValue(sheetName, out var sheetId))
+        {
+            return sheetId;
+        }
+
+        using var service = await InitiateService();
+
+        // Request only the sheet properties, not all the cell data
+        var request = service.Spreadsheets.Get(this.googleSheetId);
+        request.Fields = "sheets.properties";
+
+        var spreadsheet = await request.ExecuteAsync();
+
+        var sheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == sheetName);
+
+        if (sheet is not null)
+        {
+            this.sheetNamesToIds.Add(sheetName, sheet.Properties.SheetId!.Value);
+            return sheet.Properties.SheetId;
+        }
+
+        // Sheet name not found
+        return null;
+    }
+
+    private async Task<SheetsService> InitiateService()
+    {
+        SheetsService? service = null;
+        try
+        {
+            if (string.IsNullOrEmpty(this.googleSheetId))
+            {
+                throw new InvalidOperationException("Google Sheet ID is not set. Call Open(sheetId) first.");
+            }
+
+            if (!await Authenticate())
+            {
+                throw new ApplicationException("Google API Authentication failed.");
+            }
+
+            service = new SheetsService(new BaseClientService.Initializer { HttpClientInitializer = this.credential, ApplicationName = Constants.ApplicationName });
+            return service;
+        }
+        catch
+        {
+            service?.Dispose();
+            throw;
+        }
     }
 
     private async Task SendApplyClearRangeRequests(SheetsService service)
@@ -266,39 +370,6 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
             var batchUpdate = new BatchUpdateSpreadsheetRequest { Requests = requests };
             await service.Spreadsheets.BatchUpdate(batchUpdate, this.googleSheetId).ExecuteAsync();
         }
-    }
-
-    private async Task<bool> Authenticate()
-    {
-        if (this.credential is not null)
-        {
-            return true;
-        }
-
-        try
-        {
-            // Load the client secrets file for authentication.
-            await using var stream = new FileStream(ClientSecretsFile, FileMode.Open, FileAccess.Read);
-            // The DataStore stores your authentication token securely.
-            this.credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
-                (await GoogleClientSecrets.FromStreamAsync(stream)).Secrets,
-                Scopes,
-                "user",
-                CancellationToken.None,
-                new FileDataStore("Sheets.Api.Store"));
-            return true;
-        }
-        catch (FileNotFoundException)
-        {
-            Console.WriteLine($"Error: The required file '{ClientSecretsFile}' was not found.");
-            Console.WriteLine("Please download it from the Google Cloud Console and place it next to the application executable.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred during authentication: {ex.Message}");
-        }
-
-        return false;
     }
 
     private object SetType(string? value)

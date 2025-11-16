@@ -21,6 +21,8 @@ public interface IWorkSheetUpdater
     /// <param name="userMode">Defaults to false.  If true, data is entered and interpreted by the workbook as if entered by the user.</param>
     void EditSheet(string sheetAndRange, IList<IList<object?>> sourceData, bool userMode = false);
 
+    Task HideColumn(string sheetName, int column);
+
     /// <summary>
     ///     Edit a sheet and insert data provided in the CSV file.
     /// </summary>

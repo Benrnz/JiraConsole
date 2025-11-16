@@ -55,44 +55,13 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
 
         UpdateSheetAllSprintTickets();
         UpdateSheetSprintMasterPlan(this.openFutureSprintTickets, "Sprint-Master-Plan");
-        UpdateSheetSprintMasterPlan(this.closedSprintTickets, "Closed-Sprints", skipFirstSprint: true);
+        UpdateSheetSprintMasterPlan(
+            this.openFutureSprintTickets.Where(i => i.Customer.Contains("Envest")),
+            "Sprint-Master-Plan-ENVEST");
+        await sheetUpdater.HideColumn("Sprint-Master-Plan-ENVEST", 4);
+        UpdateSheetSprintMasterPlan(this.closedSprintTickets, "Closed-Sprints", true);
         sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
         await sheetUpdater.SubmitBatch();
-    }
-
-    private void UpdateSheetAllSprintTickets()
-    {
-        this.openFutureSprintTickets = this.openFutureSprintTickets.OrderBy(i => i.Team)
-            .ThenBy(i => i.SprintStartDate)
-            .ThenBy(i => i.Sprint)
-            .ThenBy(i => i.PmPlan)
-            .ToList();
-
-        var sheetData = new List<IList<object?>>();
-        foreach (var row in this.openFutureSprintTickets)
-        {
-            var javPmLink = $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{row.Key}", "{row.Key}")""";
-            var pmPlanLink = $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue={row.PmPlan}&issueViewSection=deliver", "{row.PmPlan}")""";
-            // Key,	Description, PmPlan,	PmPlanSummary,	Sprint,	SprintStartDate,	Status,	StoryPoints,	Team,	Type
-            var rowData = new List<object?>
-            {
-                javPmLink,
-                row.Description,
-                pmPlanLink,
-                row.PmPlanSummary,
-                row.Sprint,
-                row.SprintStartDate == DateTimeOffset.MaxValue || row.SprintStartDate == DateTimeOffset.MinValue ? null : row.SprintStartDate.ToString("d-MMM-yy"),
-                row.Status,
-                row.StoryPoints,
-                row.Team,
-                row.Type,
-            };
-            sheetData.Add(rowData);
-        }
-
-        const string sheetName = "Open-And-Future-Sprint-Tickets";
-        sheetUpdater.ClearRange(sheetName, "A2:Z10000");
-        sheetUpdater.EditSheet($"{sheetName}!A2", sheetData, true);
     }
 
     private void PopulatePmPlansOnSprintTickets()
@@ -104,6 +73,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
             {
                 x.Issue.PmPlan = x.PmPlanIssue.PmPlan;
                 x.Issue.PmPlanSummary = x.PmPlanIssue.PmPlanSummary;
+                x.Issue.Customer = x.PmPlanIssue.Customer;
             });
         this.closedSprintTickets.Join(flattenPmPlanTickets, i => i.Key, f => f.Key, (i, f) => (Issue: i, PmPlanIssue: f))
             .ToList()
@@ -111,6 +81,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
             {
                 x.Issue.PmPlan = x.PmPlanIssue.PmPlan;
                 x.Issue.PmPlanSummary = x.PmPlanIssue.PmPlanSummary;
+                x.Issue.Customer = x.PmPlanIssue.Customer;
             });
     }
 
@@ -144,7 +115,46 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
         this.closedSprintTickets = (await runner.SearchJiraIssuesWithJqlAsync(queryPast, Fields)).Select(i => new JiraIssue(i)).ToList();
     }
 
-    private void UpdateSheetSprintMasterPlan(IReadOnlyList<JiraIssue> sprintTickets, string sheetName, bool skipFirstSprint = false)
+    private void UpdateSheetAllSprintTickets()
+    {
+        this.openFutureSprintTickets = this.openFutureSprintTickets.OrderBy(i => i.Team)
+            .ThenBy(i => i.SprintStartDate)
+            .ThenBy(i => i.Sprint)
+            .ThenBy(i => i.PmPlan)
+            .ToList();
+
+        var sheetData = new List<IList<object?>>();
+        foreach (var row in this.openFutureSprintTickets)
+        {
+            var javPmLink = $"""=HYPERLINK("https://javlnsupport.atlassian.net/browse/{row.Key}", "{row.Key}")""";
+            var pmPlanLink =
+                $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/polaris/projects/PMPLAN/ideas/view/6464278?selectedIssue={row.PmPlan}&issueViewSection=deliver", "{row.PmPlan}")""";
+            // Key,	Description, PmPlan,	PmPlanSummary,	Sprint,	SprintStartDate,	Status,	StoryPoints,	Team,	Type
+            var rowData = new List<object?>
+            {
+                javPmLink,
+                row.Description,
+                pmPlanLink,
+                row.PmPlanSummary,
+                row.Sprint,
+                row.SprintStartDate == DateTimeOffset.MaxValue || row.SprintStartDate == DateTimeOffset.MinValue ? null : row.SprintStartDate.ToString("d-MMM-yy"),
+                row.Status,
+                row.StoryPoints,
+                row.Team,
+                row.Type
+            };
+            sheetData.Add(rowData);
+        }
+
+        const string sheetName = "Open-And-Future-Sprint-Tickets";
+        sheetUpdater.ClearRange(sheetName, "A2:Z10000");
+        sheetUpdater.EditSheet($"{sheetName}!A2", sheetData, true);
+    }
+
+    private void UpdateSheetSprintMasterPlan(
+        IEnumerable<JiraIssue> sprintTickets,
+        string sheetName,
+        bool skipFirstSprint = false)
     {
         var groupBySprint = sprintTickets
             .GroupBy(i => (i.Team, i.SprintStartDate, i.Sprint, i.PmPlan, i.PmPlanSummary))
@@ -158,6 +168,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
                 SprintName = g.Key.Sprint,
                 g.Key.PmPlan,
                 Summary = g.Key.PmPlanSummary,
+                g.FirstOrDefault()?.Customer,
                 StoryPoints = g.Sum(x => x.StoryPoints),
                 Tickets = g.Count(),
                 SprintTickets = g.ToList()
@@ -174,7 +185,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
         };
         foreach (var row in groupBySprint.OrderBy(g => g.StartDate).ThenBy(g => g.Team).ThenBy(g => g.SprintName))
         {
-            if (skipFirstSprints.Any(kvp => kvp.Value == true))
+            if (skipFirstSprints.Any(kvp => kvp.Value))
             {
                 if (string.IsNullOrEmpty(firstSprint))
                 {
@@ -185,9 +196,10 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
                 {
                     continue;
                 }
+
                 skipFirstSprints[row.Team] = false;
                 firstSprint = row.Team + row.SprintName;
-                if (skipFirstSprints.Any(kvp => kvp.Value == true))
+                if (skipFirstSprints.Any(kvp => kvp.Value))
                 {
                     continue;
                 }
@@ -202,9 +214,9 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
                     row.Team,
                     row.SprintName,
                     row.StartDate == DateTimeOffset.MaxValue ? null : row.StartDate.ToString("d-MMM-yy"),
-                    null,
-                    null,
-                    null,
+                    null, // PMPlan column
+                    null, // Summary column
+                    null, // Customer column
                     groupBySprint.Where(g => g.StartDate == row.StartDate && g.SprintName == row.SprintName && g.Team == row.Team).Sum(g => g.Tickets),
                     groupBySprint.Where(g => g.StartDate == row.StartDate && g.SprintName == row.SprintName && g.Team == row.Team).Sum(g => g.StoryPoints)
                 };
@@ -228,7 +240,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
                 null, //Sprint
                 null, //Start Date
                 pmPlanText, // PMPLAN key and link
-                pmPlanRecord?.Customer,
+                row.Customer,
                 row.Summary,
                 pmPlanRecord?.IsReqdForGoLive ?? false ? "Yes" : "No",
                 row.Tickets, // Tickets in Sprint
@@ -286,6 +298,8 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
             Description = JiraFields.Summary.Parse(issue) ?? string.Empty;
         }
 
+        public string Customer { get; set; } = string.Empty;
+
         public string Description { get; }
         public string Key { get; }
         public string PmPlan { get; set; } = string.Empty;
@@ -301,6 +315,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
         {
             PmPlan = pmPlan.Key;
             PmPlanSummary = pmPlan.Summary;
+            Customer = pmPlan.Customer;
             return this;
         }
     }
