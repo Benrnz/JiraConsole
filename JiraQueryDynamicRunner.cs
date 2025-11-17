@@ -24,6 +24,12 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             return null;
         }
 
+        var records = json["total"]!.GetValue<int>();
+        if (records == 0)
+        {
+            return null;
+        }
+
         var values = json["values"]?[0] ?? throw new NotSupportedException("No Agile Sprint values returned from API.");
         return CreateAgileSprintFromJsonNode(values);
     }
@@ -237,7 +243,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             return childFields.Any();
         }
 
-        childFields = Array.Empty<string>();
+        childFields = [];
         return false;
     }
 }
