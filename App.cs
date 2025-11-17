@@ -53,6 +53,7 @@ public class App(IEnumerable<IJiraExportTask> tasks)
 
         if (selectedTask is null)
         {
+            Console.WriteLine($"Task '{mode}' not found.");
             return;
         }
 
