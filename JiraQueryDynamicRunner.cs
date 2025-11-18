@@ -68,8 +68,6 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             {
                 results.Add(DeserializeToDynamic(issue, string.Empty));
             }
-
-            Console.WriteLine($"    Fetched {results.Count} issues.");
         } while (!isLastPage || nextPageToken != null);
 
         return results;

@@ -11,13 +11,16 @@ public static class Constants
     public const string Envest = "Envest";
     public const string EpicType = "Epic";
     public const string HasDevTeamEstimate = "Dev Team Estimate";
-    public const string JavPmJiraProjectKey = "JAVPM";
+    public const string ImprovementType = "Improvement";
     public const string InDevStatus = "In Dev";
     public const string InQaStatus = "In Test";
+    public const string JavPmJiraProjectKey = "JAVPM";
     public const string OtPmJiraProjectKey = "OTPM";
+    public const string SchemaTaskType = "Schema Task";
     public const string SeverityCritical = "Critical";
     public const string SeverityMajor = "Major";
     public const string StoryType = "Story";
+    public const string TableDefinitionType = "Table Definition";
     public const string TeamOfficetech = "Empty";
     public const string TeamRubyDucks = "60412efa-7e2e-4285-bb4e-f329c3b6d417";
     public const string TeamSpearhead = "f08f7fdc-cfab-4de7-8fdd-8da57b10adb6";

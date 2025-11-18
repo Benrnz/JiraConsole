@@ -1,7 +1,6 @@
 ﻿using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
-using Google.Apis.Sheets.v4.Data;
 using Google.Apis.Util.Store;
 
 namespace BensJiraConsole;
@@ -10,9 +9,9 @@ public class GoogleSheetReader : IWorkSheetReader
 {
     private const string ClientSecretsFile = "client_secret_apps.googleusercontent.com.json";
     private static readonly string[] Scopes = [SheetsService.Scope.Spreadsheets];
-    private string? googleSheetId;
 
     private UserCredential? credential;
+    private string? googleSheetId;
 
     private SheetsService? service;
 
@@ -25,8 +24,6 @@ public class GoogleSheetReader : IWorkSheetReader
             var request = this.service.Spreadsheets.Values.Get(this.googleSheetId, sheetAndRange);
             var response = await request.ExecuteAsync();
             var values = response.Values ?? new List<IList<object>>();
-
-            Console.WriteLine($"Successfully read {values.Count} rows from the Google Sheet.");
 
             return values.Select(row => row.ToList()).ToList();
         }

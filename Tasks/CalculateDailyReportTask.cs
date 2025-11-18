@@ -70,12 +70,14 @@ public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner ru
         var ticketsFlagged = tickets.Sum(t => t.FlagCount);
         var p1Bugs = tickets.Count(t => t.Type == Constants.BugType && t is { Severity: Constants.SeverityCritical, BugType: Constants.BugTypeProduction or Constants.BugTypeUat });
         var p2Bugs = tickets.Count(t => t.Type == Constants.BugType && t is { Severity: Constants.SeverityMajor, BugType: Constants.BugTypeProduction or Constants.BugTypeUat });
+        var ticketNoEstimate = tickets.Count(t => t.Type is Constants.StoryType or Constants.BugType or Constants.ImprovementType or Constants.SchemaTaskType && t.StoryPoints == 0);
         Console.WriteLine($"{teamName} Team Stats:");
         Console.WriteLine($"     - Total Tickets: {totalTickets}, {remainingTickets} remaining, {totalTickets - remainingTickets} done. ({1 - ((double)remainingTickets / totalTickets):P0} Done). ");
         Console.WriteLine(
             $"     - Total Story Points: {totalStoryPoints}, {remainingStoryPoints} remaining, {totalStoryPoints - remainingStoryPoints:F1} done. ({1 - (remainingStoryPoints / totalStoryPoints):P0} Done).");
         Console.WriteLine($"     - In Dev: {ticketsInDev}, In QA: {ticketsInQa}");
         Console.WriteLine($"     - Number of Flags raised: {ticketsFlagged}");
+        Console.WriteLine($"     - Number of sprint tickets with NO ESTIMATE: {ticketNoEstimate}");
         if (p1Bugs > 0 || p2Bugs > 0)
         {
             Console.WriteLine($"     - *** P1 Bugs: {p1Bugs}, P2 Bugs: {p2Bugs} ***");
