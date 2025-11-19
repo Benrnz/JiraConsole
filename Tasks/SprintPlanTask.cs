@@ -94,11 +94,12 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
         this.pmPlans = (await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, PmPlanFields)).Select(i => new PmPlanIssue(i)).ToList();
 
         // Get all children of each PMPLAN
-        var childrenJql = "type IN (Story, Improvement, Bug, Epic, \"Table Definition\", \"Schema Task\") AND (issue in (linkedIssues(\"{0}\")) OR parent in (linkedIssues(\"{0}\"))) ORDER BY key";
+        var childrenJql = "issue in linkedIssues(\"{0}\") OR parent in linkedIssues(\"{0}\") ORDER BY key";
         Console.WriteLine($"ForEach PMPLAN: {childrenJql}");
         foreach (var pmPlan in this.pmPlans)
         {
-            pmPlan.ChildrenStories = (await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields)).Select(i => new JiraIssue(i).AddPmPlanDetails(pmPlan)).ToList();
+            var childrenQuery = await runner.SearchJiraIssuesWithJqlAsync(string.Format(childrenJql, pmPlan.Key), Fields);
+            pmPlan.ChildrenStories = childrenQuery.Select(i => new JiraIssue(i).AddPmPlanDetails(pmPlan)).ToList();
             Console.WriteLine($"Fetched {pmPlan.ChildrenStories.Count} children for {pmPlan.Key}");
             pmPlan.TotalStoryPoints = pmPlan.ChildrenStories.Sum(issue => issue.StoryPoints);
             pmPlan.RunningTotalWorkDone = pmPlan.TotalWorkDone = pmPlan.ChildrenStories.Where(issue => issue.Status == Constants.DoneStatus).Sum(issue => issue.StoryPoints);

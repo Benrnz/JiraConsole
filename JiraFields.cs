@@ -1,4 +1,6 @@
-﻿namespace BensJiraConsole;
+﻿using System.Dynamic;
+
+namespace BensJiraConsole;
 
 public static class JiraFields
 {
@@ -23,7 +25,7 @@ public static class JiraFields
     public static readonly FieldMapping<string> Priority = new() { Field = "priority", Alias = "Priority", FlattenField = "name" };
 
     public static readonly FieldMapping<DateTimeOffset?> ProjectTarget = new FieldMappingWithParser<DateTimeOffset?>
-    { Field = "customfield_11975", Alias = "ProjectTarget", Parser = ParseProjectTarget };
+        { Field = "customfield_11975", Alias = "ProjectTarget", Parser = ParseProjectTarget };
 
     public static readonly FieldMapping<string> ReporterDisplay = new() { Field = "reporter", Alias = "Reporter", FlattenField = "displayName" };
     public static readonly FieldMapping<string> Resolution = new() { Field = "resolution", Alias = "Resolution", FlattenField = "name" };
@@ -32,12 +34,55 @@ public static class JiraFields
     public static readonly FieldMapping<string> Sprint = new FieldMappingWithParser<string> { Field = "customfield_10007", Alias = "Sprint", FlattenField = "name", Parser = ParseSprintName };
 
     public static readonly FieldMapping<DateTimeOffset> SprintStartDate = new FieldMappingWithParser<DateTimeOffset>
-    { Field = "customfield_10007", Alias = "SprintStartDate", FlattenField = "startDate", Parser = ParseSprintStartDate };
+        { Field = "customfield_10007", Alias = "SprintStartDate", FlattenField = "startDate", Parser = ParseSprintStartDate };
 
     public static readonly FieldMapping<string> Status = new() { Field = "status", Alias = "Status", FlattenField = "name" };
     public static readonly FieldMapping<double> StoryPoints = new() { Field = "customfield_10004", Alias = "StoryPoints" };
     public static readonly FieldMapping<string> Summary = new() { Field = "summary", Alias = "Summary" };
     public static readonly FieldMapping<string> Team = new() { Field = "customfield_11400", Alias = "Team", FlattenField = "name" };
+
+    private static bool DynamicHasField(dynamic d, string fieldName)
+    {
+        return ((ExpandoObject)d).Any(e => e.Key == fieldName);
+    }
+
+    private static (DateTimeOffset?, string) LatestSprint(dynamic d)
+    {
+        string sprintNames = d.Sprint ?? string.Empty;
+        string sprintDates = d.SprintStartDate ?? string.Empty;
+
+        if (!sprintNames.Contains(',') || !sprintDates.Contains(','))
+        {
+            // Data does not contain multiple sprints.
+            if (!DateTimeOffset.TryParse(d.SprintStartDate, out DateTimeOffset startDate))
+            {
+                startDate = DateTimeOffset.MaxValue;
+            }
+
+            return (startDate, sprintNames);
+        }
+
+        var sprintNameList = sprintNames.Split(',');
+        var sprintDateList = sprintDates.Split(',');
+        List<Tuple<DateTimeOffset?, string>> sprintDateAndName = new();
+        for (var i = 0; i < sprintNameList.Length; i++)
+        {
+            if (i < sprintDateList.Length)
+            {
+                if (DateTimeOffset.TryParse(sprintDateList[i], out var sprintDateParsed))
+                {
+                    sprintDateAndName.Add(new Tuple<DateTimeOffset?, string>(sprintDateParsed, sprintNameList[i]));
+                }
+            }
+            else
+            {
+                sprintDateAndName.Add(new Tuple<DateTimeOffset?, string>(DateTimeOffset.MaxValue, sprintNameList[i]));
+            }
+        }
+
+        var latestSprint = sprintDateAndName.OrderByDescending(t => t.Item1).First();
+        return (latestSprint.Item1, latestSprint.Item2);
+    }
 
     private static string? ParseDevTimeSpent(dynamic d)
     {
@@ -140,27 +185,13 @@ public static class JiraFields
         return null;
     }
 
-    private static DateTimeOffset ParseSprintStartDate(dynamic d)
-    {
-        // SprintStartDate could be multiple for example "2025-08-09T01:01:01.000+00:00,2025-08-23T01:01:01.000+00:00"
-        // or could be one date or could be null.
-        // This parser will return max date if null, and the last date if there are multiple.
-        if (d.SprintStartDate is null)
-        {
-            return DateTimeOffset.MaxValue;
-        }
-
-        var lastSprint = LatestSprint(d);
-        if (lastSprint.Item1 is null)
-        {
-            return DateTimeOffset.MaxValue;
-        }
-
-        return lastSprint.Item1!;
-    }
-
     private static string ParseSprintName(dynamic d)
     {
+        if (!DynamicHasField(d, "Sprint"))
+        {
+            return string.Empty;
+        }
+
         if (d.Sprint is null)
         {
             return string.Empty;
@@ -175,40 +206,28 @@ public static class JiraFields
         return lastSprint.Item2;
     }
 
-    private static (DateTimeOffset?, string) LatestSprint(dynamic d)
+    private static DateTimeOffset ParseSprintStartDate(dynamic d)
     {
-        string sprintNames = d.Sprint ?? string.Empty;
-        string sprintDates = d.SprintStartDate ?? string.Empty;
+        // SprintStartDate could be multiple for example "2025-08-09T01:01:01.000+00:00,2025-08-23T01:01:01.000+00:00"
+        // or could be one date or could be null.
+        // This parser will return max date if null, and the last date if there are multiple.
 
-        if (!sprintNames.Contains(',') || !sprintDates.Contains(','))
+        if (!DynamicHasField(d, "SprintStartDate"))
         {
-            // Data does not contain multiple sprints.
-            if (!DateTimeOffset.TryParse(d.SprintStartDate, out DateTimeOffset startDate))
-            {
-                startDate = DateTimeOffset.MaxValue;
-            }
-            return (startDate, sprintNames);
+            return DateTimeOffset.MaxValue;
         }
 
-        var sprintNameList = sprintNames.Split(',');
-        var sprintDateList = sprintDates.Split(',');
-        List<Tuple<DateTimeOffset?, string>> sprintDateAndName = new();
-        for (var i = 0; i < sprintNameList.Length; i++)
+        if (d.SprintStartDate is null)
         {
-            if (i < sprintDateList.Length)
-            {
-                if (DateTimeOffset.TryParse(sprintDateList[i], out var sprintDateParsed))
-                {
-                    sprintDateAndName.Add(new Tuple<DateTimeOffset?, string>(sprintDateParsed, sprintNameList[i]));
-                }
-            }
-            else
-            {
-                sprintDateAndName.Add(new Tuple<DateTimeOffset?, string>(DateTimeOffset.MaxValue, sprintNameList[i]));
-            }
+            return DateTimeOffset.MaxValue;
         }
 
-        var latestSprint = sprintDateAndName.OrderByDescending(t => t.Item1).First();
-        return (latestSprint.Item1, latestSprint.Item2);
+        var lastSprint = LatestSprint(d);
+        if (lastSprint.Item1 is null)
+        {
+            return DateTimeOffset.MaxValue;
+        }
+
+        return lastSprint.Item1!;
     }
 }
