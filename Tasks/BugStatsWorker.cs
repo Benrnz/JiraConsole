@@ -4,8 +4,6 @@ namespace BensJiraConsole.Tasks;
 
 public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWorkSheetUpdater sheetUpdater)
 {
-    private string keyString = string.Empty;
-
     private static readonly IFieldMapping[] Fields =
     [
         JiraFields.Summary,
@@ -27,6 +25,7 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
     private List<string> allCategories = new();
 
     private List<string> allCodeAreas = new();
+    private string keyString = string.Empty;
 
     public void Clear()
     {
@@ -50,6 +49,11 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
             await sheetUpdater.Open(googleSheetId);
             await ExportBugStatsCodeAreas(jiras);
             await ExportBugStatsRecentDevelopment(jiras);
+            if (await sheetUpdater.DoesSheetExist(googleSheetId, "RecentDevExclEnvest"))
+            {
+                await ExportBugStatsRecentDevelopmentExclEnvest(jiras);
+            }
+
             var monthTotalsForSeverities = await ExportBugStatsSeverities(jiras);
             await ExportBugStatsReportedVsBacklog(monthTotalsForSeverities);
             await ExportBugStatsReportedVsResolved(monthTotalsForSeverities);
@@ -194,6 +198,33 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-RecentDev");
         var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
         await sheetUpdater.ImportFile("'RecentDev'!A1", fileName);
+    }
+
+    private async Task ExportBugStatsRecentDevelopmentExclEnvest(List<JiraIssue> jiras)
+    {
+        var currentMonth = CalculateStartDate();
+        var bugCounts = new List<BarChartData>();
+        do
+        {
+            var filteredList = jiras
+                .Where(i =>
+                    !i.Customer.Contains(Constants.Envest)
+                    && i.Created >= currentMonth
+                    && i.Created < currentMonth.AddMonths(1)
+                    && i is { Resolution: Constants.CodeFixLast6, BugType: Constants.BugTypeProduction })
+                .ToList();
+            // ReSharper disable InconsistentNaming
+            var p1sTotal = filteredList.Count(i => i.Severity == Constants.SeverityCritical);
+            var p2sTotal = filteredList.Count(i => i.Severity == Constants.SeverityMajor);
+            // ReSharper restore InconsistentNaming
+            var othersTotal = filteredList.Count - p1sTotal - p2sTotal;
+            bugCounts.Add(new BarChartData(currentMonth, p1sTotal, p2sTotal, othersTotal));
+            currentMonth = currentMonth.AddMonths(1);
+        } while (currentMonth < DateTime.Today);
+
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-RecentDevExclEnvest");
+        var fileName = exporter.Export(bugCounts, overrideSerialiseRecord: SerialiseToCsv);
+        await sheetUpdater.ImportFile("'RecentDevExclEnvest'!A1", fileName);
     }
 
     private async Task ExportBugStatsReportedVsBacklog(List<BarChartData> severityTotals)
