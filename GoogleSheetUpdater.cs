@@ -58,6 +58,40 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         this.pendingDeleteSheetNames.Add(sheetName);
     }
 
+    public async Task<bool> DoesSheetExist(string spreadsheetId, string sheetName)
+    {
+        try
+        {
+            using var service = await InitiateService();
+
+            // 1. Create a request to get the spreadsheet metadata.
+            // We use a field mask to limit the response data to ONLY include sheet properties (title).
+            // This makes the API call more performant by reducing the payload size.
+            var getRequest = service.Spreadsheets.Get(spreadsheetId);
+            getRequest.Fields = "sheets.properties.title"; // Field mask
+
+            // 2. Execute the request.
+            var spreadsheet = await getRequest.ExecuteAsync();
+
+            // 3. Check if the Sheets collection exists and iterate through the sheets.
+            if (spreadsheet.Sheets != null)
+            {
+                return spreadsheet.Sheets.Any(sheet => sheet.Properties.Title.Equals(sheetName));
+            }
+
+            // 4. If the loop completes without finding a match, the sheet does not exist.
+            return false;
+        }
+        catch (Exception ex)
+        {
+            // Handle API errors, network issues, or invalid spreadsheet ID
+            Console.WriteLine($"An error occurred: {ex.Message}");
+            // Depending on your application's needs, you might want to rethrow the exception
+            // or return false, assuming an error means the sheet couldn't be confirmed as existing.
+            return false;
+        }
+    }
+
     public async Task HideColumn(string sheetName, int column)
     {
         var hideColumnRequest = new Request

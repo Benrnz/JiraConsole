@@ -13,6 +13,8 @@ public interface IWorkSheetUpdater
 
     void DeleteSheet(string sheetName);
 
+    Task<bool> DoesSheetExist(string spreadsheetId, string sheetName);
+
     /// <summary>
     ///     Edit a sheet and insert data provided by <paramref name="sourceData" />.
     /// </summary>
