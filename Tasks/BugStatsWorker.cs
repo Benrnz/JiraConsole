@@ -48,6 +48,11 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
 
             await sheetUpdater.Open(googleSheetId);
             await ExportBugStatsCodeAreas(jiras);
+            if (await sheetUpdater.DoesSheetExist(googleSheetId, "CodeAreasExclEnvest"))
+            {
+                await ExportBugStatsCodeAreasExclEnvest(jiras);
+            }
+
             await ExportBugStatsRecentDevelopment(jiras);
             if (await sheetUpdater.DoesSheetExist(googleSheetId, "RecentDevExclEnvest"))
             {
@@ -157,6 +162,30 @@ public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWor
         var fileName = exporter.Export(bugCounts, SerialiseCodeAreasHeaderRow, SerialiseToCsv);
 
         await sheetUpdater.ImportFile("'CodeAreas'!A1", fileName);
+    }
+
+    private async Task ExportBugStatsCodeAreasExclEnvest(List<JiraIssue> jiras)
+    {
+        var currentMonth = CalculateStartDate();
+        var bugCounts = new List<BarChartDataCodeAreas>();
+        this.allCodeAreas = ParseCodeAreas(jiras.Select(j => JoinCodeAreasParent(j.CodeArea, j.CodeAreaParent)).Distinct().ToList());
+        do
+        {
+            var filteredList = jiras.Where(i => !i.Customer.Contains(Constants.Envest) && i.Created >= currentMonth && i.Created < currentMonth.AddMonths(1)).ToList();
+            var areaCounts = new Dictionary<string, int>();
+            foreach (var codeArea in this.allCodeAreas)
+            {
+                areaCounts[codeArea] = filteredList.Count(j => CodeAreaMatches(j.CodeArea, j.CodeAreaParent, codeArea));
+            }
+
+            bugCounts.Add(new BarChartDataCodeAreas(currentMonth, areaCounts));
+            currentMonth = currentMonth.AddMonths(1);
+        } while (currentMonth < DateTime.Today);
+
+        exporter.SetFileNameMode(FileNameMode.ExactName, $"{this.keyString}-AreasExclEnvest");
+        var fileName = exporter.Export(bugCounts, SerialiseCodeAreasHeaderRow, SerialiseToCsv);
+
+        await sheetUpdater.ImportFile("'CodeAreasExclEnvest'!A1", fileName);
     }
 
     private async Task ExportBugStatsEnvestSeverities(List<JiraIssue> jiras, List<BarChartData> severityTotals)

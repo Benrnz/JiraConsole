@@ -54,10 +54,12 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
         await sheetUpdater.Open(GoogleSheetId);
 
         UpdateSheetAllSprintTickets();
-        UpdateSheetSprintMasterPlan(this.openFutureSprintTickets, "Sprint-Master-Plan");
-        UpdateSheetSprintMasterPlan(
-            this.openFutureSprintTickets.Where(i => i.Customer.Contains("Envest")),
-            "Sprint-Master-Plan-ENVEST");
+        UpdateSheetSprintMasterPlan(this.openFutureSprintTickets, "Sprint-Master-Plan"); // All PM Customers
+
+        // Reset the running total work done before re-running it to get the Envest specific plan.
+        this.pmPlans.ToList().ForEach(p => p.RunningTotalWorkDone = p.TotalWorkDone);
+
+        UpdateSheetSprintMasterPlan(this.openFutureSprintTickets.Where(i => i.Customer.Contains(Constants.Envest)), "Sprint-Master-Plan-ENVEST");
         await sheetUpdater.HideColumn("Sprint-Master-Plan-ENVEST", 4);
         UpdateSheetSprintMasterPlan(this.closedSprintTickets, "Closed-Sprints", true);
         sheetUpdater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
@@ -228,7 +230,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
             // Sprint child Data row
             var pmPlanRecord = this.pmPlans.SingleOrDefault(p => p.Key == row.PmPlan);
             var doneSprintTickets = row.SprintTickets.Where(t => t.Status == Constants.DoneStatus).Sum(t => t.StoryPoints);
-            // Don't count work just done during this sprint
+            // Don't count work just done during this sprint - data should be as at start of sprint.
             var runningTotalWorkDone = (pmPlanRecord?.RunningTotalWorkDone - doneSprintTickets) ?? 0.0;
             var ticketsWithNoEstimate = row.SprintTickets.Count(t => t.Status != Constants.DoneStatus && t.StoryPoints <= 0 && t.Type != Constants.EpicType);
             var percentCompleteStartOfSprint = runningTotalWorkDone / (pmPlanRecord?.TotalStoryPoints <= 0 ? 1 : pmPlanRecord?.TotalStoryPoints);
@@ -247,7 +249,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
                 pmPlanRecord?.IsReqdForGoLive ?? false ? "Yes" : "No",
                 row.Tickets, // Tickets in Sprint
                 row.StoryPoints, // Story Points in Sprint
-                pmPlanRecord?.TotalStoryPoints - runningTotalWorkDone, // Total Work remaining
+                pmPlanRecord?.TotalStoryPoints - runningTotalWorkDone, // Total Sp remaining
                 ticketsWithNoEstimate, // Count of tickets with no estimate
                 percentCompleteStartOfSprint,
                 percentCompleteEndOfSprint
@@ -280,7 +282,12 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
         public string Customer { get; }
         public bool IsReqdForGoLive { get; }
         public string Key { get; }
+
+        /// <summary>
+        ///     Calculation field to keep track of running total of work done as we process sprints in order. This must be reset to <see cref="TotalWorkDone" /> if rerunning to filter to a specific customer.
+        /// </summary>
         public double RunningTotalWorkDone { get; set; }
+
         public string Summary { get; }
         public double TotalStoryPoints { get; set; }
         public double TotalWorkDone { get; set; }
@@ -300,6 +307,9 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
             Description = JiraFields.Summary.Parse(issue) ?? string.Empty;
         }
 
+        /// <summary>
+        ///     This must always be the PMPlan Customer not the ticket customer.
+        /// </summary>
         public string Customer { get; set; } = string.Empty;
 
         public string Description { get; }
