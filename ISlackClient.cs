@@ -2,5 +2,7 @@
 
 public interface ISlackClient
 {
-    Task FindAllChannels(string partialChannelName);
+    Task<IReadOnlyList<SlackChannel>> FindAllChannels(string partialChannelName);
 }
+
+public record SlackChannel(string Id, string Name, bool IsPrivate);

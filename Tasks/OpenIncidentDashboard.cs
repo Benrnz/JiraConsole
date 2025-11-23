@@ -3,7 +3,7 @@ using BensJiraConsole.Jira;
 
 namespace BensJiraConsole.Tasks;
 
-public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
+public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack) : IJiraExportTask
 {
     private const string TaskKey = "INCIDENTS";
     private const string GoogleSheetId = "1M5ftE2dtQ1l-NoSL6sqkLynVOpHFeixVBF0faOzefvw";
@@ -43,12 +43,6 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
         sheetUpdater.EditSheet($"{GoogleSheetTabName}!A1", this.sheetData, true);
         await sheetUpdater.SubmitBatch();
-    }
-
-    private Task CreateTableForSlackChannels()
-    {
-        // TODO
-        return Task.CompletedTask;
     }
 
     private void CreateTableForOpenTicketSummary(IReadOnlyList<JiraIssue> jiraIssues)
@@ -120,6 +114,21 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
                 issue.Sprint,
                 issue.LastActivity
             ]);
+        }
+
+        this.sheetData.Add([]);
+        this.sheetData.Add([]);
+    }
+
+    private async Task CreateTableForSlackChannels()
+    {
+        Console.WriteLine("Creating table for Slack Channel Incidents...");
+        var channels = await slack.FindAllChannels("incident-");
+        this.sheetData.Add(["Open Slack Incident-* Channels", null, "Last Message (days ago)"]);
+        await sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 2);
+        foreach (var channel in channels)
+        {
+            this.sheetData.Add([$"=HYPERLINK(\"https://javln.slack.com/archives/{channel.Id}\", \"{channel.Name}\")", null, "N/A"]);
         }
 
         this.sheetData.Add([]);

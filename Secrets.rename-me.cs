@@ -5,6 +5,7 @@
 // {
 //     public const string Username = "your-email@domain.com";
 //     public const string JiraToken = "Your-api-token-from-Jira";
+//     public const string SlackToken = "xoxb-?????????";
 // }
 
 
