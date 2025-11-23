@@ -13,6 +13,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         JiraFields.Summary,
         JiraFields.Team,
         JiraFields.StoryPoints,
+        JiraFields.CustomersMultiSelect,
         JiraFields.Sprint,
         JiraFields.Severity
     ];
@@ -24,24 +25,32 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
     public async Task ExecuteAsync(string[] args)
     {
+        await sheetUpdater.Open(GoogleSheetId);
+        sheetUpdater.ClearRange(GoogleSheetTabName, "A2:Z10000");
+        await sheetUpdater.ClearRangeFormatting(GoogleSheetTabName, 0, 10000, 0, 26);
+
         SetLastUpdateTime();
         var jiraIssues = await RetrieveJiraData(Constants.JavPmJiraProjectKey);
         CreateTableForOpenTicketSummary(jiraIssues);
         CreateTableForTeamVelocity(jiraIssues);
 
-        await sheetUpdater.Open(GoogleSheetId);
         sheetUpdater.EditSheet($"{GoogleSheetTabName}!A1", this.sheetData, true);
         await sheetUpdater.SubmitBatch();
     }
 
     private void CreateTableForOpenTicketSummary(IReadOnlyList<JiraIssue> jiraIssues)
     {
+        // Row 1
         this.sheetData.Add([null, "Number if P1s", "Number of P2s"]);
+        sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 3);
+        // Row 2
         this.sheetData.Add([
-            "Open Tickets:",
+            "Total Open Tickets:",
             jiraIssues.Count(i => i.Severity == Constants.SeverityCritical),
             jiraIssues.Count(i => i.Severity == Constants.SeverityMajor)
         ]);
+        sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 1);
+        // Row 3
         this.sheetData.Add([
             "In Sprint:",
             jiraIssues.Count(i => i.Severity == Constants.SeverityCritical && !string.IsNullOrWhiteSpace(i.Sprint) && i.Sprint != NoSprintAssigned),
@@ -49,15 +58,30 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         ]);
 
         // Group by customer
-        var issuesByCustomer = jiraIssues.GroupBy(i => i.Customer);
-        var rank = 1;
-        foreach (var group in issuesByCustomer)
+        var customerTickets = new List<CustomerTickets>();
+        foreach (var customer in GetUniqueCustomerList(jiraIssues).Where(c => c != Constants.Javln && c != string.Empty))
         {
-            this.sheetData.Add([
-                $"{rank}) {group.Key}",
-                group.Count(i => i.Severity == Constants.SeverityCritical),
-                group.Count(i => i.Severity == Constants.SeverityMajor)
-            ]);
+            var group = jiraIssues.Where(i => i.CustomerArray.Contains(customer)).ToList();
+
+            var p1Issues = group.Count(i => i.Severity == Constants.SeverityCritical);
+            var p2Issues = group.Count(i => i.Severity == Constants.SeverityMajor);
+            if (p1Issues == 0 && p2Issues == 0)
+            {
+                continue;
+            }
+
+            customerTickets.Add(new CustomerTickets(customer, p1Issues, p2Issues, group.ToArray()));
+        }
+
+        // Row 4+
+        var rank = 1;
+        foreach (var customer in customerTickets.OrderByDescending(c => c.P1Count).ThenByDescending(c => c.P2Count))
+        {
+            this.sheetData.Add([$"{rank++}) {customer.CustomerName}", customer.P1Count, customer.P2Count]);
+            if (rank > 5)
+            {
+                break;
+            }
         }
 
         this.sheetData.Add([]);
@@ -69,8 +93,18 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         this.sheetData.Add(["Team Velocity (Last 5 sprints)", "P1s", "P2s", "Other"]);
         this.sheetData.Add(["Total"]);
 
+
         // TODO
         // How to find a list of sprint numbers for a team?
+    }
+
+    private IOrderedEnumerable<string> GetUniqueCustomerList(IReadOnlyList<JiraIssue> jiraIssues)
+    {
+        return jiraIssues
+            .SelectMany(i => i.CustomerArray)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct()
+            .OrderBy(c => c);
     }
 
     private async Task<IReadOnlyList<JiraIssue>> RetrieveJiraData(string project)
@@ -92,7 +126,8 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         string Key,
         string Summary,
         string Sprint,
-        string Customer,
+        string Customers,
+        string[] CustomerArray,
         string Severity,
         string Team,
         string Status,
@@ -100,11 +135,13 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     {
         public static JiraIssue CreateJiraIssue(dynamic d)
         {
+            var customer = JiraFields.CustomersMultiSelect.Parse(d) ?? string.Empty;
             return new JiraIssue(
                 Key: JiraFields.Key.Parse(d),
                 Summary: JiraFields.Summary.Parse(d),
                 Sprint: JiraFields.Sprint.Parse(d) ?? NoSprintAssigned,
-                Customer: JiraFields.CustomersMultiSelect.Parse(d) ?? string.Empty,
+                Customers: customer,
+                CustomerArray: customer.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
                 Severity: JiraFields.Severity.Parse(d) ?? string.Empty,
                 Team: JiraFields.Team.Parse(d) ?? "No Team",
                 Status: JiraFields.Status.Parse(d),
@@ -112,4 +149,6 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
             );
         }
     }
+
+    private record CustomerTickets(string CustomerName, int P1Count, int P2Count, JiraIssue[] Tickets);
 }

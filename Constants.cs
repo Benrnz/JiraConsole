@@ -14,6 +14,7 @@ public static class Constants
     public const string ImprovementType = "Improvement";
     public const string InDevStatus = "In Dev";
     public const string InQaStatus = "In Test";
+    public const string Javln = "JAVLN";
     public const string JavPmJiraProjectKey = "JAVPM";
     public const string OtPmJiraProjectKey = "OTPM";
     public const string SchemaTaskType = "Schema Task";

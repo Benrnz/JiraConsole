@@ -7,9 +7,24 @@ public interface IWorkSheetUpdater
     void ApplyDateFormat(string sheetName, int column, string format);
 
     /// <summary>
+    ///     Bold the text / values in a range of cells.
+    /// </summary>
+    /// <param name="sheetName">The text name of the tab within the Google Sheet.</param>
+    /// <param name="startRow">Zero based index of the row to start at.</param>
+    /// <param name="endRow">Zero based index, excluding this identified row.</param>
+    /// <param name="startColumn">Zero based index of the column to start at.</param>
+    /// <param name="endColumn">Zero based index, excluding this identified column.</param>
+    Task BoldCells(string sheetName, int startRow, int endRow, int startColumn, int endColumn);
+
+    /// <summary>
     ///     Clear the sheet / range values.
     /// </summary>
     void ClearRange(string sheetName, string range = "A1:Z10000");
+
+    /// <summary>
+    ///     Clear formatting for a range of cells (resets to defaults). Optionally removes conditional formatting rules on that sheet.
+    /// </summary>
+    Task ClearRangeFormatting(string sheetName, int startRow, int endRow, int startColumn, int endColumn);
 
     void DeleteSheet(string sheetName);
 
