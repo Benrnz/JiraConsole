@@ -32,30 +32,6 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         await UpdateSheet(sprintMetrics);
     }
 
-    private async Task UpdateSheet(IReadOnlyList<SprintMetrics> sprintMetrics)
-    {
-        await reader.Open(GoogleSheetId);
-        var row = new List<object?>();
-        foreach (var sprintMetric in sprintMetrics)
-        {
-            var sprintText = $"{sprintMetric.SprintName} {sprintMetric.StartDate:d-MMM-yy} to {sprintMetric.EndDate:d-MMM-yy}";
-            row.Add($"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/software/c/projects/JAVPM/boards/{sprintMetric.Team.BoardId}/reports/sprint-retrospective?sprint={sprintMetric.Team.CurrentSprintId}", "{sprintText}")""");
-            row.Add(sprintMetric.CommittedDaysWork);
-            row.Add(sprintMetric.CompletedDaysWork);
-            row.Add(sprintMetric.CapacityAccuracy);
-            row.Add(sprintMetric.PercentOfMaxCapacity);
-        };
-
-        var sheetData = new List<IList<object?>> { row };
-
-        var lastRow = await reader.GetLastRowInColumnAsync("Summary", "A");
-
-        await updater.Open(GoogleSheetId);
-        updater.EditSheet($"'Summary'!A{lastRow + 1}", sheetData, true);
-        updater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
-        await updater.SubmitBatch();
-    }
-
     private async Task<IReadOnlyList<SprintMetrics>> ExtractAndCalculateSprintMetrics(List<AgileSprint> sprintsOfInterest)
     {
         var sprintMetrics = new List<SprintMetrics>();
@@ -63,7 +39,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         {
             if (sprintsOfInterest.Any())
             {
-                var sprint = sprintsOfInterest.FirstOrDefault(x => x.OriginBoardId == team.BoardId);
+                var sprint = sprintsOfInterest.FirstOrDefault(x => x.BoardId == team.BoardId);
                 if (sprint is null)
                 {
                     // This team doesn't have a sprint in the requested list.
@@ -90,6 +66,23 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         return sprintMetrics;
     }
 
+    private DateTimeOffset GetDateTimeOffset(JsonNode? node)
+    {
+        var stringDate = node?.GetValue<string>();
+        if (stringDate is null)
+        {
+            return DateTimeOffset.MinValue;
+        }
+
+        return DateTimeOffset.Parse(stringDate);
+    }
+
+    private double GetValueAsDays(JsonNode? node)
+    {
+        var value = node?["value"]?.GetValue<double>() ?? 0.0;
+        return value / 60 / 60 / 8; // values were in seconds, convert to days, 8 hours in a day.
+    }
+
     private async Task<List<AgileSprint>> ParseOptionalArguments(string[] args)
     {
         var sprintsOfInterest = new List<AgileSprint>();
@@ -106,23 +99,6 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         }
 
         return sprintsOfInterest;
-    }
-
-    private DateTimeOffset GetDateTimeOffset(JsonNode? node)
-    {
-        var stringDate = node?.GetValue<string>();
-        if (stringDate is null)
-        {
-            return DateTimeOffset.MinValue;
-        }
-
-        return DateTimeOffset.Parse(stringDate);
-    }
-
-    private double GetValueAsDays(JsonNode? node)
-    {
-        var value = node?["value"]?.GetValue<double>() ?? 0.0;
-        return value / 60 / 60 / 8; // values were in seconds, convert to days, 8 hours in a day.
     }
 
     private async Task<SprintMetrics> ProcessSprint(TeamSprint teamSprint)
@@ -165,6 +141,33 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         Console.WriteLine("------------------------------------------------------------------------");
 
         return sprintMetrics;
+    }
+
+    private async Task UpdateSheet(IReadOnlyList<SprintMetrics> sprintMetrics)
+    {
+        await reader.Open(GoogleSheetId);
+        var row = new List<object?>();
+        foreach (var sprintMetric in sprintMetrics)
+        {
+            var sprintText = $"{sprintMetric.SprintName} {sprintMetric.StartDate:d-MMM-yy} to {sprintMetric.EndDate:d-MMM-yy}";
+            row.Add(
+                $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/software/c/projects/JAVPM/boards/{sprintMetric.Team.BoardId}/reports/sprint-retrospective?sprint={sprintMetric.Team.CurrentSprintId}", "{sprintText}")""");
+            row.Add(sprintMetric.CommittedDaysWork);
+            row.Add(sprintMetric.CompletedDaysWork);
+            row.Add(sprintMetric.CapacityAccuracy);
+            row.Add(sprintMetric.PercentOfMaxCapacity);
+        }
+
+        ;
+
+        var sheetData = new List<IList<object?>> { row };
+
+        var lastRow = await reader.GetLastRowInColumnAsync("Summary", "A");
+
+        await updater.Open(GoogleSheetId);
+        updater.EditSheet($"'Summary'!A{lastRow + 1}", sheetData, true);
+        updater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
+        await updater.SubmitBatch();
     }
 
     private record SprintMetrics(

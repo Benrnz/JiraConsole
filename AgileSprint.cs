@@ -6,5 +6,6 @@ public record AgileSprint(
     string Name,
     DateTimeOffset StartDate,
     DateTimeOffset EndDate,
-    int OriginBoardId,
-    string Goal);
+    int BoardId,
+    string Goal,
+    DateTimeOffset CompleteDate);
