@@ -13,7 +13,38 @@ public class SlackClient : ISlackClient
             throw new ArgumentException("Channel name cannot be null or empty.", nameof(partialChannelName));
         }
 
-        var allChannels = new List<SlackChannel>();
+        var (allChannels, totalChannels) = await GetAllSlackChannels(partialChannelName);
+
+        Console.WriteLine($"Total channels retrieved and searched: {totalChannels}");
+        Console.WriteLine($"Found {allChannels.Count} channel(s) matching '{partialChannelName}'");
+
+        // Join channels and fetch last message timestamp for each channel
+        var channelsWithTimestamps = new List<SlackChannel>();
+        var skippedChannels = 0;
+        foreach (var channel in allChannels)
+        {
+            // Try to join the channel first (if not already a member)
+            if (!await JoinChannel(channel.Id, channel.IsPrivate))
+            {
+                skippedChannels++;
+            }
+
+            // Now try to get the last message timestamp
+            var lastMessageTimestamp = await GetLastMessageTimestampAsync(channel.Id);
+            channelsWithTimestamps.Add(channel with {LastMessageTimestamp = lastMessageTimestamp});
+        }
+
+        if (skippedChannels > 0)
+        {
+            Console.WriteLine($"Note: Could not retrieve timestamps for {skippedChannels} channel(s)");
+        }
+
+        return channelsWithTimestamps;
+    }
+
+    private static async Task<(List<SlackChannel> matchedChannels, int totalChannels)> GetAllSlackChannels(string partialChannelName)
+    {
+        var matchedChannels = new List<SlackChannel>();
         string? cursor = null;
         var totalChannels = 0;
 
@@ -52,7 +83,7 @@ public class SlackClient : ISlackClient
                             var channelId = channel.TryGetProperty("id", out var idProperty) ? idProperty.GetString()! : "Unknown";
                             var isPrivate = channel.TryGetProperty("is_private", out var isPrivateProperty) && isPrivateProperty.GetBoolean();
 
-                            allChannels.Add(new SlackChannel
+                            matchedChannels.Add(new SlackChannel
                             (
                                 channelId,
                                 channelName,
@@ -80,36 +111,10 @@ public class SlackClient : ISlackClient
             }
         } while (!string.IsNullOrEmpty(cursor));
 
-        Console.WriteLine($"Total channels retrieved and searched: {totalChannels}");
-        Console.WriteLine($"Found {allChannels.Count} channel(s) matching '{partialChannelName}'");
-
-        // Join channels and fetch last message timestamp for each channel
-        Console.WriteLine("Joining channels and fetching last message timestamps...");
-        var channelsWithTimestamps = new List<SlackChannel>();
-        var skippedChannels = 0;
-        foreach (var channel in allChannels)
-        {
-            // Try to join the channel first (if not already a member)
-            await JoinChannelAsync(channel.Id, channel.IsPrivate);
-            
-            // Now try to get the last message timestamp
-            var lastMessageTimestamp = await GetLastMessageTimestampAsync(channel.Id);
-            if (!lastMessageTimestamp.HasValue)
-            {
-                skippedChannels++;
-            }
-            channelsWithTimestamps.Add(channel with {LastMessageTimestamp = lastMessageTimestamp});
-        }
-        
-        if (skippedChannels > 0)
-        {
-            Console.WriteLine($"Note: Could not retrieve timestamps for {skippedChannels} channel(s)");
-        }
-
-        return channelsWithTimestamps;
+        return (matchedChannels, totalChannels);
     }
 
-    private async Task<bool> JoinChannelAsync(string channelId, bool isPrivate)
+    public async Task<bool> JoinChannel(string channelId, bool isPrivate)
     {
         // Private channels cannot be joined automatically - they require an invite
         if (isPrivate)
@@ -122,7 +127,7 @@ public class SlackClient : ISlackClient
         try
         {
             var url = $"{BaseApiUrl}conversations.join?channel={Uri.EscapeDataString(channelId)}";
-            
+
             var response = await App.HttpSlack.PostAsync(url, null);
             var responseContent = await response.Content.ReadAsStringAsync();
             var jsonDocument = JsonDocument.Parse(responseContent);
@@ -187,7 +192,7 @@ public class SlackClient : ISlackClient
                         if (!string.IsNullOrEmpty(tsString) && double.TryParse(tsString, out var timestamp))
                         {
                             // Convert Unix timestamp (seconds) to DateTimeOffset
-                            return DateTimeOffset.FromUnixTimeSeconds((long)timestamp);
+                            return DateTimeOffset.FromUnixTimeSeconds((long)timestamp).ToLocalTime();
                         }
                     }
                     // Only process the first message since limit=1

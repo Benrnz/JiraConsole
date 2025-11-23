@@ -211,13 +211,13 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         string Severity,
         string Team,
         string Status,
-        int LastActivity)
+        double LastActivity)
     {
         public static JiraIssue CreateJiraIssue(dynamic d)
         {
             var customer = JiraFields.CustomersMultiSelect.Parse(d) ?? string.Empty;
             var lastUpdatedDate = (DateTimeOffset?)JiraFields.UpdatedDate.Parse(d) ?? DateTimeOffset.MaxValue;
-            var lastUpdatedDaysAgo = (int)(DateTimeOffset.Now - lastUpdatedDate).TotalDays;
+            var lastUpdatedDaysAgo = (DateTimeOffset.Now - lastUpdatedDate).TotalDays;
             var sprint = (string)JiraFields.Sprint.Parse(d);
             return new JiraIssue(
                 Key: JiraFields.Key.Parse(d),
@@ -228,7 +228,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
                 Severity: JiraFields.Severity.Parse(d) ?? string.Empty,
                 Team: JiraFields.Team.Parse(d) ?? "No Team",
                 Status: JiraFields.Status.Parse(d),
-                LastActivity: lastUpdatedDaysAgo < 0 ? 999 : lastUpdatedDaysAgo
+                LastActivity: lastUpdatedDaysAgo < 0 ? 999 : Math.Round(lastUpdatedDaysAgo, 1)
             );
         }
     }
