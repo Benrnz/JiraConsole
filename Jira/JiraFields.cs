@@ -40,6 +40,7 @@ public static class JiraFields
     public static readonly FieldMapping<double> StoryPoints = new() { Field = "customfield_10004", Alias = "StoryPoints" };
     public static readonly FieldMapping<string> Summary = new() { Field = "summary", Alias = "Summary" };
     public static readonly FieldMapping<string> Team = new() { Field = "customfield_11400", Alias = "Team", FlattenField = "name" };
+    public static readonly FieldMapping<DateTimeOffset> UpdatedDate = new() { Field = "updated", Alias = "UpdatedDate" };
 
     private static bool DynamicHasField(dynamic d, string fieldName)
     {

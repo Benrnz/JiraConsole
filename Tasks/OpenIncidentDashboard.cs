@@ -18,7 +18,8 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         JiraFields.StoryPoints,
         JiraFields.CustomersMultiSelect,
         JiraFields.Sprint,
-        JiraFields.Severity
+        JiraFields.Severity,
+        JiraFields.UpdatedDate
     ];
 
     private readonly List<IList<object?>> sheetData = new();
@@ -41,29 +42,6 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
         sheetUpdater.EditSheet($"{GoogleSheetTabName}!A1", this.sheetData, true);
         await sheetUpdater.SubmitBatch();
-    }
-
-    private void CreateTableForPriorityBugList(IReadOnlyList<JiraIssue> jiraIssues, string severity)
-    {
-        var priorityName = severity == Constants.SeverityCritical ? "P1" : "P2";
-        Console.WriteLine($"Creating table for {priorityName} list...");
-
-        this.sheetData.Add([$"List of Open {priorityName}s", "Status", "Customer", "Summary", "Sprint", "Last Activity (days ago)"]);
-        sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 6);
-        foreach (var issue in jiraIssues.Where(i => i.Severity == severity).OrderByDescending(i => i.LastActivity))
-        {
-            this.sheetData.Add([
-                $"=HYPERLINK(\"https://javlnsupport.atlassian.net/browse/{issue.Key}\", \"{issue.Key}\")",
-                issue.Status,
-                issue.Customers,
-                issue.Summary,
-                issue.Sprint,
-                issue.LastActivity
-            ]);
-        }
-
-        this.sheetData.Add([]);
-        this.sheetData.Add([]);
     }
 
     private void CreateTableForOpenTicketSummary(IReadOnlyList<JiraIssue> jiraIssues)
@@ -112,6 +90,29 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
             {
                 break;
             }
+        }
+
+        this.sheetData.Add([]);
+        this.sheetData.Add([]);
+    }
+
+    private void CreateTableForPriorityBugList(IReadOnlyList<JiraIssue> jiraIssues, string severity)
+    {
+        var priorityName = severity == Constants.SeverityCritical ? "P1" : "P2";
+        Console.WriteLine($"Creating table for {priorityName} list...");
+
+        this.sheetData.Add([$"List of Open {priorityName}s", "Status", "Customer", "Summary", "Sprint", "Last Activity (days ago)"]);
+        sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 6);
+        foreach (var issue in jiraIssues.Where(i => i.Severity == severity).OrderByDescending(i => i.LastActivity))
+        {
+            this.sheetData.Add([
+                $"=HYPERLINK(\"https://javlnsupport.atlassian.net/browse/{issue.Key}\", \"{issue.Key}\")",
+                issue.Status,
+                issue.Customers,
+                issue.Summary,
+                issue.Sprint,
+                issue.LastActivity
+            ]);
         }
 
         this.sheetData.Add([]);
@@ -170,7 +171,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     {
         var jql = $"project = {project} AND issueType = Bug AND status != Done";
         var issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue);
-        // TODO Likely need to calc last days activity here
+
         return issues.ToList();
     }
 
@@ -195,16 +196,19 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         public static JiraIssue CreateJiraIssue(dynamic d)
         {
             var customer = JiraFields.CustomersMultiSelect.Parse(d) ?? string.Empty;
+            var lastUpdatedDate = (DateTimeOffset?)JiraFields.UpdatedDate.Parse(d) ?? DateTimeOffset.MaxValue;
+            var lastUpdatedDaysAgo = (int)(DateTimeOffset.Now - lastUpdatedDate).TotalDays;
+            var sprint = (string)JiraFields.Sprint.Parse(d);
             return new JiraIssue(
                 Key: JiraFields.Key.Parse(d),
                 Summary: JiraFields.Summary.Parse(d),
-                Sprint: JiraFields.Sprint.Parse(d) ?? NoSprintAssigned,
+                Sprint: string.IsNullOrWhiteSpace(sprint) ? NoSprintAssigned : sprint,
                 Customers: customer,
                 CustomerArray: customer.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
                 Severity: JiraFields.Severity.Parse(d) ?? string.Empty,
                 Team: JiraFields.Team.Parse(d) ?? "No Team",
                 Status: JiraFields.Status.Parse(d),
-                LastActivity: 999 //TODO
+                LastActivity: lastUpdatedDaysAgo < 0 ? 999 : lastUpdatedDaysAgo
             );
         }
     }
