@@ -83,16 +83,71 @@ public class SlackClient : ISlackClient
         Console.WriteLine($"Total channels retrieved and searched: {totalChannels}");
         Console.WriteLine($"Found {allChannels.Count} channel(s) matching '{partialChannelName}'");
 
-        // Fetch last message timestamp for each channel
-        Console.WriteLine("Fetching last message timestamps...");
+        // Join channels and fetch last message timestamp for each channel
+        Console.WriteLine("Joining channels and fetching last message timestamps...");
         var channelsWithTimestamps = new List<SlackChannel>();
+        var skippedChannels = 0;
         foreach (var channel in allChannels)
         {
+            // Try to join the channel first (if not already a member)
+            await JoinChannelAsync(channel.Id, channel.IsPrivate);
+            
+            // Now try to get the last message timestamp
             var lastMessageTimestamp = await GetLastMessageTimestampAsync(channel.Id);
+            if (!lastMessageTimestamp.HasValue)
+            {
+                skippedChannels++;
+            }
             channelsWithTimestamps.Add(channel with {LastMessageTimestamp = lastMessageTimestamp});
+        }
+        
+        if (skippedChannels > 0)
+        {
+            Console.WriteLine($"Note: Could not retrieve timestamps for {skippedChannels} channel(s)");
         }
 
         return channelsWithTimestamps;
+    }
+
+    private async Task<bool> JoinChannelAsync(string channelId, bool isPrivate)
+    {
+        // Private channels cannot be joined automatically - they require an invite
+        if (isPrivate)
+        {
+            // For private channels, we can't auto-join, but we'll still try to access history
+            // If the bot was previously invited, it will work
+            return false;
+        }
+
+        try
+        {
+            var url = $"{BaseApiUrl}conversations.join?channel={Uri.EscapeDataString(channelId)}";
+            
+            var response = await App.HttpSlack.PostAsync(url, null);
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var jsonDocument = JsonDocument.Parse(responseContent);
+
+            if (jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) && okProperty.GetBoolean())
+            {
+                return true;
+            }
+
+            // Check if bot is already in channel (this is fine)
+            if (jsonDocument.RootElement.TryGetProperty("error", out var errorProperty))
+            {
+                var error = errorProperty.GetString();
+                if (error == "already_in_channel")
+                {
+                    return true; // Already a member, treat as success
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private async Task<DateTimeOffset?> GetLastMessageTimestampAsync(string channelId)
@@ -102,14 +157,22 @@ public class SlackClient : ISlackClient
             var url = $"{BaseApiUrl}conversations.history?channel={Uri.EscapeDataString(channelId)}&limit=1";
 
             var response = await App.HttpSlack.GetAsync(url);
-            response.EnsureSuccessStatusCode();
-
             var responseContent = await response.Content.ReadAsStringAsync();
             var jsonDocument = JsonDocument.Parse(responseContent);
 
             if (!jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) || !okProperty.GetBoolean())
             {
-                // If there's an error (e.g., channel has no messages or access denied), return null
+                // Check for specific error types
+                if (jsonDocument.RootElement.TryGetProperty("error", out var errorProperty))
+                {
+                    var error = errorProperty.GetString();
+                    if (error == "not_in_channel" || error == "channel_not_found")
+                    {
+                        // Bot is not a member of the channel - this is expected for some channels
+                        return null;
+                    }
+                }
+                // Other errors - return null
                 return null;
             }
 
@@ -134,9 +197,14 @@ public class SlackClient : ISlackClient
 
             return null;
         }
+        catch (HttpRequestException)
+        {
+            // HTTP errors - return null
+            return null;
+        }
         catch
         {
-            // If any error occurs, return null (channel might not have messages or access issues)
+            // Any other errors - return null
             return null;
         }
     }
