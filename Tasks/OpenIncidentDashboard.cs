@@ -36,9 +36,34 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         var jiraIssues = await RetrieveJiraData(Constants.JavPmJiraProjectKey);
         CreateTableForOpenTicketSummary(jiraIssues);
         await CreateTableForTeamVelocity(Constants.JavPmJiraProjectKey);
+        CreateTableForPriorityBugList(jiraIssues, Constants.SeverityCritical);
+        CreateTableForPriorityBugList(jiraIssues, Constants.SeverityMajor);
 
         sheetUpdater.EditSheet($"{GoogleSheetTabName}!A1", this.sheetData, true);
         await sheetUpdater.SubmitBatch();
+    }
+
+    private void CreateTableForPriorityBugList(IReadOnlyList<JiraIssue> jiraIssues, string severity)
+    {
+        var priorityName = severity == Constants.SeverityCritical ? "P1" : "P2";
+        Console.WriteLine($"Creating table for {priorityName} list...");
+
+        this.sheetData.Add([$"List of Open {priorityName}s", "Status", "Customer", "Summary", "Sprint", "Last Activity (days ago)"]);
+        sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 6);
+        foreach (var issue in jiraIssues.Where(i => i.Severity == severity).OrderByDescending(i => i.LastActivity))
+        {
+            this.sheetData.Add([
+                $"=HYPERLINK(\"https://javlnsupport.atlassian.net/browse/{issue.Key}\", \"{issue.Key}\")",
+                issue.Status,
+                issue.Customers,
+                issue.Summary,
+                issue.Sprint,
+                issue.LastActivity
+            ]);
+        }
+
+        this.sheetData.Add([]);
+        this.sheetData.Add([]);
     }
 
     private void CreateTableForOpenTicketSummary(IReadOnlyList<JiraIssue> jiraIssues)
