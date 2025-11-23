@@ -37,11 +37,18 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         var jiraIssues = await RetrieveJiraData(Constants.JavPmJiraProjectKey);
         CreateTableForOpenTicketSummary(jiraIssues);
         await CreateTableForTeamVelocity(Constants.JavPmJiraProjectKey);
+        await CreateTableForSlackChannels();
         CreateTableForPriorityBugList(jiraIssues, Constants.SeverityCritical);
         CreateTableForPriorityBugList(jiraIssues, Constants.SeverityMajor);
 
         sheetUpdater.EditSheet($"{GoogleSheetTabName}!A1", this.sheetData, true);
         await sheetUpdater.SubmitBatch();
+    }
+
+    private Task CreateTableForSlackChannels()
+    {
+        // TODO
+        return Task.CompletedTask;
     }
 
     private void CreateTableForOpenTicketSummary(IReadOnlyList<JiraIssue> jiraIssues)

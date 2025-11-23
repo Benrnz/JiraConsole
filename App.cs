@@ -6,8 +6,8 @@ namespace BensJiraConsole;
 
 public class App(IEnumerable<IJiraExportTask> tasks)
 {
-    // Shared HttpClient for all API calls
-    public static readonly HttpClient Http = CreateHttpClient();
+    public static readonly HttpClient HttpJira = CreateHttpClient();
+    public static readonly HttpClient HttpSlack = CreateHttpClient();
 
     private static HttpClient CreateHttpClient()
     {

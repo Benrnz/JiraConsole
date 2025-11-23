@@ -35,14 +35,14 @@ public class JiraApiClient
             sb.Append('?').Append(string.Join('&', queryParts));
         }
 
-        var response = await App.Http.GetAsync(sb.ToString());
+        var response = await App.HttpJira.GetAsync(sb.ToString());
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync();
     }
 
     public async Task<string> GetAgileBoardSprintByIdAsync(int sprintId)
     {
-        var response = await App.Http.GetAsync($"{BaseAgileUrl}sprint/{sprintId}");
+        var response = await App.HttpJira.GetAsync($"{BaseAgileUrl}sprint/{sprintId}");
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync();
     }
@@ -60,7 +60,7 @@ public class JiraApiClient
         var json = JsonSerializer.Serialize(requestBody);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await App.Http.PostAsync($"{BaseApi3Url}search/jql", content);
+        var response = await App.HttpJira.PostAsync($"{BaseApi3Url}search/jql", content);
         if (!response.IsSuccessStatusCode)
         {
             Console.WriteLine("ERROR!");
@@ -99,7 +99,7 @@ public class JiraApiClient
             sb.Append('?').Append(string.Join('&', queryParts));
         }
 
-        var response = await App.Http.GetAsync(sb.ToString());
+        var response = await App.HttpJira.GetAsync(sb.ToString());
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync();
     }

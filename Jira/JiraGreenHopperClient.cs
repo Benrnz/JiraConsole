@@ -10,7 +10,7 @@ public class JiraGreenHopperClient : IGreenHopperClient
     {
         var url = $"{BaseUrl}rapid/charts/sprintreport?rapidViewId={sprintBoardId}&sprintId={sprintId}";
 
-        var response = await App.Http.GetAsync(url);
+        var response = await App.HttpJira.GetAsync(url);
         if (!response.IsSuccessStatusCode)
         {
             Console.WriteLine("ERROR calling Greenhopper sprint report API!");
