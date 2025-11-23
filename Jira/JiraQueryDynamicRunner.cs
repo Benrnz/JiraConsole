@@ -2,7 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace BensJiraConsole;
+namespace BensJiraConsole.Jira;
 
 public class JiraQueryDynamicRunner : IJiraQueryRunner
 {
@@ -90,12 +90,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         return CreateAgileSprintFromJsonNode(json);
     }
 
-    /// <summary>
-    ///     Gets all sprint numbers for a given board ID.
-    /// </summary>
-    /// <param name="boardId">The Jira board ID</param>
-    /// <returns>A list of sprint numbers (IDs)</returns>
-    public async Task<IReadOnlyList<AgileSprint>> GetSprintNumbersAsync(int boardId)
+    public async Task<IReadOnlyList<AgileSprint>> GetAllSprints(int boardId)
     {
         var values = new List<JsonNode>();
         var apiClient = new JiraApiClient();

@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using BensJiraConsole;
+using BensJiraConsole.Jira;
 using BensJiraConsole.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

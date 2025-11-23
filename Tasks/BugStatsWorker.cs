@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using BensJiraConsole.Jira;
 
 namespace BensJiraConsole.Tasks;
 

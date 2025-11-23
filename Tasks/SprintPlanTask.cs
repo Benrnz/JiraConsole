@@ -1,4 +1,6 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿using BensJiraConsole.Jira;
+
+namespace BensJiraConsole.Tasks;
 
 public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
 {

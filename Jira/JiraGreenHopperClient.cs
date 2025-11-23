@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Nodes;
 
-namespace BensJiraConsole;
+namespace BensJiraConsole.Jira;
 
 public class JiraGreenHopperClient : IGreenHopperClient
 {
