@@ -128,7 +128,11 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         await sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 2);
         foreach (var channel in channels)
         {
-            this.sheetData.Add([$"=HYPERLINK(\"https://javln.slack.com/archives/{channel.Id}\", \"{channel.Name}\")", null, "N/A"]);
+            var daysAgo = channel.LastMessageTimestamp.HasValue
+                ? (int)(DateTimeOffset.Now - channel.LastMessageTimestamp.Value).TotalDays
+                : (int?)null;
+            var daysAgoText = daysAgo.HasValue ? daysAgo.Value.ToString() : "N/A";
+            this.sheetData.Add([$"=HYPERLINK(\"https://javln.slack.com/archives/{channel.Id}\", \"{channel.Name}\")", null, daysAgoText]);
         }
 
         this.sheetData.Add([]);
