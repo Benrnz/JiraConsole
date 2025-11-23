@@ -1,4 +1,7 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿using System.Diagnostics.CodeAnalysis;
+using BensJiraConsole.Jira;
+
+namespace BensJiraConsole.Tasks;
 
 public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
 {
@@ -27,12 +30,12 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     {
         await sheetUpdater.Open(GoogleSheetId);
         sheetUpdater.ClearRange(GoogleSheetTabName, "A2:Z10000");
-        await sheetUpdater.ClearRangeFormatting(GoogleSheetTabName, 0, 10000, 0, 26);
+        await sheetUpdater.ClearRangeFormatting(GoogleSheetTabName, 1, 10000, 0, 26);
 
         SetLastUpdateTime();
         var jiraIssues = await RetrieveJiraData(Constants.JavPmJiraProjectKey);
         CreateTableForOpenTicketSummary(jiraIssues);
-        CreateTableForTeamVelocity(jiraIssues);
+        await CreateTableForTeamVelocity(Constants.JavPmJiraProjectKey);
 
         sheetUpdater.EditSheet($"{GoogleSheetTabName}!A1", this.sheetData, true);
         await sheetUpdater.SubmitBatch();
@@ -40,8 +43,10 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
     private void CreateTableForOpenTicketSummary(IReadOnlyList<JiraIssue> jiraIssues)
     {
+        Console.WriteLine("Creating table for open ticket summary...");
+
         // Row 1
-        this.sheetData.Add([null, "Number if P1s", "Number of P2s"]);
+        this.sheetData.Add([null, "Number of P1s", "Number of P2s"]);
         sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 3);
         // Row 2
         this.sheetData.Add([
@@ -88,14 +93,43 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         this.sheetData.Add([]);
     }
 
-    private void CreateTableForTeamVelocity(IReadOnlyList<JiraIssue> jiraIssues)
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    private async Task CreateTableForTeamVelocity(string project)
     {
-        this.sheetData.Add(["Team Velocity (Last 5 sprints)", "P1s", "P2s", "Other"]);
-        this.sheetData.Add(["Total"]);
+        Console.WriteLine("Creating table for team velocity...");
+        this.sheetData.Add(["Team Velocity (Avg Last 5 sprints)", "P1s Avg", "P2s Avg", "Other Avg"]);
+        await sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 4);
 
+        var teamData = new List<(string, int, int, int)>();
+        foreach (var team in JiraConfig.Teams.Where(t => t.JiraProject == project))
+        {
+            var last5Sprints = (await runner.GetAllSprints(team.BoardId))
+                .Where(t => t.State == Constants.SprintStateClosed)
+                .OrderByDescending(t => t.StartDate)
+                .Take(5);
+            var p1Count = 0;
+            var p2Count = 0;
+            var otherCount = 0;
+            foreach (var sprint in last5Sprints)
+            {
+                var tickets = (await runner.SearchJiraIssuesWithJqlAsync($"sprint = {sprint.Id} AND Severity IN (Critical, Major, Intermediate)", [JiraFields.Severity])).ToList();
+                var p1s = tickets.Count(t => t.Severity == Constants.SeverityCritical);
+                p1Count += p1s;
+                var p2s = tickets.Count(t => t.Severity == Constants.SeverityMajor);
+                p2Count += p2s;
+                otherCount += tickets.Count - p1s - p2s;
+            }
 
-        // TODO
-        // How to find a list of sprint numbers for a team?
+            teamData.Add((team.TeamName, p1Count / 5, p2Count / 5, otherCount / 5));
+        }
+
+        this.sheetData.Add(["Avg across all teams", teamData.Sum(d => d.Item2), teamData.Sum(d => d.Item3), teamData.Sum(d => d.Item4)]);
+        this.sheetData.AddRange(teamData
+            .OrderByDescending(t => t.Item2)
+            .Select(t => (IList<object?>)new List<object?> { t.Item1, t.Item2, t.Item3, t.Item4 }));
+
+        this.sheetData.Add([]);
+        this.sheetData.Add([]);
     }
 
     private IOrderedEnumerable<string> GetUniqueCustomerList(IReadOnlyList<JiraIssue> jiraIssues)
