@@ -31,6 +31,7 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
 
     public async Task Open(string sheetId)
     {
+        Reset();
         this.googleSheetId = sheetId;
         await Authenticate();
     }
@@ -259,11 +260,7 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         await SendDeleteAddAndFormatRequests(service); // Formatting should be applied last, add delete don't matter and can be bundled into same service call.
 
         // Clear all queues after successful submission
-        this.pendingSpreadsheetRequests.Clear();
-        this.pendingDeleteSheetNames.Clear();
-        this.pendingApplyDateFormats.Clear();
-        this.pendingClears.Clear();
-        this.pendingValueUpdates.Clear();
+        Reset();
     }
 
     private async Task<bool> Authenticate()
@@ -352,6 +349,16 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
             service?.Dispose();
             throw;
         }
+    }
+
+    private void Reset()
+    {
+        this.pendingSpreadsheetRequests.Clear();
+        this.pendingDeleteSheetNames.Clear();
+        this.pendingApplyDateFormats.Clear();
+        this.pendingClears.Clear();
+        this.pendingValueUpdates.Clear();
+        this.sheetNamesToIds.Clear();
     }
 
     private async Task SendApplyClearRangeRequests(SheetsService service)

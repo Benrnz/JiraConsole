@@ -6,7 +6,8 @@ namespace BensJiraConsole.Tasks;
 public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack) : IJiraExportTask
 {
     private const string TaskKey = "INCIDENTS";
-    private const string GoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
+    private const string JavPmGoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
+    private const string OtPmGoogleSheetId = "14Dqa1UVXQJrAViBHgbS8kHBmHi61HnkZAKa6wCsTL2E";
     private const string GoogleSheetTabName = "Open Incidents Dashboard";
     private const string NoSprintAssigned = "No Sprint";
 
@@ -22,27 +23,19 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         JiraFields.UpdatedDate
     ];
 
-    private readonly List<IList<object?>> sheetData = new();
+    private IReadOnlyList<SlackChannel> incidentSlackChannels = new List<SlackChannel>();
+
+    private List<IList<object?>> sheetData = new();
 
     public string Description => "Pulls data from Jira and Slack to give a combined view of all open incidents.";
     public string Key => TaskKey;
 
     public async Task ExecuteAsync(string[] args)
     {
-        await sheetUpdater.Open(GoogleSheetId);
-        sheetUpdater.ClearRange(GoogleSheetTabName, "A2:Z10000");
-        await sheetUpdater.ClearRangeFormatting(GoogleSheetTabName, 1, 10000, 0, 26);
-
-        SetLastUpdateTime();
-        var jiraIssues = await RetrieveJiraData(Constants.JavPmJiraProjectKey);
-        CreateTableForOpenTicketSummary(jiraIssues);
-        await CreateTableForTeamVelocity(Constants.JavPmJiraProjectKey);
-        await CreateTableForSlackChannels();
-        CreateTableForPriorityBugList(jiraIssues, Constants.SeverityCritical);
-        CreateTableForPriorityBugList(jiraIssues, Constants.SeverityMajor);
-
-        sheetUpdater.EditSheet($"{GoogleSheetTabName}!A1", this.sheetData, true);
-        await sheetUpdater.SubmitBatch();
+        Console.WriteLine("Updating Incident Dashboard for JAVPM...");
+        await RunReportForProject(Constants.JavPmJiraProjectKey, JavPmGoogleSheetId);
+        Console.WriteLine("Updating Incident Dashboard for OTPM...");
+        await RunReportForProject(Constants.OtPmJiraProjectKey, OtPmGoogleSheetId);
     }
 
     private void CreateTableForOpenTicketSummary(IReadOnlyList<JiraIssue> jiraIssues)
@@ -123,15 +116,20 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     private async Task CreateTableForSlackChannels()
     {
         Console.WriteLine("Creating table for Slack Channel Incidents...");
-        var channels = await slack.FindAllChannels("incident-");
+        if (!this.incidentSlackChannels.Any())
+        {
+            this.incidentSlackChannels = await slack.FindAllChannels("incident-");
+        }
+
         this.sheetData.Add(["Open Slack Incident-* Channels", null, "Last Message (days ago)"]);
         await sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 3);
-        foreach (var channel in channels)
+        this.sheetData.Add([$"{this.incidentSlackChannels.Count} Incident channels open"]);
+        foreach (var channel in this.incidentSlackChannels)
         {
             var daysAgo = channel.LastMessageTimestamp.HasValue
                 ? (int)(DateTimeOffset.Now - channel.LastMessageTimestamp.Value).TotalDays
                 : (int?)null;
-            var daysAgoText = daysAgo.HasValue ? daysAgo.Value.ToString() : "N/A";
+            var daysAgoText = daysAgo?.ToString() ?? "N/A";
             this.sheetData.Add([$"=HYPERLINK(\"https://javln.slack.com/archives/{channel.Id}\", \"{channel.Name}\")", null, daysAgoText]);
         }
 
@@ -193,6 +191,25 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         var issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue);
 
         return issues.ToList();
+    }
+
+    private async Task RunReportForProject(string project, string sheetId)
+    {
+        this.sheetData = new List<IList<object?>>();
+        await sheetUpdater.Open(sheetId);
+        sheetUpdater.ClearRange(GoogleSheetTabName, "A2:Z10000");
+        await sheetUpdater.ClearRangeFormatting(GoogleSheetTabName, 1, 10000, 0, 26);
+
+        SetLastUpdateTime();
+        var jiraIssues = await RetrieveJiraData(project);
+        CreateTableForOpenTicketSummary(jiraIssues);
+        await CreateTableForTeamVelocity(project);
+        await CreateTableForSlackChannels();
+        CreateTableForPriorityBugList(jiraIssues, Constants.SeverityCritical);
+        CreateTableForPriorityBugList(jiraIssues, Constants.SeverityMajor);
+
+        sheetUpdater.EditSheet($"{GoogleSheetTabName}!A1", this.sheetData, true);
+        await sheetUpdater.SubmitBatch();
     }
 
     private void SetLastUpdateTime()
