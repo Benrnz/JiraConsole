@@ -124,13 +124,18 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         this.sheetData.Add(["Open Slack Incident-* Channels", null, "Last Message (days ago)"]);
         await sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 3);
         this.sheetData.Add([$"{this.incidentSlackChannels.Count} Incident channels open"]);
+        var channelsSortByAge = new List<(string, double)>();
         foreach (var channel in this.incidentSlackChannels)
         {
             var daysAgo = channel.LastMessageTimestamp.HasValue
-                ? (int)(DateTimeOffset.Now - channel.LastMessageTimestamp.Value).TotalDays
-                : (int?)null;
-            var daysAgoText = daysAgo?.ToString() ?? "N/A";
-            this.sheetData.Add([$"=HYPERLINK(\"https://javln.slack.com/archives/{channel.Id}\", \"{channel.Name}\")", null, daysAgoText]);
+                ? (DateTimeOffset.Now - channel.LastMessageTimestamp.Value).TotalDays
+                : 0;
+            channelsSortByAge.Add(($"=HYPERLINK(\"https://javln.slack.com/archives/{channel.Id}\", \"{channel.Name}\")", Math.Round(daysAgo, 1)));
+        }
+
+        foreach (var channel in channelsSortByAge.OrderByDescending(c => c.Item2))
+        {
+            this.sheetData.Add([channel.Item1, null, channel.Item2]);
         }
 
         this.sheetData.Add([]);

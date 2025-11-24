@@ -14,4 +14,4 @@ public interface ISlackClient
 
 public record SlackChannel(string Id, string Name, bool IsPrivate, DateTimeOffset? LastMessageTimestamp);
 
-public record SlackMessage(string ChannelId, string UserId, string Message, DateTimeOffset LastMessageTimestamp);
+public record SlackMessage(string ChannelId, string UserId, string Message, DateTimeOffset LastMessageTimestamp, string Type, string SubType);

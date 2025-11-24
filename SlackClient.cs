@@ -5,6 +5,7 @@ namespace BensJiraConsole;
 public class SlackClient : ISlackClient
 {
     private const string BaseApiUrl = "https://slack.com/api/";
+    private const string SubTypeChannelJoin = "channel_join";
 
     public async Task<IReadOnlyList<SlackChannel>> FindAllChannels(string partialChannelName)
     {
@@ -135,11 +136,14 @@ public class SlackClient : ISlackClient
                     }
                 }
 
+                ;
                 messages.Add(new SlackMessage(
                     channelId,
                     messageJson.GetProperty("user").GetString()!,
                     messageJson.GetProperty("text").GetString()!,
-                    messageTimestamp));
+                    messageTimestamp,
+                    messageJson.TryGetProperty("type", out var typeProperty) ? typeProperty.GetString()! : string.Empty,
+                messageJson.TryGetProperty("subtype", out var subtypeProperty) ? subtypeProperty.GetString()! : string.Empty));
             }
         }
 
@@ -220,7 +224,9 @@ public class SlackClient : ISlackClient
 
     private async Task<DateTimeOffset?> GetLastMessageTimestampAsync(string channelId)
     {
-        var messages = await GetMessages(channelId, 1);
+        var messages = (await GetMessages(channelId, 3))
+            .Where(m => m.SubType != SubTypeChannelJoin)
+            .ToList();
         if (messages.Any())
         {
             return messages.First().LastMessageTimestamp;
