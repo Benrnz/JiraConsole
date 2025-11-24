@@ -6,8 +6,8 @@ namespace BensJiraConsole.Tasks;
 public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack) : IJiraExportTask
 {
     private const string TaskKey = "INCIDENTS";
-    private const string GoogleSheetId = "1M5ftE2dtQ1l-NoSL6sqkLynVOpHFeixVBF0faOzefvw";
-    private const string GoogleSheetTabName = "Open Incident Dashboard";
+    private const string GoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
+    private const string GoogleSheetTabName = "Open Incidents Dashboard";
     private const string NoSprintAssigned = "No Sprint";
 
     private static readonly IFieldMapping[] Fields =
@@ -125,7 +125,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         Console.WriteLine("Creating table for Slack Channel Incidents...");
         var channels = await slack.FindAllChannels("incident-");
         this.sheetData.Add(["Open Slack Incident-* Channels", null, "Last Message (days ago)"]);
-        await sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 2);
+        await sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 3);
         foreach (var channel in channels)
         {
             var daysAgo = channel.LastMessageTimestamp.HasValue

@@ -124,12 +124,22 @@ public class SlackClient : ISlackClient
             // Get the first (most recent) message
             foreach (var messageJson in messagesProperty.EnumerateArray())
             {
-                var message = new SlackMessage(
+                var messageTimestamp = DateTimeOffset.MaxValue;
+                if (messageJson.TryGetProperty("ts", out var tsProperty))
+                {
+                    var tsString = tsProperty.GetString();
+                    if (!string.IsNullOrEmpty(tsString) && double.TryParse(tsString, out var timestamp))
+                    {
+                        // Convert Unix timestamp (seconds) to DateTimeOffset
+                        messageTimestamp = DateTimeOffset.FromUnixTimeSeconds((long)timestamp).ToLocalTime();
+                    }
+                }
+
+                messages.Add(new SlackMessage(
                     channelId,
                     messageJson.GetProperty("user").GetString()!,
                     messageJson.GetProperty("text").GetString()!,
-                    DateTimeOffset.FromUnixTimeSeconds((long)messageJson.GetProperty("ts").GetDouble()).ToLocalTime());
-                messages.Add(message);
+                    messageTimestamp));
             }
         }
 
