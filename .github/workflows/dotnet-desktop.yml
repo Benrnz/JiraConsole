@@ -79,6 +79,7 @@ jobs:
         echo '  public static class Secrets {' >> src/Secrets.cs
         echo '    public const string JiraToken = "FAKE_API_KEY";' >> src/Secrets.cs
         echo '    public const string Username = "fake@fake.endpoint.com";' >> src/Secrets.cs
+        echo '    public const string SlackToken = "FAKE_API_KEY";' >> src/Secrets.cs
         echo '  }' >> src/Secrets.cs
         echo '}' >> src/Secrets.cs
 
