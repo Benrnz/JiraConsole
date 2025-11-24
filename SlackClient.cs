@@ -31,7 +31,7 @@ public class SlackClient : ISlackClient
 
             // Now try to get the last message timestamp
             var lastMessageTimestamp = await GetLastMessageTimestampAsync(channel.Id);
-            channelsWithTimestamps.Add(channel with {LastMessageTimestamp = lastMessageTimestamp});
+            channelsWithTimestamps.Add(channel with { LastMessageTimestamp = lastMessageTimestamp });
         }
 
         if (skippedChannels > 0)
@@ -40,6 +40,100 @@ public class SlackClient : ISlackClient
         }
 
         return channelsWithTimestamps;
+    }
+
+    public async Task<bool> JoinChannel(string channelId, bool isPrivate)
+    {
+        // Private channels cannot be joined automatically - they require an invite
+        if (isPrivate)
+        {
+            // For private channels, we can't auto-join, but we'll still try to access history
+            // If the bot was previously invited, it will work
+            return false;
+        }
+
+        try
+        {
+            var url = $"{BaseApiUrl}conversations.join?channel={Uri.EscapeDataString(channelId)}";
+
+            var response = await App.HttpSlack.PostAsync(url, null);
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var jsonDocument = JsonDocument.Parse(responseContent);
+
+            if (jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) && okProperty.GetBoolean())
+            {
+                return true;
+            }
+
+            // Check if bot is already in channel (this is fine)
+            if (jsonDocument.RootElement.TryGetProperty("error", out var errorProperty))
+            {
+                var error = errorProperty.GetString();
+                if (error == "already_in_channel")
+                {
+                    return true; // Already a member, treat as success
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<IReadOnlyList<SlackMessage>> GetMessages(string channelId, int limitToNumberOfMessages = 10)
+    {
+        JsonDocument jsonDocument;
+        try
+        {
+            var url = $"{BaseApiUrl}conversations.history?channel={Uri.EscapeDataString(channelId)}&limit={limitToNumberOfMessages}";
+
+            var response = await App.HttpSlack.GetAsync(url);
+            var responseContent = await response.Content.ReadAsStringAsync();
+            jsonDocument = JsonDocument.Parse(responseContent);
+        }
+        catch (Exception ex)
+        {
+            // Any other errors - return null
+            Console.WriteLine(ex);
+            return new List<SlackMessage>();
+        }
+
+        if (!jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) || !okProperty.GetBoolean())
+        {
+            // Check for specific error types
+            if (jsonDocument.RootElement.TryGetProperty("error", out var errorProperty))
+            {
+                var error = errorProperty.GetString();
+                if (error is "not_in_channel" or "channel_not_found")
+                {
+                    // Bot is not a member of the channel - this is expected for some channels
+                    return new List<SlackMessage>();
+                }
+            }
+
+            // Other errors - return null
+            return new List<SlackMessage>();
+        }
+
+        var messages = new List<SlackMessage>();
+        if (jsonDocument.RootElement.TryGetProperty("messages", out var messagesProperty))
+        {
+            // Get the first (most recent) message
+            foreach (var messageJson in messagesProperty.EnumerateArray())
+            {
+                var message = new SlackMessage(
+                    channelId,
+                    messageJson.GetProperty("user").GetString()!,
+                    messageJson.GetProperty("text").GetString()!,
+                    DateTimeOffset.FromUnixTimeSeconds((long)messageJson.GetProperty("ts").GetDouble()).ToLocalTime());
+                messages.Add(message);
+            }
+        }
+
+        return messages;
     }
 
     private static async Task<(List<SlackChannel> matchedChannels, int totalChannels)> GetAllSlackChannels(string partialChannelName)
@@ -114,103 +208,14 @@ public class SlackClient : ISlackClient
         return (matchedChannels, totalChannels);
     }
 
-    public async Task<bool> JoinChannel(string channelId, bool isPrivate)
-    {
-        // Private channels cannot be joined automatically - they require an invite
-        if (isPrivate)
-        {
-            // For private channels, we can't auto-join, but we'll still try to access history
-            // If the bot was previously invited, it will work
-            return false;
-        }
-
-        try
-        {
-            var url = $"{BaseApiUrl}conversations.join?channel={Uri.EscapeDataString(channelId)}";
-
-            var response = await App.HttpSlack.PostAsync(url, null);
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var jsonDocument = JsonDocument.Parse(responseContent);
-
-            if (jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) && okProperty.GetBoolean())
-            {
-                return true;
-            }
-
-            // Check if bot is already in channel (this is fine)
-            if (jsonDocument.RootElement.TryGetProperty("error", out var errorProperty))
-            {
-                var error = errorProperty.GetString();
-                if (error == "already_in_channel")
-                {
-                    return true; // Already a member, treat as success
-                }
-            }
-
-            return false;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     private async Task<DateTimeOffset?> GetLastMessageTimestampAsync(string channelId)
     {
-        try
+        var messages = await GetMessages(channelId, 1);
+        if (messages.Any())
         {
-            var url = $"{BaseApiUrl}conversations.history?channel={Uri.EscapeDataString(channelId)}&limit=1";
-
-            var response = await App.HttpSlack.GetAsync(url);
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var jsonDocument = JsonDocument.Parse(responseContent);
-
-            if (!jsonDocument.RootElement.TryGetProperty("ok", out var okProperty) || !okProperty.GetBoolean())
-            {
-                // Check for specific error types
-                if (jsonDocument.RootElement.TryGetProperty("error", out var errorProperty))
-                {
-                    var error = errorProperty.GetString();
-                    if (error == "not_in_channel" || error == "channel_not_found")
-                    {
-                        // Bot is not a member of the channel - this is expected for some channels
-                        return null;
-                    }
-                }
-                // Other errors - return null
-                return null;
-            }
-
-            if (jsonDocument.RootElement.TryGetProperty("messages", out var messagesProperty))
-            {
-                // Get the first (most recent) message
-                foreach (var message in messagesProperty.EnumerateArray())
-                {
-                    if (message.TryGetProperty("ts", out var tsProperty))
-                    {
-                        var tsString = tsProperty.GetString();
-                        if (!string.IsNullOrEmpty(tsString) && double.TryParse(tsString, out var timestamp))
-                        {
-                            // Convert Unix timestamp (seconds) to DateTimeOffset
-                            return DateTimeOffset.FromUnixTimeSeconds((long)timestamp).ToLocalTime();
-                        }
-                    }
-                    // Only process the first message since limit=1
-                    break;
-                }
-            }
-
-            return null;
+            return messages.First().LastMessageTimestamp;
         }
-        catch (HttpRequestException)
-        {
-            // HTTP errors - return null
-            return null;
-        }
-        catch
-        {
-            // Any other errors - return null
-            return null;
-        }
+
+        return null;
     }
 }

@@ -5,6 +5,9 @@
 // {
 //     public const string Username = "your-email@domain.com";
 //     public const string JiraToken = "Your-api-token-from-Jira";
+//
+//     // Slack OAuth token (Bot User OAuth Token from https://api.slack.com/apps)
+//     // To get a token: Create a Slack app, install it to your workspace, and copy the "Bot User OAuth Token"
 //     public const string SlackToken = "xoxb-?????????";
 // }
 
