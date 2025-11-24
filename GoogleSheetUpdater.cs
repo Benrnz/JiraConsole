@@ -58,6 +58,70 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         this.pendingDeleteSheetNames.Add(sheetName);
     }
 
+    public async Task BoldCells(string sheetName, int startRow, int endRow, int startColumn, int endColumn)
+    {
+        var sheetId = await GetSheetIdByName(sheetName) ?? throw new ArgumentException($"Sheet {sheetName} does not exist.");
+        var boldCellsRequest = new Request
+        {
+            RepeatCell = new RepeatCellRequest
+            {
+                Range = new GridRange
+                {
+                    SheetId = sheetId,
+                    StartRowIndex = startRow,
+                    EndRowIndex = endRow,
+                    StartColumnIndex = startColumn,
+                    EndColumnIndex = endColumn
+                },
+                Cell = new CellData
+                {
+                    UserEnteredFormat = new CellFormat
+                    {
+                        TextFormat = new TextFormat
+                        {
+                            Bold = true
+                        }
+                    }
+                },
+                Fields = "userEnteredFormat.textFormat.bold"
+            }
+        };
+
+        this.pendingSpreadsheetRequests.Add(boldCellsRequest);
+    }
+
+    public async Task ClearRangeFormatting(string sheetName, int startRow, int endRow, int startColumn, int endColumn)
+    {
+        // Normalize sheet name (match ClearRange behavior)
+        var normalized = sheetName.Contains("'") ? sheetName.Replace("'", "") : sheetName;
+
+        // Resolve sheet id (throws if not found)
+        var sheetId = await GetSheetIdByName(normalized) ?? throw new ArgumentException($"Sheet {sheetName} does not exist.");
+
+        // Build and queue the RepeatCell request to clear formatting (reset userEnteredFormat)
+        var clearFormatRequest = new Request
+        {
+            RepeatCell = new RepeatCellRequest
+            {
+                Range = new GridRange
+                {
+                    SheetId = sheetId,
+                    StartRowIndex = startRow,
+                    EndRowIndex = endRow,
+                    StartColumnIndex = startColumn,
+                    EndColumnIndex = endColumn
+                },
+                Cell = new CellData
+                {
+                    UserEnteredFormat = new CellFormat()
+                },
+                Fields = "userEnteredFormat"
+            }
+        };
+
+        this.pendingSpreadsheetRequests.Add(clearFormatRequest);
+    }
+
     public async Task<bool> DoesSheetExist(string spreadsheetId, string sheetName)
     {
         try

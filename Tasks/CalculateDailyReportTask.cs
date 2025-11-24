@@ -1,4 +1,6 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿using BensJiraConsole.Jira;
+
+namespace BensJiraConsole.Tasks;
 
 public class CalculateDailyReportTask(ICsvExporter exporter, IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
 {

@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using BensJiraConsole;
+using BensJiraConsole.Jira;
 using BensJiraConsole.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -19,6 +20,7 @@ public static class Program
             services.AddTransient<IWorkSheetUpdater, GoogleSheetUpdater>();
             services.AddTransient<IWorkSheetReader, GoogleSheetReader>();
             services.AddSingleton<BugStatsWorker>();
+            services.AddTransient<ISlackClient, SlackClient>();
 
             // Find and Register all tasks
             foreach (var taskType in TaskTypes())

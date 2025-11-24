@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Nodes;
+using BensJiraConsole.Jira;
 
 namespace BensJiraConsole.Tasks;
 
@@ -6,14 +7,6 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
 {
     private const string GoogleSheetId = "1HuI-uYOtR66rs8B0qp8e3L39x13reFTaiOB3VN42vAQ";
     private const string TaskKey = "SPRINT_PERF";
-
-    private readonly TeamSprint[] teams =
-    [
-        new("Superclass", Constants.TeamSuperclass, 419, 60),
-        new("RubyDucks", Constants.TeamRubyDucks, 420, 60),
-        new("Spearhead", Constants.TeamSpearhead, 418, 60),
-        new("Officetech", Constants.TeamOfficetech, 483, 35)
-    ];
 
     public string Description => "Export to a Google Sheet the last 12 months of sprint velocity and performance metrics.";
 
@@ -32,45 +25,22 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         await UpdateSheet(sprintMetrics);
     }
 
-    private async Task UpdateSheet(IReadOnlyList<SprintMetrics> sprintMetrics)
-    {
-        await reader.Open(GoogleSheetId);
-        var row = new List<object?>();
-        foreach (var sprintMetric in sprintMetrics)
-        {
-            var sprintText = $"{sprintMetric.SprintName} {sprintMetric.StartDate:d-MMM-yy} to {sprintMetric.EndDate:d-MMM-yy}";
-            row.Add($"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/software/c/projects/JAVPM/boards/{sprintMetric.Team.BoardId}/reports/sprint-retrospective?sprint={sprintMetric.Team.CurrentSprintId}", "{sprintText}")""");
-            row.Add(sprintMetric.CommittedDaysWork);
-            row.Add(sprintMetric.CompletedDaysWork);
-            row.Add(sprintMetric.CapacityAccuracy);
-            row.Add(sprintMetric.PercentOfMaxCapacity);
-        };
-
-        var sheetData = new List<IList<object?>> { row };
-
-        var lastRow = await reader.GetLastRowInColumnAsync("Summary", "A");
-
-        await updater.Open(GoogleSheetId);
-        updater.EditSheet($"'Summary'!A{lastRow + 1}", sheetData, true);
-        updater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
-        await updater.SubmitBatch();
-    }
-
     private async Task<IReadOnlyList<SprintMetrics>> ExtractAndCalculateSprintMetrics(List<AgileSprint> sprintsOfInterest)
     {
         var sprintMetrics = new List<SprintMetrics>();
-        foreach (var team in this.teams)
+        foreach (var team in JiraConfig.Teams)
         {
+            TeamSprint teamSprint;
             if (sprintsOfInterest.Any())
             {
-                var sprint = sprintsOfInterest.FirstOrDefault(x => x.OriginBoardId == team.BoardId);
+                var sprint = sprintsOfInterest.FirstOrDefault(x => x.BoardId == team.BoardId);
                 if (sprint is null)
                 {
                     // This team doesn't have a sprint in the requested list.
                     continue;
                 }
 
-                team.CurrentSprintId = sprint.Id;
+                teamSprint = new TeamSprint(team, sprint.Id);
             }
             else
             {
@@ -81,13 +51,30 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
                     continue;
                 }
 
-                team.CurrentSprintId = sprint.Id;
+                teamSprint = new TeamSprint(team, sprint.Id);
             }
 
-            sprintMetrics.Add(await ProcessSprint(team));
+            sprintMetrics.Add(await ProcessSprint(teamSprint));
         }
 
         return sprintMetrics;
+    }
+
+    private DateTimeOffset GetDateTimeOffset(JsonNode? node)
+    {
+        var stringDate = node?.GetValue<string>();
+        if (stringDate is null)
+        {
+            return DateTimeOffset.MinValue;
+        }
+
+        return DateTimeOffset.Parse(stringDate);
+    }
+
+    private double GetValueAsDays(JsonNode? node)
+    {
+        var value = node?["value"]?.GetValue<double>() ?? 0.0;
+        return value / 60 / 60 / 8; // values were in seconds, convert to days, 8 hours in a day.
     }
 
     private async Task<List<AgileSprint>> ParseOptionalArguments(string[] args)
@@ -106,23 +93,6 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         }
 
         return sprintsOfInterest;
-    }
-
-    private DateTimeOffset GetDateTimeOffset(JsonNode? node)
-    {
-        var stringDate = node?.GetValue<string>();
-        if (stringDate is null)
-        {
-            return DateTimeOffset.MinValue;
-        }
-
-        return DateTimeOffset.Parse(stringDate);
-    }
-
-    private double GetValueAsDays(JsonNode? node)
-    {
-        var value = node?["value"]?.GetValue<double>() ?? 0.0;
-        return value / 60 / 60 / 8; // values were in seconds, convert to days, 8 hours in a day.
     }
 
     private async Task<SprintMetrics> ProcessSprint(TeamSprint teamSprint)
@@ -167,6 +137,31 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         return sprintMetrics;
     }
 
+    private async Task UpdateSheet(IReadOnlyList<SprintMetrics> sprintMetrics)
+    {
+        await reader.Open(GoogleSheetId);
+        var row = new List<object?>();
+        foreach (var sprintMetric in sprintMetrics)
+        {
+            var sprintText = $"{sprintMetric.SprintName} {sprintMetric.StartDate:d-MMM-yy} to {sprintMetric.EndDate:d-MMM-yy}";
+            row.Add(
+                $"""=HYPERLINK("https://javlnsupport.atlassian.net/jira/software/c/projects/JAVPM/boards/{sprintMetric.Team.BoardId}/reports/sprint-retrospective?sprint={sprintMetric.Team.CurrentSprintId}", "{sprintText}")""");
+            row.Add(sprintMetric.CommittedDaysWork);
+            row.Add(sprintMetric.CompletedDaysWork);
+            row.Add(sprintMetric.CapacityAccuracy);
+            row.Add(sprintMetric.PercentOfMaxCapacity);
+        }
+
+        var sheetData = new List<IList<object?>> { row };
+
+        var lastRow = await reader.GetLastRowInColumnAsync("Summary", "A");
+
+        await updater.Open(GoogleSheetId);
+        updater.EditSheet($"'Summary'!A{lastRow + 1}", sheetData, true);
+        updater.EditSheet("Info!B1", [[DateTime.Now.ToString("g")]]);
+        await updater.SubmitBatch();
+    }
+
     private record SprintMetrics(
         TeamSprint Team,
         string SprintName,
@@ -179,8 +174,5 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         double CapacityAccuracy,
         double PercentOfMaxCapacity);
 
-    private record TeamSprint(string Team, string TeamId, int BoardId, double MaxCapacity)
-    {
-        public int CurrentSprintId { get; set; }
-    }
+    private record TeamSprint(TeamConfig Team, int CurrentSprintId) : TeamConfig(Team.TeamName, Team.TeamId, Team.BoardId, Team.MaxCapacity, Team.JiraProject);
 }

@@ -7,10 +7,7 @@ git pull
 dotnet build
 cd \Development\BensJiraConsole\Bin\Debug\net9.0
 BensJiraConsole.exe BUG_STATS
-BensJiraConsole.exe NOESTIMATE
-BensJiraConsole.exe PMPLAN_BURNUPS
-BensJiraConsole.exe PMPLAN_STORIES
-BensJiraConsole.exe PMPLANS
+BensJiraConsole.exe INCIDENTS
 BensJiraConsole.exe INIT_ALL
 BensJiraConsole.exe SPRINT_PLAN
 

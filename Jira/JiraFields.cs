@@ -1,6 +1,6 @@
 ﻿using System.Dynamic;
 
-namespace BensJiraConsole;
+namespace BensJiraConsole.Jira;
 
 public static class JiraFields
 {
@@ -40,6 +40,7 @@ public static class JiraFields
     public static readonly FieldMapping<double> StoryPoints = new() { Field = "customfield_10004", Alias = "StoryPoints" };
     public static readonly FieldMapping<string> Summary = new() { Field = "summary", Alias = "Summary" };
     public static readonly FieldMapping<string> Team = new() { Field = "customfield_11400", Alias = "Team", FlattenField = "name" };
+    public static readonly FieldMapping<DateTimeOffset> UpdatedDate = new() { Field = "updated", Alias = "UpdatedDate" };
 
     private static bool DynamicHasField(dynamic d, string fieldName)
     {
@@ -48,13 +49,24 @@ public static class JiraFields
 
     private static (DateTimeOffset?, string) LatestSprint(dynamic d)
     {
+        // Sprint Start Date may not be in the data set at all.
+        Func<dynamic, string> getSprintDates;
+        if (DynamicHasField(d, "SprintStartDate"))
+        {
+            getSprintDates = d1 => d1.SprintStartDate ?? string.Empty;
+        }
+        else
+        {
+            getSprintDates = _ => string.Empty;
+        }
+
         string sprintNames = d.Sprint ?? string.Empty;
-        string sprintDates = d.SprintStartDate ?? string.Empty;
+        string sprintDates = getSprintDates(d);
 
         if (!sprintNames.Contains(',') || !sprintDates.Contains(','))
         {
             // Data does not contain multiple sprints.
-            if (!DateTimeOffset.TryParse(d.SprintStartDate, out DateTimeOffset startDate))
+            if (!DateTimeOffset.TryParse(getSprintDates(d), out DateTimeOffset startDate))
             {
                 startDate = DateTimeOffset.MaxValue;
             }

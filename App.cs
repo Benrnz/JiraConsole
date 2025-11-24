@@ -6,10 +6,19 @@ namespace BensJiraConsole;
 
 public class App(IEnumerable<IJiraExportTask> tasks)
 {
-    // Shared HttpClient for all API calls
-    public static readonly HttpClient Http = CreateHttpClient();
+    public static readonly HttpClient HttpJira = CreateJiraHttpClient();
+    public static readonly HttpClient HttpSlack = CreateSlackHttpClient();
 
-    private static HttpClient CreateHttpClient()
+    private readonly IJiraExportTask[] allTasks = tasks.ToArray();
+    private string[] commandLineArgs = [];
+
+    public async Task Run(string[] args)
+    {
+        this.commandLineArgs = args;
+        await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET");
+    }
+
+    private static HttpClient CreateJiraHttpClient()
     {
         var client = new HttpClient();
         var email = Secrets.Username;
@@ -19,13 +28,12 @@ public class App(IEnumerable<IJiraExportTask> tasks)
         return client;
     }
 
-    private readonly IJiraExportTask[] allTasks = tasks.ToArray();
-    private string[] commandLineArgs = [];
-
-    public async Task Run(string[] args)
+    private static HttpClient CreateSlackHttpClient()
     {
-        this.commandLineArgs = args;
-        await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET");
+        var client = new HttpClient();
+        var slackToken = Secrets.SlackToken;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", slackToken);
+        return client;
     }
 
     private async Task ExecuteMode(string? mode)

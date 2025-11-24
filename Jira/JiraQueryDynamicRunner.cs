@@ -2,7 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace BensJiraConsole;
+namespace BensJiraConsole.Jira;
 
 public class JiraQueryDynamicRunner : IJiraQueryRunner
 {
@@ -90,16 +90,80 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
         return CreateAgileSprintFromJsonNode(json);
     }
 
-    private AgileSprint CreateAgileSprintFromJsonNode(JsonNode values)
+    public async Task<IReadOnlyList<AgileSprint>> GetAllSprints(int boardId)
+    {
+        var values = new List<JsonNode>();
+        var apiClient = new JiraApiClient();
+
+        var start = 0;
+        var pageSize = 50;
+
+        while (true)
+        {
+            var responseJson = await apiClient.GetAgileBoardAllSprintsAsync(boardId, start, pageSize);
+
+            if (string.IsNullOrEmpty(responseJson))
+            {
+                break;
+            }
+
+            var json = JsonNode.Parse(responseJson);
+            if (json is null)
+            {
+                break;
+            }
+
+            var pageValues = json["values"];
+            if (pageValues is null)
+            {
+                break;
+            }
+
+            var arr = pageValues.AsArray();
+            foreach (var jsonValue in arr)
+            {
+                if (jsonValue is null)
+                {
+                    continue;
+                }
+
+                values.Add(jsonValue);
+            }
+
+            var isLastPage = json["isLast"]?.GetValue<bool>() ?? false;
+            if (isLastPage)
+            {
+                break;
+            }
+
+            if (arr.Count < pageSize)
+            {
+                break;
+            }
+
+            start += pageSize;
+        }
+
+        var sprints = new List<AgileSprint>();
+        foreach (var jsonValue in values)
+        {
+            sprints.Add(CreateAgileSprintFromJsonNode(jsonValue));
+        }
+
+        return sprints.OrderByDescending(s => s.StartDate).ToList();
+    }
+
+    private AgileSprint CreateAgileSprintFromJsonNode(JsonNode jsonValue)
     {
         return new AgileSprint(
-            values["id"]!.GetValue<int>(),
-            values["state"]!.GetValue<string>(),
-            values["name"]!.GetValue<string>(),
-            values["startDate"]!.GetValue<DateTimeOffset>(),
-            values["endDate"]!.GetValue<DateTimeOffset>(),
-            values["originBoardId"]!.GetValue<int>(),
-            values["goal"]!.GetValue<string>());
+            jsonValue["id"]!.GetValue<int>(),
+            jsonValue["state"]?.GetValue<string?>() ?? string.Empty,
+            jsonValue["name"]?.GetValue<string?>() ?? string.Empty,
+            jsonValue["startDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
+            jsonValue["endDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
+            CompleteDate: jsonValue["completeDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
+            BoardId: jsonValue["boardId"]?.GetValue<int?>() ?? 0,
+            Goal: jsonValue["goal"]?.GetValue<string?>() ?? string.Empty);
     }
 
     private dynamic DeserialiseDynamicArray(JsonElement element, string propertyName, string childField)

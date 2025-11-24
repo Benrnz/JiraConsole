@@ -1,4 +1,4 @@
-﻿namespace BensJiraConsole;
+﻿namespace BensJiraConsole.Jira;
 
 public record AgileSprint(
     int Id,
@@ -6,5 +6,6 @@ public record AgileSprint(
     string Name,
     DateTimeOffset StartDate,
     DateTimeOffset EndDate,
-    int OriginBoardId,
-    string Goal);
+    int BoardId,
+    string Goal,
+    DateTimeOffset CompleteDate);

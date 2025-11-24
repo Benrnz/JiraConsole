@@ -1,4 +1,6 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿using BensJiraConsole.Jira;
+
+namespace BensJiraConsole.Tasks;
 
 public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
 {
