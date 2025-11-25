@@ -146,36 +146,67 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     private async Task CreateTableForTeamVelocity(string project)
     {
         Console.WriteLine("Creating table for team velocity...");
-        this.sheetData.Add(["Team Velocity (Avg Last 5 sprints)", "P1s Defects Avg", "P2s Defects Avg", "Other Defects Avg"]);
-        await sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 4);
+        this.sheetData.Add(["Team Velocity (Avg Last 5 sprints)", "P1s Defects Avg", "% of capacity", "P2s Defects Avg", "% of capacity", "Other Defects Avg", "% of capacity"]);
+        await sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 7);
 
-        var teamData = new List<(string, int, int, int)>();
+        var teamData = new List<(string, int, double, int, double, int, double)>();
+        var totalStoryPointsAllTeams = 0.0;
         foreach (var team in JiraConfig.Teams.Where(t => t.JiraProject == project))
         {
             var last5Sprints = (await runner.GetAllSprints(team.BoardId))
                 .Where(t => t.State == Constants.SprintStateClosed)
                 .OrderByDescending(t => t.StartDate)
                 .Take(5);
-            var p1Count = 0;
-            var p2Count = 0;
-            var otherCount = 0;
+            var totalP1Count = 0;
+            var totalP2Count = 0;
+            var totalOtherCount = 0;
+            var totalStoryPoints = 0.0;
+            var totalP1StoryPoints = 0.0;
+            var totalP2StoryPoints = 0.0;
+            var totalOtherStoryPoints = 0.0;
             foreach (var sprint in last5Sprints)
             {
-                var tickets = (await runner.SearchJiraIssuesWithJqlAsync($"sprint = {sprint.Id} AND Severity IN (Critical, Major, Intermediate)", [JiraFields.Severity])).ToList();
-                var p1s = tickets.Count(t => t.Severity == Constants.SeverityCritical);
-                p1Count += p1s;
-                var p2s = tickets.Count(t => t.Severity == Constants.SeverityMajor);
-                p2Count += p2s;
-                otherCount += tickets.Count - p1s - p2s;
+                var tickets = (await runner.SearchJiraIssuesWithJqlAsync(
+                    $"sprint = {sprint.Id} AND Severity IN (Critical, Major, Intermediate)",
+                    [JiraFields.Severity, JiraFields.IssueType, JiraFields.StoryPoints]))
+                    .Select(JiraIssueSlim.CreateJiraIssueSlim)
+                    .ToList();
+                var p1s = tickets.Where(t => t.IssueType == Constants.BugType).Count(t => t.Severity == Constants.SeverityCritical);
+                totalP1Count += p1s;
+                var p2s = tickets.Where(t => t.IssueType == Constants.BugType).Count(t => t.Severity == Constants.SeverityMajor);
+                totalP2Count += p2s;
+                totalOtherCount += tickets.Count - p1s - p2s;
+                totalStoryPoints += tickets.Sum(t => t.StoryPoints);
+                var p1StoryPoints = tickets.Where(t => t is { IssueType: Constants.BugType, Severity: Constants.SeverityCritical }).Sum(t => t.StoryPoints);
+                totalP1StoryPoints += p1StoryPoints;
+                var p2StoryPoints = tickets.Where(t => t is { IssueType: Constants.BugType, Severity: Constants.SeverityMajor }).Sum(t => t.StoryPoints);
+                totalP2StoryPoints += p2StoryPoints;
+                totalOtherStoryPoints += tickets.Where(t => t.IssueType == Constants.BugType).Sum(t => t.StoryPoints) - p1StoryPoints - p2StoryPoints;
             }
 
-            teamData.Add((team.TeamName, p1Count / 5, p2Count / 5, otherCount / 5));
+            teamData.Add((
+                team.TeamName,
+                totalP1Count / 5,
+                Math.Round(totalP1StoryPoints / totalStoryPoints, 1),
+                totalP2Count / 5,
+                Math.Round(totalP2StoryPoints / totalStoryPoints, 1),
+                totalOtherCount / 5,
+                Math.Round(totalOtherStoryPoints / totalStoryPoints, 1)));
+
+            totalStoryPointsAllTeams += totalStoryPoints;
         }
 
-        this.sheetData.Add(["Avg across all teams", teamData.Sum(d => d.Item2), teamData.Sum(d => d.Item3), teamData.Sum(d => d.Item4)]);
+        this.sheetData.Add([
+            "Avg across all teams",
+            teamData.Sum(d => d.Item2),
+            Math.Round(teamData.Sum(d => d.Item2) / totalStoryPointsAllTeams,1),
+            teamData.Sum(d => d.Item4),
+            Math.Round(teamData.Sum(d => d.Item4) / totalStoryPointsAllTeams,1),
+            teamData.Sum(d => d.Item6),
+            Math.Round(teamData.Sum(d => d.Item6) / totalStoryPointsAllTeams,1)]);
         this.sheetData.AddRange(teamData
             .OrderByDescending(t => t.Item2)
-            .Select(t => (IList<object?>)new List<object?> { t.Item1, t.Item2, t.Item3, t.Item4 }));
+            .Select(t => (IList<object?>)new List<object?> { t.Item1, t.Item2, t.Item3, t.Item4, t.Item5, t.Item6, t.Item7 }));
 
         this.sheetData.Add([]);
         this.sheetData.Add([]);
@@ -257,4 +288,16 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     }
 
     private record CustomerTickets(string CustomerName, int P1Count, int P2Count, JiraIssue[] Tickets);
+
+    private record JiraIssueSlim(string Key, string Severity, double StoryPoints, string IssueType)
+    {
+        public static JiraIssueSlim CreateJiraIssueSlim(dynamic d)
+        {
+            return new JiraIssueSlim(
+                JiraFields.Key.Parse(d),
+                JiraFields.Severity.Parse(d) ?? string.Empty,
+                JiraFields.StoryPoints.Parse(d) ?? 0.0,
+                JiraFields.IssueType.Parse(d) ?? string.Empty);
+        }
+    }
 }
