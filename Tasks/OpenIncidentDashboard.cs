@@ -33,9 +33,9 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     public async Task ExecuteAsync(string[] args)
     {
         Console.WriteLine("Updating Incident Dashboard for JAVPM...");
-        await RunReportForProject(Constants.JavPmJiraProjectKey, JavPmGoogleSheetId);
+        await ExecuteReportForProject(Constants.JavPmJiraProjectKey, JavPmGoogleSheetId);
         Console.WriteLine("Updating Incident Dashboard for OTPM...");
-        await RunReportForProject(Constants.OtPmJiraProjectKey, OtPmGoogleSheetId);
+        await ExecuteReportForProject(Constants.OtPmJiraProjectKey, OtPmGoogleSheetId);
     }
 
     private void CreateTableForOpenTicketSummary(IReadOnlyList<JiraIssue> jiraIssues)
@@ -61,7 +61,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
         // Group by customer
         var customerTickets = new List<CustomerTickets>();
-        foreach (var customer in GetUniqueCustomerList(jiraIssues).Where(c => c != Constants.Javln && c != string.Empty))
+        foreach (var customer in GetUniqueCustomerList(jiraIssues).Where(c => c != string.Empty))
         {
             var group = jiraIssues.Where(i => i.CustomerArray.Contains(customer)).ToList();
 
@@ -146,7 +146,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     private async Task CreateTableForTeamVelocity(string project)
     {
         Console.WriteLine("Creating table for team velocity...");
-        this.sheetData.Add(["Team Velocity (Avg Last 5 sprints)", "P1s Avg", "P2s Avg", "Other Avg"]);
+        this.sheetData.Add(["Team Velocity (Avg Last 5 sprints)", "P1s Defects Avg", "P2s Defects Avg", "Other Defects Avg"]);
         await sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 4);
 
         var teamData = new List<(string, int, int, int)>();
@@ -181,24 +181,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         this.sheetData.Add([]);
     }
 
-    private IOrderedEnumerable<string> GetUniqueCustomerList(IReadOnlyList<JiraIssue> jiraIssues)
-    {
-        return jiraIssues
-            .SelectMany(i => i.CustomerArray)
-            .Where(c => !string.IsNullOrWhiteSpace(c))
-            .Distinct()
-            .OrderBy(c => c);
-    }
-
-    private async Task<IReadOnlyList<JiraIssue>> RetrieveJiraData(string project)
-    {
-        var jql = $"project = {project} AND issueType = Bug AND status != Done";
-        var issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue);
-
-        return issues.ToList();
-    }
-
-    private async Task RunReportForProject(string project, string sheetId)
+    private async Task ExecuteReportForProject(string project, string sheetId)
     {
         this.sheetData = new List<IList<object?>>();
         await sheetUpdater.Open(sheetId);
@@ -215,6 +198,24 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
         sheetUpdater.EditSheet($"{GoogleSheetTabName}!A1", this.sheetData, true);
         await sheetUpdater.SubmitBatch();
+    }
+
+    private IOrderedEnumerable<string> GetUniqueCustomerList(IReadOnlyList<JiraIssue> jiraIssues)
+    {
+        return jiraIssues
+            .SelectMany(i => i.CustomerArray)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct()
+            .OrderBy(c => c);
+    }
+
+    private async Task<IReadOnlyList<JiraIssue>> RetrieveJiraData(string project)
+    {
+        var jql =
+            $"project = \"{project}\" AND issueType = Bug AND status != Done AND (\"Customer/s (Multi Select)[Select List (multiple choices)]\" != JAVLN OR \"Customer/s (Multi Select)[Select List (multiple choices)]\" IS EMPTY)";
+        var issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue);
+
+        return issues.ToList();
     }
 
     private void SetLastUpdateTime()
