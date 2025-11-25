@@ -44,14 +44,14 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
         // Row 1
         this.sheetData.Add([null, "Number of P1s", "Number of P2s"]);
-        sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 3);
+        sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 3);
         // Row 2
         this.sheetData.Add([
             "Total Open Tickets:",
             jiraIssues.Count(i => i.Severity == Constants.SeverityCritical),
             jiraIssues.Count(i => i.Severity == Constants.SeverityMajor)
         ]);
-        sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 1);
+        sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 1);
         // Row 3
         this.sheetData.Add([
             "In Sprint:",
@@ -96,7 +96,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         Console.WriteLine($"Creating table for {priorityName} list...");
 
         this.sheetData.Add([$"List of Open {priorityName}s", "Status", "Customer", "Summary", "Sprint", "Last Activity (days ago)"]);
-        sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 6);
+        sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 6);
         foreach (var issue in jiraIssues.Where(i => !i.Customers.Contains(Constants.Javln) && i.Severity == severity).OrderByDescending(i => i.LastActivity))
         {
             this.sheetData.Add([
@@ -122,7 +122,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         }
 
         this.sheetData.Add(["Open Slack Incident-* Channels", null, "Last Message (days ago)"]);
-        await sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 3);
+        await sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 3);
         this.sheetData.Add([$"{this.incidentSlackChannels.Count} Incident channels open"]);
         var channelsSortByAge = new List<(string, double)>();
         foreach (var channel in this.incidentSlackChannels)
@@ -146,8 +146,8 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     private async Task CreateTableForTeamVelocity(string project)
     {
         Console.WriteLine("Creating table for team velocity...");
-        this.sheetData.Add(["Team Velocity (Avg Last 5 sprints)", "P1s Defects Avg", "% of capacity", "P2s Defects Avg", "% of capacity", "Other Defects Avg", "% of capacity"]);
-        await sheetUpdater.BoldCells(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 7);
+        this.sheetData.Add(["*WIP* Team Velocity (Avg Last 5 sprints)", "P1s Defects Avg", "% of capacity", "P2s Defects Avg", "% of capacity", "Other Defects Avg", "% of capacity"]);
+        await sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 7);
 
         var teamData = new List<(string, int, double, int, double, int, double)>();
         var totalStoryPointsAllTeams = 0.0;
@@ -167,19 +167,23 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
             foreach (var sprint in last5Sprints)
             {
                 var tickets = (await runner.SearchJiraIssuesWithJqlAsync(
-                    $"sprint = {sprint.Id} AND Severity IN (Critical, Major, Intermediate)",
-                    [JiraFields.Severity, JiraFields.IssueType, JiraFields.StoryPoints]))
+                    $"sprint = {sprint.Id}",
+                    [JiraFields.Severity, JiraFields.IssueType, JiraFields.StoryPoints, JiraFields.BugType]))
                     .Select(JiraIssueSlim.CreateJiraIssueSlim)
                     .ToList();
-                var p1s = tickets.Where(t => t.IssueType == Constants.BugType).Count(t => t.Severity == Constants.SeverityCritical);
+                var p1s = tickets.Where(t => t is { IssueType: Constants.BugType, BugType: Constants.BugTypeProduction })
+                    .Count(t => t.Severity == Constants.SeverityCritical);
                 totalP1Count += p1s;
-                var p2s = tickets.Where(t => t.IssueType == Constants.BugType).Count(t => t.Severity == Constants.SeverityMajor);
+                var p2s = tickets.Where(t => t is { IssueType: Constants.BugType, BugType: Constants.BugTypeProduction })
+                    .Count(t => t.Severity == Constants.SeverityMajor);
                 totalP2Count += p2s;
-                totalOtherCount += tickets.Count - p1s - p2s;
+                totalOtherCount += tickets.Count(t => t is { IssueType: Constants.BugType }) - p1s - p2s;
                 totalStoryPoints += tickets.Sum(t => t.StoryPoints);
-                var p1StoryPoints = tickets.Where(t => t is { IssueType: Constants.BugType, Severity: Constants.SeverityCritical }).Sum(t => t.StoryPoints);
+                var p1StoryPoints = tickets.Where(t => t is { IssueType: Constants.BugType, BugType: Constants.BugTypeProduction, Severity: Constants.SeverityCritical })
+                    .Sum(t => t.StoryPoints);
                 totalP1StoryPoints += p1StoryPoints;
-                var p2StoryPoints = tickets.Where(t => t is { IssueType: Constants.BugType, Severity: Constants.SeverityMajor }).Sum(t => t.StoryPoints);
+                var p2StoryPoints = tickets.Where(t => t is { IssueType: Constants.BugType, BugType: Constants.BugTypeProduction, Severity: Constants.SeverityMajor })
+                    .Sum(t => t.StoryPoints);
                 totalP2StoryPoints += p2StoryPoints;
                 totalOtherStoryPoints += tickets.Where(t => t.IssueType == Constants.BugType).Sum(t => t.StoryPoints) - p1StoryPoints - p2StoryPoints;
             }
@@ -207,6 +211,30 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         this.sheetData.AddRange(teamData
             .OrderByDescending(t => t.Item2)
             .Select(t => (IList<object?>)new List<object?> { t.Item1, t.Item2, t.Item3, t.Item4, t.Item5, t.Item6, t.Item7 }));
+
+        // % format for P1 Capacity
+        await sheetUpdater.PercentFormat(
+            GoogleSheetTabName,
+            this.sheetData.Count - teamData.Count -1,
+            this.sheetData.Count,
+            2,
+            3);
+
+        // % format for P2 Capacity
+        await sheetUpdater.PercentFormat(
+            GoogleSheetTabName,
+            this.sheetData.Count - teamData.Count -1,
+            this.sheetData.Count,
+            4,
+            5);
+
+        // % format for Other Capacity
+        await sheetUpdater.PercentFormat(
+            GoogleSheetTabName,
+            this.sheetData.Count - teamData.Count -1,
+            this.sheetData.Count,
+            6,
+            7);
 
         this.sheetData.Add([]);
         this.sheetData.Add([]);
@@ -289,15 +317,16 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
 
     private record CustomerTickets(string CustomerName, int P1Count, int P2Count, JiraIssue[] Tickets);
 
-    private record JiraIssueSlim(string Key, string Severity, double StoryPoints, string IssueType)
+    private record JiraIssueSlim(string Key, string Severity, double StoryPoints, string IssueType, string BugType)
     {
         public static JiraIssueSlim CreateJiraIssueSlim(dynamic d)
         {
             return new JiraIssueSlim(
                 JiraFields.Key.Parse(d),
                 JiraFields.Severity.Parse(d) ?? string.Empty,
-                JiraFields.StoryPoints.Parse(d) ?? 0.0,
-                JiraFields.IssueType.Parse(d) ?? string.Empty);
+                JiraFields.StoryPoints.Parse(d) ?? 1.0,
+                JiraFields.IssueType.Parse(d) ?? string.Empty,
+                JiraFields.BugType.Parse(d) ?? string.Empty);
         }
     }
 }

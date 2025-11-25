@@ -59,7 +59,7 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         this.pendingDeleteSheetNames.Add(sheetName);
     }
 
-    public async Task BoldCells(string sheetName, int startRow, int endRow, int startColumn, int endColumn)
+    public async Task BoldCellsFormat(string sheetName, int startRow, int endRow, int startColumn, int endColumn)
     {
         var sheetId = await GetSheetIdByName(sheetName) ?? throw new ArgumentException($"Sheet {sheetName} does not exist.");
         var boldCellsRequest = new Request
@@ -121,6 +121,43 @@ public class GoogleSheetUpdater : IWorkSheetUpdater
         };
 
         this.pendingSpreadsheetRequests.Add(clearFormatRequest);
+    }
+
+    public async Task PercentFormat(string sheetName, int startRow, int endRow, int startColumn, int endColumn, string pattern = "0.0%")
+    {
+        var normalized = sheetName.Contains("'") ? sheetName.Replace("'", "") : sheetName;
+
+        var sheetId = await GetSheetIdByName(normalized) ?? throw new ArgumentException($"Sheet {sheetName} does not exist.");
+
+        // Build and queue the RepeatCell request to set number format to Percent
+        var percentFormatRequest = new Request
+        {
+            RepeatCell = new RepeatCellRequest
+            {
+                Range = new GridRange
+                {
+                    SheetId = sheetId,
+                    StartRowIndex = startRow,
+                    EndRowIndex = endRow,
+                    StartColumnIndex = startColumn,
+                    EndColumnIndex = endColumn
+                },
+                Cell = new CellData
+                {
+                    UserEnteredFormat = new CellFormat
+                    {
+                        NumberFormat = new NumberFormat
+                        {
+                            Type = "PERCENT",
+                            Pattern = pattern
+                        }
+                    }
+                },
+                Fields = "userEnteredFormat.numberFormat"
+            }
+        };
+
+        this.pendingSpreadsheetRequests.Add(percentFormatRequest);
     }
 
     public async Task<bool> DoesSheetExist(string spreadsheetId, string sheetName)

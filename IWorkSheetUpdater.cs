@@ -10,11 +10,13 @@ public interface IWorkSheetUpdater
     ///     Bold the text / values in a range of cells.
     /// </summary>
     /// <param name="sheetName">The text name of the tab within the Google Sheet.</param>
-    /// <param name="startRow">Zero based index of the row to start at.</param>
-    /// <param name="endRow">Zero based index, excluding this identified row.</param>
-    /// <param name="startColumn">Zero based index of the column to start at.</param>
-    /// <param name="endColumn">Zero based index, excluding this identified column.</param>
-    Task BoldCells(string sheetName, int startRow, int endRow, int startColumn, int endColumn);
+    /// <param name="startRow">Zero-based index of the row to start at.</param>
+    /// <param name="endRow">Zero-based index, excluding this identified row.</param>
+    /// <param name="startColumn">Zero-based index of the column to start at.</param>
+    /// <param name="endColumn">Zero-based index, excluding this identified column.</param>
+    Task BoldCellsFormat(string sheetName, int startRow, int endRow, int startColumn, int endColumn);
+
+    Task PercentFormat(string sheetName, int startRow, int endRow, int startColumn, int endColumn, string pattern = "0.0%");
 
     /// <summary>
     ///     Clear the sheet / range values.
