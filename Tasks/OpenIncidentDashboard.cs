@@ -187,11 +187,11 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
             teamData.Add((
                 team.TeamName,
                 totalP1Count / 5,
-                Math.Round(totalP1StoryPoints / totalStoryPoints, 1),
+                Math.Round(totalP1StoryPoints / totalStoryPoints, 2),
                 totalP2Count / 5,
-                Math.Round(totalP2StoryPoints / totalStoryPoints, 1),
+                Math.Round(totalP2StoryPoints / totalStoryPoints, 2),
                 totalOtherCount / 5,
-                Math.Round(totalOtherStoryPoints / totalStoryPoints, 1)));
+                Math.Round(totalOtherStoryPoints / totalStoryPoints, 2)));
 
             totalStoryPointsAllTeams += totalStoryPoints;
         }
@@ -199,11 +199,11 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         this.sheetData.Add([
             "Avg across all teams",
             teamData.Sum(d => d.Item2),
-            Math.Round(teamData.Sum(d => d.Item2) / totalStoryPointsAllTeams,1),
+            Math.Round(teamData.Sum(d => d.Item2) / totalStoryPointsAllTeams,2),
             teamData.Sum(d => d.Item4),
-            Math.Round(teamData.Sum(d => d.Item4) / totalStoryPointsAllTeams,1),
+            Math.Round(teamData.Sum(d => d.Item4) / totalStoryPointsAllTeams,2),
             teamData.Sum(d => d.Item6),
-            Math.Round(teamData.Sum(d => d.Item6) / totalStoryPointsAllTeams,1)]);
+            Math.Round(teamData.Sum(d => d.Item6) / totalStoryPointsAllTeams,2)]);
         this.sheetData.AddRange(teamData
             .OrderByDescending(t => t.Item2)
             .Select(t => (IList<object?>)new List<object?> { t.Item1, t.Item2, t.Item3, t.Item4, t.Item5, t.Item6, t.Item7 }));
