@@ -3,7 +3,7 @@ using BensJiraConsole.Jira;
 
 namespace BensJiraConsole.Tasks;
 
-public class TeamVelocityCalculator(IJiraQueryRunner runner, ICsvExporter exporter)
+public class TeamVelocityCalculator(IJiraQueryRunner runner, ICsvExporter exporter, IGreenHopperClient greenHopperClient)
 {
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public async Task<(List<(string, int, double, int, double, int, double)> teamData, double totalStoryPointsAllTeams)> TeamVelocityTableGetTeamData(string project)
@@ -28,11 +28,13 @@ public class TeamVelocityCalculator(IJiraQueryRunner runner, ICsvExporter export
             var totalOtherStoryPoints = 0.0;
             foreach (var sprint in last5Sprints)
             {
-                var tickets = (await runner.SearchJiraIssuesWithJqlAsync(
-                        $"sprint = {sprint.Id} AND status = Done", // this doesnt work because its the status as at now, not at sprint close time
-                        [JiraFields.Severity, JiraFields.IssueType, JiraFields.StoryPoints, JiraFields.BugType]))
-                    .Select(JiraIssue.CreateJiraIssueSlim)
-                    .ToList();
+                var tickets = GetSprintTickets(team.BoardId, sprint.Id);
+
+                // var tickets = (await runner.SearchJiraIssuesWithJqlAsync(
+                //         $"sprint = {sprint.Id} AND status = Done", // this doesnt work because its the status as at now, not at sprint close time
+                //         [JiraFields.Severity, JiraFields.IssueType, JiraFields.StoryPoints, JiraFields.BugType]))
+                //     .Select(JiraIssue.CreateJiraIssueSlim)
+                //     .ToList();
 
                 exporter.SetFileNameMode(FileNameMode.ExactName, $"Velocity-TeamTickets-{team.TeamName}-{sprint.Id}");
                 exporter.Export(tickets);
@@ -70,6 +72,12 @@ public class TeamVelocityCalculator(IJiraQueryRunner runner, ICsvExporter export
         }
 
         return (teamData, totalStoryPointsAllTeams);
+    }
+
+    private async Task<IEnumerable<JiraIssue>> GetSprintTickets(int boardId, int sprintId)
+    {
+        var sprintTickets = await greenHopperClient.GetSprintTicketsAsync(boardId, sprintId);
+
     }
 
     private record JiraIssue(string Key, string Severity, double StoryPoints, string IssueType, string BugType)
