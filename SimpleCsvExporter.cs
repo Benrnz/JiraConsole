@@ -8,9 +8,9 @@ public class SimpleCsvExporter : ICsvExporter
 {
     private const string DefaultFolder = "C:\\Downloads\\JiraExports";
 
-    private string? nameHint;
+    private FileNameMode fileNameMode = FileNameMode.Hint;
 
-    private FileNameMode fileNameMode = FileNameMode.Auto;
+    private string nameHint = Assembly.GetCallingAssembly().FullName!;
 
     public void SetFileNameMode(FileNameMode mode, string fileNameHint)
     {
@@ -32,9 +32,6 @@ public class SimpleCsvExporter : ICsvExporter
         {
             case FileNameMode.ExactName:
                 fileName = this.nameHint ?? throw new ArgumentNullException(nameof(this.nameHint));
-                break;
-            case FileNameMode.Hint:
-                fileName = $"{this.nameHint ?? "BensJiraConsole"}-{DateTime.Now:yyyyMMddHHmmss}";
                 break;
             default:
                 fileName = $"{this.nameHint}-{DateTime.Now:yyyyMMddHHmmss}";

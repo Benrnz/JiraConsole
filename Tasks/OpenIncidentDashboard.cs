@@ -1,9 +1,8 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using BensJiraConsole.Jira;
+﻿using BensJiraConsole.Jira;
 
 namespace BensJiraConsole.Tasks;
 
-public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack) : IJiraExportTask
+public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack, ICsvExporter exporter) : IJiraExportTask
 {
     private const string TaskKey = "INCIDENTS";
     private const string JavPmGoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
@@ -48,7 +47,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         SetLastUpdateTime();
         var jiraIssues = await RetrieveJiraData(project);
         CreateTableForOpenTicketSummary(jiraIssues);
-        await CreateTableForTeamVelocity(project);
+        await TeamVelocityTable(project);
         await CreateTableForSlackChannels();
         CreateTableForPriorityBugList(jiraIssues, Constants.SeverityCritical);
         CreateTableForPriorityBugList(jiraIssues, Constants.SeverityMajor);
@@ -161,63 +160,39 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         this.sheetData.Add([]);
     }
 
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
-    private async Task CreateTableForTeamVelocity(string project)
+
+    private IOrderedEnumerable<string> GetUniqueCustomerList(IReadOnlyList<JiraIssue> jiraIssues)
+    {
+        return jiraIssues
+            .SelectMany(i => i.CustomerArray)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct()
+            .OrderBy(c => c);
+    }
+
+    private async Task<IReadOnlyList<JiraIssue>> RetrieveJiraData(string project)
+    {
+        var jql =
+            $"project = \"{project}\" AND issueType = Bug AND status != Done AND (\"Customer/s (Multi Select)[Select List (multiple choices)]\" != JAVLN OR \"Customer/s (Multi Select)[Select List (multiple choices)]\" IS EMPTY)";
+        var issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue);
+
+        return issues.ToList();
+    }
+
+    private void SetLastUpdateTime()
+    {
+        var row = new List<object?> { null, DateTime.Now.ToString("d-MMM-yy HH:mm") };
+        this.sheetData.Add(row);
+        this.sheetData.Add(new List<object?>());
+    }
+
+    private async Task TeamVelocityTable(string project)
     {
         Console.WriteLine("Creating table for team velocity...");
         this.sheetData.Add(["*WIP* Team Velocity (Avg Last 5 sprints)", "P1s Defects Avg", "% of capacity", "P2s Defects Avg", "% of capacity", "Other Defects Avg", "% of capacity"]);
         await sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 7);
 
-        var teamData = new List<(string, int, double, int, double, int, double)>();
-        var totalStoryPointsAllTeams = 0.0;
-        foreach (var team in JiraConfig.Teams.Where(t => t.JiraProject == project))
-        {
-            var last5Sprints = (await runner.GetAllSprints(team.BoardId))
-                .Where(t => t.State == Constants.SprintStateClosed)
-                .OrderByDescending(t => t.StartDate)
-                .Take(5);
-            var totalP1Count = 0;
-            var totalP2Count = 0;
-            var totalOtherCount = 0;
-            var totalStoryPoints = 0.0;
-            var totalP1StoryPoints = 0.0;
-            var totalP2StoryPoints = 0.0;
-            var totalOtherStoryPoints = 0.0;
-            foreach (var sprint in last5Sprints)
-            {
-                var tickets = (await runner.SearchJiraIssuesWithJqlAsync(
-                        $"sprint = {sprint.Id}",
-                        [JiraFields.Severity, JiraFields.IssueType, JiraFields.StoryPoints, JiraFields.BugType]))
-                    .Select(JiraIssueSlim.CreateJiraIssueSlim)
-                    .ToList();
-                var p1s = tickets.Where(t => t is { IssueType: Constants.BugType, BugType: Constants.BugTypeProduction })
-                    .Count(t => t.Severity == Constants.SeverityCritical);
-                totalP1Count += p1s;
-                var p2s = tickets.Where(t => t is { IssueType: Constants.BugType, BugType: Constants.BugTypeProduction })
-                    .Count(t => t.Severity == Constants.SeverityMajor);
-                totalP2Count += p2s;
-                totalOtherCount += tickets.Count(t => t is { IssueType: Constants.BugType }) - p1s - p2s;
-                totalStoryPoints += tickets.Sum(t => t.StoryPoints);
-                var p1StoryPoints = tickets.Where(t => t is { IssueType: Constants.BugType, BugType: Constants.BugTypeProduction, Severity: Constants.SeverityCritical })
-                    .Sum(t => t.StoryPoints);
-                totalP1StoryPoints += p1StoryPoints;
-                var p2StoryPoints = tickets.Where(t => t is { IssueType: Constants.BugType, BugType: Constants.BugTypeProduction, Severity: Constants.SeverityMajor })
-                    .Sum(t => t.StoryPoints);
-                totalP2StoryPoints += p2StoryPoints;
-                totalOtherStoryPoints += tickets.Where(t => t.IssueType == Constants.BugType).Sum(t => t.StoryPoints) - p1StoryPoints - p2StoryPoints;
-            }
-
-            teamData.Add((
-                team.TeamName,
-                totalP1Count / 5,
-                Math.Round(totalP1StoryPoints / totalStoryPoints, 2),
-                totalP2Count / 5,
-                Math.Round(totalP2StoryPoints / totalStoryPoints, 2),
-                totalOtherCount / 5,
-                Math.Round(totalOtherStoryPoints / totalStoryPoints, 2)));
-
-            totalStoryPointsAllTeams += totalStoryPoints;
-        }
+        var (teamData, totalStoryPointsAllTeams) = await new TeamVelocityCalculator(runner, exporter).TeamVelocityTableGetTeamData(project);
 
         this.sheetData.Add([
             "Avg across all teams",
@@ -260,31 +235,6 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         this.sheetData.Add([]);
     }
 
-    private IOrderedEnumerable<string> GetUniqueCustomerList(IReadOnlyList<JiraIssue> jiraIssues)
-    {
-        return jiraIssues
-            .SelectMany(i => i.CustomerArray)
-            .Where(c => !string.IsNullOrWhiteSpace(c))
-            .Distinct()
-            .OrderBy(c => c);
-    }
-
-    private async Task<IReadOnlyList<JiraIssue>> RetrieveJiraData(string project)
-    {
-        var jql =
-            $"project = \"{project}\" AND issueType = Bug AND status != Done AND (\"Customer/s (Multi Select)[Select List (multiple choices)]\" != JAVLN OR \"Customer/s (Multi Select)[Select List (multiple choices)]\" IS EMPTY)";
-        var issues = (await runner.SearchJiraIssuesWithJqlAsync(jql, Fields)).Select(JiraIssue.CreateJiraIssue);
-
-        return issues.ToList();
-    }
-
-    private void SetLastUpdateTime()
-    {
-        var row = new List<object?> { null, DateTime.Now.ToString("d-MMM-yy HH:mm") };
-        this.sheetData.Add(row);
-        this.sheetData.Add(new List<object?>());
-    }
-
     private record JiraIssue(
         string Key,
         string Summary,
@@ -317,17 +267,4 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     }
 
     private record CustomerTickets(string CustomerName, int P1Count, int P2Count, JiraIssue[] Tickets);
-
-    private record JiraIssueSlim(string Key, string Severity, double StoryPoints, string IssueType, string BugType)
-    {
-        public static JiraIssueSlim CreateJiraIssueSlim(dynamic d)
-        {
-            return new JiraIssueSlim(
-                JiraFields.Key.Parse(d),
-                JiraFields.Severity.Parse(d) ?? string.Empty,
-                JiraFields.StoryPoints.Parse(d) ?? 1.0,
-                JiraFields.IssueType.Parse(d) ?? string.Empty,
-                JiraFields.BugType.Parse(d) ?? string.Empty);
-        }
-    }
 }

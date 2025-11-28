@@ -41,7 +41,7 @@ public class ExportAllRecentJavPms(IJiraQueryRunner runner, ICsvExporter exporte
         var issues = await runner.SearchJiraIssuesWithJqlAsync(jql, Fields);
         Console.WriteLine($"{issues.Count} issues fetched.");
 
-        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        exporter.SetFileNameMode(FileNameMode.Hint, Key);
         exporter.Export(issues);
     }
 }

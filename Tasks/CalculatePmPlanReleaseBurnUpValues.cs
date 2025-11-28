@@ -13,7 +13,7 @@ public class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, ExportPmP
         Console.WriteLine(Description);
 
         var javPms = (await pmPlanStoriesTask.RetrieveAllStoriesMappingToPmPlan()).ToList();
-        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        exporter.SetFileNameMode(FileNameMode.Hint, Key);
         exporter.Export(javPms);
 
         var totalWork = CalculateTotalWorkToBeDone(javPms, pmPlanStoriesTask.PmPlans);

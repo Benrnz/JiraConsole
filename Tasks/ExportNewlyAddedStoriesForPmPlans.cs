@@ -24,7 +24,7 @@ public class ExportNewlyAddedStoriesForPmPlans(ICloudUploader uploader, ICsvExpo
             issues.ToList().ForEach(i => Console.WriteLine($"{i.Key}"));
         }
 
-        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        exporter.SetFileNameMode(FileNameMode.Hint, Key);
         var filename = exporter.Export(issues);
         await uploader.UploadCsvAsync(filename, Path.GetFileName(filename));
     }

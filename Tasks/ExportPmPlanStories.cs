@@ -44,7 +44,7 @@ public class ExportPmPlanStories(IJiraQueryRunner runner, ICsvExporter exporter)
         Console.WriteLine(Description);
         var allIssues = await RetrieveAllStoriesMappingToPmPlan();
         Console.WriteLine($"Found {allIssues.Count} unique stories");
-        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        exporter.SetFileNameMode(FileNameMode.Hint, Key);
         exporter.Export(allIssues);
     }
 
