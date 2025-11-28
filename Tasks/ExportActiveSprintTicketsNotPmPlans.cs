@@ -63,7 +63,7 @@ public class ExportActiveSprintTicketsNotPmPlans(IJiraQueryRunner runner, ICsvEx
 
         Console.WriteLine($"{nonEnvestWork.Count} tickets found in open sprints that are not Envest work.");
 
-        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        exporter.SetFileNameMode(FileNameMode.Hint, Key);
         exporter.Export(nonEnvestWork);
     }
 }

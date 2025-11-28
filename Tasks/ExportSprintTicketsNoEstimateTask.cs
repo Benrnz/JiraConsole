@@ -52,7 +52,7 @@ public class ExportSprintTicketsNoEstimateTask(IJiraQueryRunner runner, ICsvExpo
             }
         }
 
-        exporter.SetFileNameMode(FileNameMode.Auto, Key);
+        exporter.SetFileNameMode(FileNameMode.Hint, Key);
         exporter.Export(issues);
     }
 }
