@@ -189,23 +189,15 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
     private async Task TeamVelocityTable(string project)
     {
         Console.WriteLine("Creating table for team velocity...");
-        this.sheetData.Add(["*WIP* Team Velocity (Avg Last 5 sprints)", "P1s Defects Avg", "% of capacity", "P2s Defects Avg", "% of capacity", "Other Defects Avg", "% of capacity"]);
+        this.sheetData.Add([
+            "Team Velocity (Avg Last 5 sprints)", "P1s Defects Avg", "% of work done (based on SP)", "P2s Defects Avg", "% of work done (based on SP)", "Other Defects Avg", "% of work done"
+        ]);
         await sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 7);
 
-        var (teamData, totalStoryPointsAllTeams) = await new TeamVelocityCalculator(runner, exporter, greenHopperClient).TeamVelocityTableGetTeamData(project);
+        var teamData = await new TeamVelocityCalculator(runner, exporter, greenHopperClient).TeamVelocityTableGetTeamData(project);
 
-        this.sheetData.Add([
-            "Avg across all teams",
-            teamData.Sum(d => d.Item2),
-            Math.Round(teamData.Sum(d => d.Item2) / totalStoryPointsAllTeams, 2),
-            teamData.Sum(d => d.Item4),
-            Math.Round(teamData.Sum(d => d.Item4) / totalStoryPointsAllTeams, 2),
-            teamData.Sum(d => d.Item6),
-            Math.Round(teamData.Sum(d => d.Item6) / totalStoryPointsAllTeams, 2)
-        ]);
         this.sheetData.AddRange(teamData
-            .OrderByDescending(t => t.Item2)
-            .Select(t => (IList<object?>)new List<object?> { t.Item1, t.Item2, t.Item3, t.Item4, t.Item5, t.Item6, t.Item7 }));
+            .Select(t => (IList<object?>)new List<object?> { t.TeamName, t.AvgP1sClosed, t.P1StoryPointRatio, t.AvgP2sClosed, t.P2StoryPointRatio, t.AvgOtherBugsClosed, t.OtherBugStoryPointRatio }));
 
         // % format for P1 Capacity
         await sheetUpdater.PercentFormat(

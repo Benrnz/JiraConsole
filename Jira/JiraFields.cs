@@ -175,7 +175,7 @@ public static class JiraFields
             return (string)value;
         }
 
-        throw new NotSupportedException("Key is not found in the returned results - likely bug in app.");
+        throw new NotSupportedException("This is caused by requesting Key as a Field, you don't need to do this. Key is always included, remove it from the Field List.");
     }
 
     private static DateTimeOffset? ParseProjectTarget(dynamic d)
