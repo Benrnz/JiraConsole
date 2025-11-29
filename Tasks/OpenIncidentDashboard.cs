@@ -2,7 +2,7 @@
 
 namespace BensJiraConsole.Tasks;
 
-public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack, ICsvExporter exporter, IGreenHopperClient greenHopperClient) : IJiraExportTask
+public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack, IGreenHopperClient greenHopperClient) : IJiraExportTask
 {
     private const string TaskKey = "INCIDENTS";
     private const string JavPmGoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
@@ -194,7 +194,7 @@ public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sh
         ]);
         await sheetUpdater.BoldCellsFormat(GoogleSheetTabName, this.sheetData.Count - 1, this.sheetData.Count, 0, 7);
 
-        var teamData = await new TeamVelocityCalculator(runner, exporter, greenHopperClient).TeamVelocityTableGetTeamData(project);
+        var teamData = await new TeamVelocityCalculator(runner, greenHopperClient).TeamVelocityTableGetTeamData(project);
 
         this.sheetData.AddRange(teamData
             .Select(t => (IList<object?>)new List<object?> { t.TeamName, t.AvgP1sClosed, t.P1StoryPointRatio, t.AvgP2sClosed, t.P2StoryPointRatio, t.AvgOtherBugsClosed, t.OtherBugStoryPointRatio }));
