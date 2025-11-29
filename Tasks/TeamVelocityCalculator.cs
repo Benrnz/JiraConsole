@@ -14,7 +14,7 @@ public record TeamSprintMetrics(
     double OtherBugStoryPointRatio,
     double TotalStoryPointsClosed);
 
-public class TeamVelocityCalculator(IJiraQueryRunner runner, ICsvExporter exporter, IGreenHopperClient greenHopperClient)
+public class TeamVelocityCalculator(IJiraQueryRunner runner, IGreenHopperClient greenHopperClient)
 {
     public async Task<List<TeamSprintMetrics>> TeamVelocityTableGetTeamData(string project)
     {
@@ -27,8 +27,6 @@ public class TeamVelocityCalculator(IJiraQueryRunner runner, ICsvExporter export
                 .Where(t => t.State == Constants.SprintStateClosed)
                 .OrderByDescending(t => t.StartDate)
                 .Take(5);
-            exporter.SetFileNameMode(FileNameMode.ExactName, $"Velocity-Last5Sprints-{team.TeamName}");
-            exporter.Export(last5Sprints);
 
             var teamP1Count = 0.0;
             var teamP2Count = 0.0;
@@ -40,8 +38,6 @@ public class TeamVelocityCalculator(IJiraQueryRunner runner, ICsvExporter export
             foreach (var sprint in last5Sprints)
             {
                 var tickets = await GetSprintTickets(team.BoardId, sprint.Id);
-                exporter.SetFileNameMode(FileNameMode.ExactName, $"Velocity-TeamTickets-{team.TeamName}-{sprint.Id}");
-                exporter.Export(tickets);
 
                 // How many P1s did the team close in this sprint?
                 var p1s = tickets.Count(t => t is { IssueType: Constants.BugType, Severity: Constants.SeverityCritical });
