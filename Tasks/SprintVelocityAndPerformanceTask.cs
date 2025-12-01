@@ -18,7 +18,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         Console.WriteLine(Description);
         Console.WriteLine();
 
-        var sprintsOfInterest = await ParseOptionalArguments(args);
+        var sprintsOfInterest = await ParseArguments(args);
 
         var sprintMetrics = await ExtractAndCalculateSprintMetrics(sprintsOfInterest);
 
@@ -77,10 +77,21 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
         return value / 60 / 60 / 8; // values were in seconds, convert to days, 8 hours in a day.
     }
 
-    private async Task<List<AgileSprint>> ParseOptionalArguments(string[] args)
+    private async Task<List<AgileSprint>> ParseArguments(string[] args)
     {
+        var providedSprintNumbers = args.Skip(1).Select(int.Parse).ToList();
+        while (!providedSprintNumbers.Any())
+        {
+            Console.WriteLine("Enter space seperated sprint numbers you would like to analyse: (eg: 2065 2066)");
+            var input = Console.ReadLine();
+            if (!string.IsNullOrWhiteSpace(input))
+            {
+                providedSprintNumbers = input.Split(' ').Select(int.Parse).ToList();
+            }
+        }
+
         var sprintsOfInterest = new List<AgileSprint>();
-        foreach (var requestedSprint in args.Skip(1).Select(int.Parse))
+        foreach (var requestedSprint in providedSprintNumbers)
         {
             var sprint = await runner.GetSprintById(requestedSprint);
             if (sprint is null)

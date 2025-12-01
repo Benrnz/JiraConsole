@@ -162,7 +162,7 @@ public class JiraQueryDynamicRunner : IJiraQueryRunner
             jsonValue["startDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
             jsonValue["endDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
             CompleteDate: jsonValue["completeDate"]?.GetValue<DateTimeOffset?>() ?? DateTimeOffset.MaxValue,
-            BoardId: jsonValue["boardId"]?.GetValue<int?>() ?? 0,
+            BoardId: jsonValue["originBoardId"]?.GetValue<int?>() ?? 0,
             Goal: jsonValue["goal"]?.GetValue<string?>() ?? string.Empty);
     }
 
