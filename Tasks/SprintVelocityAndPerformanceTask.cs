@@ -44,14 +44,8 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
             }
             else
             {
-                var sprint = await runner.GetCurrentSprintForBoard(team.BoardId);
-                if (sprint is null)
-                {
-                    Console.WriteLine("No active sprint for team {team.Team} found.");
-                    continue;
-                }
-
-                teamSprint = new TeamSprint(team, sprint.Id);
+               Console.WriteLine("ERROR - no sprints specified.");
+               return sprintMetrics;
             }
 
             sprintMetrics.Add(await ProcessSprint(teamSprint));
@@ -80,9 +74,25 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
     private async Task<List<AgileSprint>> ParseArguments(string[] args)
     {
         var providedSprintNumbers = args.Skip(1).Select(int.Parse).ToList();
+        var suggestedSprints = string.Empty;
         while (!providedSprintNumbers.Any())
         {
+            if (string.IsNullOrEmpty(suggestedSprints))
+            {
+                foreach (var team in JiraConfig.Teams)
+                {
+                    var sprint = await runner.GetCurrentSprintForBoard(team.BoardId);
+                    if (sprint is null)
+                    {
+                        continue;
+                    }
+
+                    suggestedSprints += $"{team.TeamName}:{sprint.Id} ";
+                }
+            }
+
             Console.WriteLine("Enter space seperated sprint numbers you would like to analyse: (eg: 2065 2066)");
+            Console.WriteLine($"Current sprints for teams are: {suggestedSprints}");
             var input = Console.ReadLine();
             if (!string.IsNullOrWhiteSpace(input))
             {
