@@ -70,7 +70,7 @@ jobs:
         dotnet-version: 9.0.x
 
     - name: Restore dependencies
-      run: dotnet restore BensEngineeringMetrics.sln
+      run: dotnet restore $env:Solution_Name
 
     - name: Generate dummy Secrets.cs
       run: |
@@ -84,7 +84,7 @@ jobs:
         echo '}' >> src/Secrets.cs
 
     - name: Build project
-      run: dotnet build --configuration Debug
+      run: dotnet build $env:Solution_Name --configuration Debug
 
     - name: Run tests (if any)
       run: dotnet test --no-build --verbosity normal
