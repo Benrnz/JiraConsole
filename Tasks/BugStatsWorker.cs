@@ -1,7 +1,7 @@
 ﻿using System.Text;
-using BensJiraConsole.Jira;
+using BensEngineeringMetrics.Jira;
 
-namespace BensJiraConsole.Tasks;
+namespace BensEngineeringMetrics.Tasks;
 
 public class BugStatsWorker(IJiraQueryRunner runner, ICsvExporter exporter, IWorkSheetUpdater sheetUpdater)
 {

@@ -1,4 +1,4 @@
-﻿namespace BensJiraConsole.Jira;
+﻿namespace BensEngineeringMetrics.Jira;
 
 public record TeamConfig(string TeamName, string TeamId, int BoardId, double MaxCapacity, string JiraProject);
 

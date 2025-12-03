@@ -1,6 +1,6 @@
-﻿using BensJiraConsole.Jira;
+﻿using BensEngineeringMetrics.Jira;
 
-namespace BensJiraConsole.Tasks;
+namespace BensEngineeringMetrics.Tasks;
 
 // ReSharper disable once UnusedType.Global
 public class ExportActiveSprintTicketsNotPmPlans(IJiraQueryRunner runner, ICsvExporter exporter) : IJiraExportTask

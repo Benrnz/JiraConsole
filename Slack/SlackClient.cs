@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace BensJiraConsole;
+namespace BensEngineeringMetrics.Slack;
 
 public class SlackClient : ISlackClient
 {
@@ -143,7 +143,7 @@ public class SlackClient : ISlackClient
                     messageJson.GetProperty("text").GetString()!,
                     messageTimestamp,
                     messageJson.TryGetProperty("type", out var typeProperty) ? typeProperty.GetString()! : string.Empty,
-                messageJson.TryGetProperty("subtype", out var subtypeProperty) ? subtypeProperty.GetString()! : string.Empty));
+                    messageJson.TryGetProperty("subtype", out var subtypeProperty) ? subtypeProperty.GetString()! : string.Empty));
             }
         }
 

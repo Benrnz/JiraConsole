@@ -3,7 +3,7 @@ using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Util.Store;
 
-namespace BensJiraConsole;
+namespace BensEngineeringMetrics;
 
 public class GoogleSheetReader : IWorkSheetReader
 {

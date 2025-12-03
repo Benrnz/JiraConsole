@@ -1,4 +1,4 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿namespace BensEngineeringMetrics.Tasks;
 
 // ReSharper disable once UnusedType.Global
 public class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, ExportPmPlanStories pmPlanStoriesTask) : IJiraExportTask

@@ -2,7 +2,7 @@
 using System.Reflection;
 using System.Text;
 
-namespace BensJiraConsole;
+namespace BensEngineeringMetrics;
 
 public class SimpleCsvExporter : ICsvExporter
 {

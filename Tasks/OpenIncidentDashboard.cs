@@ -1,6 +1,7 @@
-﻿using BensJiraConsole.Jira;
+﻿using BensEngineeringMetrics.Jira;
+using BensEngineeringMetrics.Slack;
 
-namespace BensJiraConsole.Tasks;
+namespace BensEngineeringMetrics.Tasks;
 
 public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack, IGreenHopperClient greenHopperClient) : IJiraExportTask
 {

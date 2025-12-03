@@ -1,4 +1,4 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿namespace BensEngineeringMetrics.Tasks;
 
 public class BurnUpChartData
 {
@@ -6,9 +6,9 @@ public class BurnUpChartData
 
     public double? TotalDaysEffort { get; set; }
 
-    public double? WorkCompleted { get; set; }
-
     public double? TotalDaysEffortTrend { get; set; }
+
+    public double? WorkCompleted { get; set; }
 
     public double? WorkCompletedTrend { get; set; }
 }

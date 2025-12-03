@@ -1,4 +1,4 @@
-﻿namespace BensJiraConsole.Jira;
+﻿namespace BensEngineeringMetrics.Jira;
 
 public record AgileSprint(
     int Id,

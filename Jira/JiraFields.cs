@@ -1,6 +1,6 @@
 ﻿using System.Dynamic;
 
-namespace BensJiraConsole.Jira;
+namespace BensEngineeringMetrics.Jira;
 
 public static class JiraFields
 {

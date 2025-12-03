@@ -1,4 +1,4 @@
-﻿namespace BensJiraConsole;
+﻿namespace BensEngineeringMetrics;
 
 public interface IWorkSheetUpdater
 {
@@ -15,8 +15,6 @@ public interface IWorkSheetUpdater
     /// <param name="startColumn">Zero-based index of the column to start at.</param>
     /// <param name="endColumn">Zero-based index, excluding this identified column.</param>
     Task BoldCellsFormat(string sheetName, int startRow, int endRow, int startColumn, int endColumn);
-
-    Task PercentFormat(string sheetName, int startRow, int endRow, int startColumn, int endColumn, string pattern = "0.0%");
 
     /// <summary>
     ///     Clear the sheet / range values.
@@ -51,6 +49,8 @@ public interface IWorkSheetUpdater
     Task ImportFile(string sheetAndRange, string csvFileName, bool userMode = false);
 
     Task Open(string sheetId);
+
+    Task PercentFormat(string sheetName, int startRow, int endRow, int startColumn, int endColumn, string pattern = "0.0%");
 
     /// <summary>
     ///     Submit all queued changes to Google Sheets in as few requests as possible.

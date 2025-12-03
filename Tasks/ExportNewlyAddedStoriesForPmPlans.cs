@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace BensJiraConsole.Tasks;
+namespace BensEngineeringMetrics.Tasks;
 
 // ReSharper disable once UnusedType.Global
 public class ExportNewlyAddedStoriesForPmPlans(ICloudUploader uploader, ICsvExporter exporter, ExportPmPlanStories pmPlanStoriesTask) : IJiraExportTask

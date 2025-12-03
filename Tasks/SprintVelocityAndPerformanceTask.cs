@@ -1,7 +1,7 @@
 ﻿using System.Text.Json.Nodes;
-using BensJiraConsole.Jira;
+using BensEngineeringMetrics.Jira;
 
-namespace BensJiraConsole.Tasks;
+namespace BensEngineeringMetrics.Tasks;
 
 public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClient, IJiraQueryRunner runner, IWorkSheetReader reader, IWorkSheetUpdater updater) : IJiraExportTask
 {
@@ -44,8 +44,8 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
             }
             else
             {
-               Console.WriteLine("ERROR - no sprints specified.");
-               return sprintMetrics;
+                Console.WriteLine("ERROR - no sprints specified.");
+                return sprintMetrics;
             }
 
             sprintMetrics.Add(await ProcessSprint(teamSprint));

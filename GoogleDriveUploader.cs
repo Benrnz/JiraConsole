@@ -3,7 +3,7 @@ using Google.Apis.Drive.v3;
 using Google.Apis.Services;
 using File = Google.Apis.Drive.v3.Data.File;
 
-namespace BensJiraConsole;
+namespace BensEngineeringMetrics;
 
 public class GoogleDriveUploader : ICloudUploader
 {

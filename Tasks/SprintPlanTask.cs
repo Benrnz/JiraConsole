@@ -1,6 +1,6 @@
-﻿using BensJiraConsole.Jira;
+﻿using BensEngineeringMetrics.Jira;
 
-namespace BensJiraConsole.Tasks;
+namespace BensEngineeringMetrics.Tasks;
 
 public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
 {

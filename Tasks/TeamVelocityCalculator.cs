@@ -1,8 +1,8 @@
-﻿using BensJiraConsole.Jira;
+﻿using BensEngineeringMetrics.Jira;
 
 // ReSharper disable InconsistentNaming
 
-namespace BensJiraConsole.Tasks;
+namespace BensEngineeringMetrics.Tasks;
 
 public record TeamSprintMetrics(
     string TeamName,

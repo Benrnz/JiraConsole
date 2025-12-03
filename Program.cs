@@ -1,10 +1,11 @@
 ﻿using System.Reflection;
-using BensJiraConsole;
-using BensJiraConsole.Jira;
-using BensJiraConsole.Tasks;
+using BensEngineeringMetrics.Jira;
+using BensEngineeringMetrics.Slack;
+using BensEngineeringMetrics.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
+namespace BensEngineeringMetrics;
 public static class Program
 {
     public static async Task Main(string[] args)

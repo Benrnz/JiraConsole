@@ -2,7 +2,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 
-namespace BensJiraConsole;
+namespace BensEngineeringMetrics;
 
 public class App(IEnumerable<IJiraExportTask> tasks)
 {

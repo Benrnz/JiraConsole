@@ -1,4 +1,4 @@
-﻿namespace BensJiraConsole.Tasks;
+﻿namespace BensEngineeringMetrics.Tasks;
 
 public class InitiativeAggregateTableAndBurnup(InitiativeProgressTableTask tableTask, InitiativeBurnUpsTask burnUpTask) : IJiraExportTask
 {

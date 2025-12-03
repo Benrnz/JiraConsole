@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Nodes;
 
-namespace BensJiraConsole;
+namespace BensEngineeringMetrics;
 
 public record SprintTicket(string Key, string Status, string IssueType);
 

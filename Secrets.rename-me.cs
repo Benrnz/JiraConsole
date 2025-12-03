@@ -1,4 +1,4 @@
-﻿//namespace BensJiraConsole;
+﻿//namespace BensEngineeringMetrics;
 // Use this template to create your own Secrets.cs file containing your username and token.
 // DO NOT CHECK THIS FILE INTO SOURCE CONTROL.
 // public static class Secrets

@@ -1,4 +1,4 @@
-﻿namespace BensJiraConsole;
+﻿namespace BensEngineeringMetrics;
 
 public class FieldMapping<T> : IFieldMapping
 {

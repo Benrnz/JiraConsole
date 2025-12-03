@@ -1,21 +1,21 @@
-namespace BensJiraConsole;
+namespace BensEngineeringMetrics;
 
 public static class DateUtils
 {
     /// <summary>
-    /// Calculates a start date based on a target start date and DateTime.Today. The target date may be shifted back to ensure today's date is included as the last date in a weekly data set.
-    /// This is so the resulting date starts a week prior to today's date, and resulting data with rows for weeks includesf  today's date.
+    ///     Calculates a start date based on a target start date and DateTime.Today. The target date may be shifted back to ensure today's date is included as the last date in a weekly data set.
+    ///     This is so the resulting date starts a week prior to today's date, and resulting data with rows for weeks includesf  today's date.
     /// </summary>
     /// <example>
-    /// Examples:
-    ///    If today is Wednesday (3):
-    ///       * Desired day becomes Tuesday (2)
-    ///       * If target date is Friday (5), it will move back 3 days to Tuesday
-    ///       * If target date is Monday (1), it will move back 6 days to previous Tuesday
-    ///    If today is Monday (1):
-    ///       * Desired day becomes Sunday (0)
-    ///       * If target date is Thursday (4), it will move back 4 days to Sunday
-    ///       * If target date is Saturday (6), it will move back 6 days to Sunday
+    ///     Examples:
+    ///     If today is Wednesday (3):
+    ///     * Desired day becomes Tuesday (2)
+    ///     * If target date is Friday (5), it will move back 3 days to Tuesday
+    ///     * If target date is Monday (1), it will move back 6 days to previous Tuesday
+    ///     If today is Monday (1):
+    ///     * Desired day becomes Sunday (0)
+    ///     * If target date is Thursday (4), it will move back 4 days to Sunday
+    ///     * If target date is Saturday (6), it will move back 6 days to Sunday
     /// </example>
     public static DateTimeOffset FindBestStartDateForWeeklyData(DateTimeOffset targetDate)
     {

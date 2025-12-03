@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 
-namespace BensJiraConsole.Jira;
+namespace BensEngineeringMetrics.Jira;
 
 public class JiraApiClient
 {
