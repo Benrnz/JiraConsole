@@ -27,30 +27,19 @@ public static class Program
             foreach (var taskType in TaskTypes())
             {
                 services.AddSingleton(taskType);
-                services.AddSingleton<IJiraExportTask>(sp => (IJiraExportTask)sp.GetRequiredService(taskType));
+                services.AddSingleton<IEngineeringMetricsTask>(sp => (IEngineeringMetricsTask)sp.GetRequiredService(taskType));
             }
         });
 
         var host = builder.Build();
         var app = host.Services.GetRequiredService<App>();
 
-        if (!args.Any())
-        {
-            // If no arguments passed then its running in user-interactive mode.
-            Console.WriteLine("Jira Console Exporter tool.  Select a task to execute, or 'exit' to quit.");
-        }
-
         await app.Run(args);
-
-        if (!args.Any())
-        {
-            Console.WriteLine("Exiting.");
-        }
     }
 
     private static IEnumerable<Type> TaskTypes()
     {
         var assembly = Assembly.GetExecutingAssembly();
-        return assembly.GetTypes().Where(type => typeof(IJiraExportTask).IsAssignableFrom(type) && type is { IsInterface: false, IsAbstract: false });
+        return assembly.GetTypes().Where(type => typeof(IEngineeringMetricsTask).IsAssignableFrom(type) && type is { IsInterface: false, IsAbstract: false });
     }
 }

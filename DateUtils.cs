@@ -25,4 +25,15 @@ public static class DateUtils
         var daysToSubtract = (targetDayOfWeek - desiredDayOfWeek + 7) % 7;
         return targetDate.AddDays(-daysToSubtract);
     }
+
+    public static DateTimeOffset StartOfMonth(DateTimeOffset dateTime)
+    {
+        return new DateTimeOffset(dateTime.Year, dateTime.Month, 1, 0, 0, 0, dateTime.Offset);
+    }
+
+    public static DateTimeOffset EndOfMonth(DateTimeOffset dateTime)
+    {
+        var startOfNextMonth = StartOfMonth(dateTime).AddMonths(1);
+        return startOfNextMonth.AddTicks(-1);
+    }
 }

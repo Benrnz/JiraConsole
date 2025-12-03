@@ -3,7 +3,7 @@ using System.Globalization;
 namespace BensEngineeringMetrics.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportNewlyAddedStoriesForPmPlans(ICloudUploader uploader, ICsvExporter exporter, ExportPmPlanStories pmPlanStoriesTask) : IJiraExportTask
+public class ExportNewlyAddedStoriesForPmPlans(ICloudUploader uploader, ICsvExporter exporter, ExportPmPlanStories pmPlanStoriesTask) : IEngineeringMetricsTask
 {
     private const string KeyString = "PMPLAN_NEW";
 
@@ -12,7 +12,7 @@ public class ExportNewlyAddedStoriesForPmPlans(ICloudUploader uploader, ICsvExpo
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine(Description);
+        Console.WriteLine($"{Key} - {Description}");
 
         var startDate = GetDateFromUser("start date (inclusive)");
         var endDate = GetDateFromUser("end date (exclusive)");

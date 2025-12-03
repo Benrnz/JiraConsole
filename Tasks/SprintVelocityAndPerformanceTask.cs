@@ -3,7 +3,7 @@ using BensEngineeringMetrics.Jira;
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClient, IJiraQueryRunner runner, IWorkSheetReader reader, IWorkSheetUpdater updater) : IJiraExportTask
+public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClient, IJiraQueryRunner runner, IWorkSheetReader reader, IWorkSheetUpdater updater) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1HuI-uYOtR66rs8B0qp8e3L39x13reFTaiOB3VN42vAQ";
     private const string TaskKey = "SPRINT_PERF";
@@ -15,7 +15,7 @@ public class SprintVelocityAndPerformanceTask(IGreenHopperClient greenHopperClie
     public async Task ExecuteAsync(string[] args)
     {
         // This task can accept a list of space seperated sprint IDs from the commandline to extract metrics for those sprints. Omit for current sprint.
-        Console.WriteLine(Description);
+        Console.WriteLine($"{Key} - {Description}");
         Console.WriteLine();
 
         var sprintsOfInterest = await ParseArguments(args);

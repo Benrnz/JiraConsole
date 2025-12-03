@@ -1,6 +1,6 @@
 ﻿namespace BensEngineeringMetrics.Tasks;
 
-public class ExportBugStatsTask(BugStatsWorker worker) : IJiraExportTask
+public class ExportBugStatsTask(BugStatsWorker worker) : IEngineeringMetricsTask
 {
     // JAVPM Bug Analysis
     private const string JavPmGoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";
@@ -12,7 +12,7 @@ public class ExportBugStatsTask(BugStatsWorker worker) : IJiraExportTask
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine(Description);
+        Console.WriteLine($"{Key} - {Description}");
         Console.WriteLine($"--------------------- {Constants.JavPmJiraProjectKey} ---------------------");
         await worker.UpdateSheet(Constants.JavPmJiraProjectKey, JavPmGoogleSheetId);
         Console.WriteLine($"--------------------- {Constants.OtPmJiraProjectKey} ---------------------");

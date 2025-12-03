@@ -1,6 +1,6 @@
 ﻿namespace BensEngineeringMetrics.Tasks;
 
-public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, InitiativeProgressTableTask tableTask) : IJiraExportTask
+public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater sheetUpdater, InitiativeProgressTableTask tableTask) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1OVUx08nBaD8uH-klNAzAtxFSKTOvAAk5Vnm11ALN0Zo";
     private const string TaskKey = "INIT_BURNUPS";
@@ -17,7 +17,7 @@ public class InitiativeBurnUpsTask(ICsvExporter exporter, IWorkSheetUpdater shee
 
     public async Task ExecuteAsync(InitiativeProgressTableTask mainTask, string[] args)
     {
-        Console.WriteLine(Description);
+        Console.WriteLine($"{Key} - {Description}");
 
         await sheetUpdater.Open(GoogleSheetId);
         var initiativeKeys = mainTask.AllIssuesData.Keys;

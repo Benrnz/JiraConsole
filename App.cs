@@ -4,18 +4,29 @@ using System.Text;
 
 namespace BensEngineeringMetrics;
 
-public class App(IEnumerable<IJiraExportTask> tasks)
+public class App(IEnumerable<IEngineeringMetricsTask> tasks)
 {
     public static readonly HttpClient HttpJira = CreateJiraHttpClient();
     public static readonly HttpClient HttpSlack = CreateSlackHttpClient();
 
-    private readonly IJiraExportTask[] allTasks = tasks.ToArray();
+    private readonly IEngineeringMetricsTask[] allTasks = tasks.ToArray();
     private string[] commandLineArgs = [];
 
     public async Task Run(string[] args)
     {
+        if (!args.Any())
+        {
+            // If no arguments passed then its running in user-interactive mode.
+            Console.WriteLine("Engineering Metrics Console Exporter tool.  Select a task to execute, or 'exit' to quit.");
+        }
+
         this.commandLineArgs = args;
         await ExecuteMode(args.Length > 0 ? args[0] : "NOT_SET");
+
+        if (!args.Any())
+        {
+            Console.WriteLine("Exiting.");
+        }
     }
 
     private static HttpClient CreateJiraHttpClient()
@@ -38,7 +49,7 @@ public class App(IEnumerable<IJiraExportTask> tasks)
 
     private async Task ExecuteMode(string? mode)
     {
-        IJiraExportTask? selectedTask = null;
+        IEngineeringMetricsTask? selectedTask = null;
         StringBuilder help = new();
         for (var index = 0; index < tasks.Count(); index++)
         {

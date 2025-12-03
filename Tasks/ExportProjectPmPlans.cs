@@ -3,7 +3,7 @@
 namespace BensEngineeringMetrics.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportProjectPmPlans(IJiraQueryRunner runner, ICsvExporter exporter) : IJiraExportTask
+public class ExportProjectPmPlans(IJiraQueryRunner runner, ICsvExporter exporter) : IEngineeringMetricsTask
 {
     private const string KeyString = "PMPLANS";
 
@@ -22,7 +22,7 @@ public class ExportProjectPmPlans(IJiraQueryRunner runner, ICsvExporter exporter
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine(Description);
+        Console.WriteLine($"{Key} - {Description}");
         var jqlPmPlans = "IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest ORDER BY Key";
         Console.WriteLine(jqlPmPlans);
         var pmPlans = await runner.SearchJiraIssuesWithJqlAsync(jqlPmPlans, Fields);

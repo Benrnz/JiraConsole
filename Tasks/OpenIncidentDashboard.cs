@@ -3,7 +3,7 @@ using BensEngineeringMetrics.Slack;
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack, IGreenHopperClient greenHopperClient) : IJiraExportTask
+public class OpenIncidentDashboard(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater, ISlackClient slack, IGreenHopperClient greenHopperClient) : IEngineeringMetricsTask
 {
     private const string TaskKey = "INCIDENTS";
     private const string JavPmGoogleSheetId = "16bZeQEPobWcpsD8w7cI2ftdSoT1xWJS8eu41JTJP-oI";

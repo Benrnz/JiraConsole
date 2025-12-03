@@ -2,7 +2,7 @@
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
+public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetReader sheetReader, IWorkSheetUpdater sheetUpdater) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1OVUx08nBaD8uH-klNAzAtxFSKTOvAAk5Vnm11ALN0Zo";
     private const string TaskKey = "INIT_TABLE";
@@ -41,7 +41,7 @@ public class InitiativeProgressTableTask(IJiraQueryRunner runner, IWorkSheetRead
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine(Description);
+        Console.WriteLine($"{Key} - {Description}");
 
         await LoadData();
         await sheetUpdater.Open(GoogleSheetId);

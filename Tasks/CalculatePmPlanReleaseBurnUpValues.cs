@@ -1,7 +1,7 @@
 ﻿namespace BensEngineeringMetrics.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, ExportPmPlanStories pmPlanStoriesTask) : IJiraExportTask
+public class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, ExportPmPlanStories pmPlanStoriesTask) : IEngineeringMetricsTask
 {
     private const string KeyString = "PMPLAN_RBURNUP";
 
@@ -10,7 +10,7 @@ public class CalculatePmPlanReleaseBurnUpValues(ICsvExporter exporter, ExportPmP
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine(Description);
+        Console.WriteLine($"{Key} - {Description}");
 
         var javPms = (await pmPlanStoriesTask.RetrieveAllStoriesMappingToPmPlan()).ToList();
         exporter.SetFileNameMode(FileNameMode.Hint, Key);

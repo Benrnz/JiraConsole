@@ -2,7 +2,7 @@
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater) : IJiraExportTask
+public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpdater) : IEngineeringMetricsTask
 {
     private const string GoogleSheetId = "1iS6iB3EA38SHJgDu8rpMFcouGlu1Az8cntKA52U07xU";
     private const string TaskKey = "SPRINT_PLAN";
@@ -48,7 +48,7 @@ public class SprintPlanTask(IJiraQueryRunner runner, IWorkSheetUpdater sheetUpda
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine(Description);
+        Console.WriteLine($"{Key} - {Description}");
 
         await RetrieveAllData();
         PopulatePmPlansOnSprintTickets();

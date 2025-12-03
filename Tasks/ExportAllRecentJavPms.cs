@@ -2,7 +2,7 @@
 
 namespace BensEngineeringMetrics.Tasks;
 
-public class ExportAllRecentJavPms(IJiraQueryRunner runner, ICsvExporter exporter) : IJiraExportTask
+public class ExportAllRecentJavPms(IJiraQueryRunner runner, ICsvExporter exporter) : IEngineeringMetricsTask
 {
     private const string KeyString = "ALLTICKETS";
 
@@ -35,7 +35,7 @@ public class ExportAllRecentJavPms(IJiraQueryRunner runner, ICsvExporter exporte
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine(Description);
+        Console.WriteLine($"{Key} - {Description}");
         var jql = args.Length > 1
             ? $"filter = {args[1]}"
             : "project=JAVPM AND created > -540d ORDER BY created"; //540 days = 18 months

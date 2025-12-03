@@ -3,7 +3,7 @@
 namespace BensEngineeringMetrics.Tasks;
 
 // ReSharper disable once UnusedType.Global
-public class ExportPmPlanBurnUpData(IJiraQueryRunner runner, ICsvExporter exporter) : IJiraExportTask
+public class ExportPmPlanBurnUpData(IJiraQueryRunner runner, ICsvExporter exporter) : IEngineeringMetricsTask
 {
     private const int LinearTrendWeeks = 4;
     private const string KeyString = "PMPLAN_BURNUPS";
@@ -34,7 +34,7 @@ public class ExportPmPlanBurnUpData(IJiraQueryRunner runner, ICsvExporter export
 
     public async Task ExecuteAsync(string[] args)
     {
-        Console.WriteLine(Description);
+        Console.WriteLine($"{Key} - {Description}");
         var jqlPmPlans =
             $"IssueType = Idea AND \"PM Customer[Checkboxes]\"= Envest AND \"Required for Go-live[Checkbox]\" = 1 AND \"Estimation Status[Dropdown]\" = \"{Constants.HasDevTeamEstimate}\" ORDER BY Key";
         Console.WriteLine(jqlPmPlans);

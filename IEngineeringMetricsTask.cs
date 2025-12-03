@@ -1,6 +1,6 @@
 ﻿namespace BensEngineeringMetrics;
 
-public interface IJiraExportTask
+public interface IEngineeringMetricsTask
 {
     string Description { get; }
     string Key { get; }

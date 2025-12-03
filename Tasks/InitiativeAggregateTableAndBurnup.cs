@@ -1,6 +1,6 @@
 ﻿namespace BensEngineeringMetrics.Tasks;
 
-public class InitiativeAggregateTableAndBurnup(InitiativeProgressTableTask tableTask, InitiativeBurnUpsTask burnUpTask) : IJiraExportTask
+public class InitiativeAggregateTableAndBurnup(InitiativeProgressTableTask tableTask, InitiativeBurnUpsTask burnUpTask) : IEngineeringMetricsTask
 {
     public string Description => "Run both INIT_TABLE and INIT_BURNUP";
     public string Key => "INIT_ALL";
