@@ -41,6 +41,7 @@ public static class JiraFields
     public static readonly FieldMapping<string> Summary = new() { Field = "summary", Alias = "Summary" };
     public static readonly FieldMapping<string> Team = new() { Field = "customfield_11400", Alias = "Team", FlattenField = "name" };
     public static readonly FieldMapping<DateTimeOffset> UpdatedDate = new() { Field = "updated", Alias = "UpdatedDate" };
+    public static readonly FieldMapping<string> WorkDoneBy = new() { Field = "customfield_11702", Alias = "WorkDoneBy", FlattenField = "displayName" };
 
     private static bool DynamicHasField(dynamic d, string fieldName)
     {
